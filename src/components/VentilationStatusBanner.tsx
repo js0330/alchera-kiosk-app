@@ -19,7 +19,7 @@ export default function VentilationStatusBanner() {
           <PowerOff size={32} className="flex-shrink-0 text-text-light" />
         )}
         <div>
-          <p className={`text-headline ${isRunning ? 'text-primary-blue' : 'text-text-light'}`}>
+          <p className={`text-card-title ${isRunning ? 'text-primary-blue' : 'text-text-light'}`}>
             {isRunning ? '가동 중' : '정지'}
           </p>
           <p className="text-base text-text-gray">
