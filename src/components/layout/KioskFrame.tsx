@@ -26,8 +26,8 @@ export default function KioskFrame({ children, onInteraction }: KioskFrameProps)
       >
         <div className="flex flex-shrink-0 items-center justify-between bg-primary-navy px-7 py-5 text-white">
           <div>
-            <p className="text-label font-extrabold tracking-wide">ALCHERA</p>
-            <p className="text-caption text-white/60">{buildingName}</p>
+            <img src="/alchera-logo.png" alt="ALCHERA" className="w-[140px]" />
+            <p className="mt-1 text-caption text-white/60">{buildingName}</p>
           </div>
           <div className="text-right">
             <p className="text-label font-bold">{timeLabel}</p>
