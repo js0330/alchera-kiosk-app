@@ -15,6 +15,7 @@ export const facilities: Facility[] = [
     pm25: 24,
     temp: 25,
     humidity: 51,
+    ventilationOn: true,
     lastUpdated: '14:22',
   },
   {
@@ -27,6 +28,7 @@ export const facilities: Facility[] = [
     pm25: 22,
     temp: 25,
     humidity: 52,
+    ventilationOn: true,
     lastUpdated: '14:18',
   },
   {
@@ -39,6 +41,7 @@ export const facilities: Facility[] = [
     pm25: 52,
     temp: 28,
     humidity: 58,
+    ventilationOn: true,
     lastUpdated: '14:23',
   },
   {
@@ -51,6 +54,7 @@ export const facilities: Facility[] = [
     pm25: 16,
     temp: 24,
     humidity: 47,
+    ventilationOn: false,
     lastUpdated: '14:19',
   },
   {
@@ -63,6 +67,7 @@ export const facilities: Facility[] = [
     pm25: 14,
     temp: 23,
     humidity: 45,
+    ventilationOn: true,
     lastUpdated: '14:20',
   },
 ]

@@ -12,5 +12,6 @@ export interface Facility {
   pm25: number
   temp: number
   humidity: number
+  ventilationOn: boolean
   lastUpdated: string
 }

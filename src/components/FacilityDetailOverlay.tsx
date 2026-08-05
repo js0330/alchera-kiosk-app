@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { Fan, PowerOff, X } from 'lucide-react'
 import type { Facility } from '../types'
 import FacilityIcon from './FacilityIcon'
 import StatusBadge from './common/StatusBadge'
@@ -41,6 +41,23 @@ export default function FacilityDetailOverlay({ facility, onClose }: FacilityDet
             <StatusBadge status={facility.status} size="lg" />
 
             <p className="text-label leading-relaxed text-text-gray">{facility.plainMessage}</p>
+
+            <div
+              className={`flex items-center gap-2.5 rounded-2xl border p-5 ${
+                facility.ventilationOn ? 'border-primary-blue/30 bg-primary-blue/5' : 'border-border-gray bg-bg-panel'
+              }`}
+            >
+              {facility.ventilationOn ? (
+                <Fan size={22} className="text-primary-blue" />
+              ) : (
+                <PowerOff size={22} className="text-text-light" />
+              )}
+              <span
+                className={`text-label font-bold ${facility.ventilationOn ? 'text-primary-blue' : 'text-text-light'}`}
+              >
+                환기 {facility.ventilationOn ? '가동 중' : '정지'}
+              </span>
+            </div>
 
             <div className="rounded-2xl border border-border-gray bg-bg-panel p-6">
               <p className="text-label font-bold text-primary-navy">자세히 보기</p>

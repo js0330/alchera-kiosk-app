@@ -1,4 +1,4 @@
-import { Hand } from 'lucide-react'
+import { Fan, Hand } from 'lucide-react'
 import BuildingStatusHero from './BuildingStatusHero'
 import FacilityIcon from './FacilityIcon'
 import StatusBadge from './common/StatusBadge'
@@ -29,6 +29,7 @@ export default function IdleScreen({ onEnter }: IdleScreenProps) {
           >
             <FacilityIcon icon={facility.icon} className="flex-shrink-0 text-primary-blue" size={30} />
             <p className="flex-1 text-label text-primary-navy">{facility.name}</p>
+            {facility.ventilationOn && <Fan size={20} className="flex-shrink-0 text-primary-blue" />}
             <StatusBadge status={facility.status} />
           </div>
         ))}

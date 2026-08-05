@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Fan } from 'lucide-react'
 import FacilityIcon from './FacilityIcon'
 import FacilityDetailOverlay from './FacilityDetailOverlay'
 import StatusBadge from './common/StatusBadge'
@@ -37,7 +37,10 @@ export default function FacilitiesScreen({ onBack }: FacilitiesScreenProps) {
                 <FacilityIcon icon={facility.icon} className="text-primary-blue" size={30} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-label text-primary-navy">{facility.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-label text-primary-navy">{facility.name}</p>
+                  {facility.ventilationOn && <Fan size={18} className="flex-shrink-0 text-primary-blue" />}
+                </div>
                 <p className="mt-0.5 text-base text-text-gray">{facility.plainMessage}</p>
               </div>
               <StatusBadge status={facility.status} />
