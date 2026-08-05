@@ -21,7 +21,7 @@ export default function StatusLegendBlocks({ activeStatus }: StatusLegendBlocksP
           <div
             key={block.status}
             className={`flex items-center gap-4 rounded-2xl px-6 py-4 text-white transition-opacity ${block.bg} ${
-              isActive ? 'opacity-100 ring-4 ring-primary-navy/40' : 'opacity-45'
+              isActive ? 'opacity-100' : 'opacity-45'
             }`}
           >
             <Icon size={36} strokeWidth={1.75} />
