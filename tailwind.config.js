@@ -41,6 +41,9 @@ export default {
       boxShadow: {
         card: '0 2px 6px 0 rgba(0, 0, 56, 0.06)',
       },
+      animation: {
+        'spin-slow': 'spin 6s linear infinite',
+      },
     },
   },
   plugins: [],
