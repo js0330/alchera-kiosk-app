@@ -2,12 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import KioskFrame from './components/layout/KioskFrame'
 import IdleScreen from './components/IdleScreen'
 import FacilitiesScreen from './components/FacilitiesScreen'
+import PresageAirVideoScreen from './components/video/PresageAirVideoScreen'
 
 const IDLE_TIMEOUT_MS = 15000
 
 type View = 'idle' | 'facilities'
 
 function App() {
+  const isVideoScreen = window.location.pathname.startsWith('/video')
+
   const [view, setView] = useState<View>('idle')
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -22,6 +25,10 @@ function App() {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
   }, [resetIdleTimer, view])
+
+  if (isVideoScreen) {
+    return <PresageAirVideoScreen />
+  }
 
   return (
     <KioskFrame onInteraction={resetIdleTimer}>
