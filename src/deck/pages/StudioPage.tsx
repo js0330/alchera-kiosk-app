@@ -59,6 +59,7 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
   const [exporting, setExporting] = useState(false)
   const [checkOpen, setCheckOpen] = useState(false)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
+  const [notice, setNotice] = useState<{ text: string; undo?: () => void } | null>(null)
   const imageField = useRef<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -101,6 +102,12 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
   }, [])
 
   useEffect(() => {
+    if (!notice) return
+    const t = setTimeout(() => setNotice(null), 6000)
+    return () => clearTimeout(t)
+  }, [notice])
+
+  useEffect(() => {
     document.getElementById(`thumb-${slide.id}`)?.scrollIntoView({ block: 'nearest' })
   }, [slide.id])
 
@@ -123,9 +130,16 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
 
   const remove = (i: number) => {
     if (deck.slides.length === 1) return
-    if (!window.confirm(`${i + 1}번 슬라이드를 삭제할까요?`)) return
+    const before = deckRef.current.slides
     setSlides((slides) => slides.filter((_, j) => j !== i))
     setCurrent(Math.max(0, i - 1))
+    setNotice({
+      text: `${i + 1}번 슬라이드를 삭제했어요`,
+      undo: () => {
+        onChange({ ...deckRef.current, slides: before })
+        setCurrent(i)
+      },
+    })
   }
 
   const move = (from: number, to: number) => {
@@ -152,7 +166,7 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
       await exportDeckToPptx(deck)
     } catch (e) {
       console.error(e)
-      window.alert('PPTX 파일을 만드는 중 문제가 생겼어요. 다시 시도해 주세요.')
+      setNotice({ text: 'PPTX 파일을 만들지 못했어요. 이미지가 너무 크면 줄인 뒤 다시 시도해 주세요.' })
     } finally {
       setExporting(false)
     }
@@ -414,6 +428,24 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {notice && (
+        <div role="status" className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-[#000038] px-4 py-3 text-[13px] text-white shadow-xl">
+          {notice.text}
+          {notice.undo && (
+            <button
+              type="button"
+              className="font-bold text-[#9CA8FF] hover:text-white"
+              onClick={() => {
+                notice.undo?.()
+                setNotice(null)
+              }}
+            >
+              되돌리기
+            </button>
+          )}
         </div>
       )}
 

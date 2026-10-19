@@ -29,8 +29,8 @@ export const BRAND = {
   margin: 64, // 좌우 안전 여백(px) = 0.67in
   footer: '© ALCHERA Inc. All rights reserved.',
   logo: {
-    white: '/alchera-logo.png',
-    navy: '/alchera-logo-navy.png',
+    white: `${import.meta.env.BASE_URL}alchera-logo.png`,
+    navy: `${import.meta.env.BASE_URL}alchera-logo-navy.png`,
     ratio: 1140 / 163,
   },
 } as const

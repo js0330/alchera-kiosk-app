@@ -5,7 +5,9 @@ import App from './App.tsx'
 const DeckApp = lazy(() => import('./deck/DeckApp.tsx'))
 
 export default function Root() {
-  if (!window.location.pathname.startsWith('/deck')) return <App />
+  // VITE_DECK_ONLY: 스튜디오만 단독으로 배포하는 빌드(미리보기 페이지 등)
+  const deckOnly = import.meta.env.VITE_DECK_ONLY === '1'
+  if (!deckOnly && !window.location.pathname.startsWith('/deck')) return <App />
   return (
     <Suspense fallback={null}>
       <DeckApp />

@@ -41,15 +41,18 @@ const formatDate = (t: number) =>
 export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPageProps) {
   const [category, setCategory] = useState<LayoutCategory | '전체'>('전체')
   const importInput = useRef<HTMLInputElement>(null)
+  const [importError, setImportError] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const recent = [...decks].sort((a, b) => b.updatedAt - a.updatedAt)
 
   const importFile = async (file: File) => {
     try {
       const data = JSON.parse(await file.text())
       if (!isDeck(data)) throw new Error('invalid')
+      setImportError(false)
       onOpen({ ...data, id: uid(), updatedAt: Date.now() })
     } catch {
-      window.alert('Deck Studio 편집 파일(.deck.json)이 아니에요.')
+      setImportError(true)
     }
   }
 
@@ -92,6 +95,11 @@ export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPage
               }}
             />
           </div>
+          {importError && (
+            <p role="alert" className="mt-3 text-[13px] font-semibold text-[#FFB4BA]">
+              Deck Studio 편집 파일(.deck.json)만 불러올 수 있어요. ‘편집 파일’ 버튼으로 내보낸 파일인지 확인해 주세요.
+            </p>
+          )}
         </div>
       </section>
 
@@ -139,7 +147,7 @@ export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPage
                         {d.slides.length}장 · {formatDate(d.updatedAt)}
                       </p>
                     </button>
-                    <div className="flex flex-shrink-0 opacity-0 transition group-hover:opacity-100">
+                    <div className={`flex flex-shrink-0 transition group-hover:opacity-100 ${pendingDelete === d.id ? 'opacity-100' : 'opacity-0'}`}>
                       <button
                         type="button"
                         className="rounded-md p-1.5 text-[#7A8099] hover:bg-[#F5F7FC] hover:text-[#000038]"
@@ -152,9 +160,10 @@ export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPage
                         type="button"
                         className="rounded-md p-1.5 text-[#7A8099] hover:bg-[#FDECEE] hover:text-[#E84B55]"
                         title="삭제"
-                        onClick={() => window.confirm(`‘${d.title}’ 문서를 삭제할까요?`) && onRemove(d.id)}
+                        onClick={() => (pendingDelete === d.id ? onRemove(d.id) : setPendingDelete(d.id))}
+                        onBlur={() => setPendingDelete(null)}
                       >
-                        <Trash2 size={15} />
+                        {pendingDelete === d.id ? <span className="px-1 text-[12px] font-bold">삭제 확인</span> : <Trash2 size={15} />}
                       </button>
                     </div>
                   </div>
