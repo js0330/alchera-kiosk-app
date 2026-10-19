@@ -1,17 +1,19 @@
-import { ArrowRight, Copy, Trash2, Upload } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { ArrowRight, Copy, ExternalLink, Trash2, Upload } from 'lucide-react'
+import { useState } from 'react'
 import FitWidth from '../components/FitWidth'
+import ImportDialog from '../components/ImportDialog'
 import { LayoutThumb } from '../components/LayoutPicker'
 import SlideCanvas from '../components/SlideCanvas'
 import { KITS, createDeckFromKit, createDeckFromLayout, uid, type Kit } from '../kits'
+import { SAMPLES } from '../samples'
 import { LAYOUT_CATEGORIES, LAYOUTS, type LayoutCategory } from '../layouts'
 import { BRAND } from '../guide'
-import { isDeck } from '../store'
 import type { Deck } from '../types'
 
 interface TemplatesPageProps {
   decks: Deck[]
   onOpen: (deck: Deck) => void
+  onImported: (deck: Deck, source: string) => void
   onRemove: (id: string) => void
 }
 
@@ -39,23 +41,11 @@ function KitPreview({ kit }: { kit: Kit }) {
 const formatDate = (t: number) =>
   new Date(t).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
-export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPageProps) {
+export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: TemplatesPageProps) {
   const [category, setCategory] = useState<LayoutCategory | '전체'>('전체')
-  const importInput = useRef<HTMLInputElement>(null)
-  const [importError, setImportError] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const recent = [...decks].sort((a, b) => b.updatedAt - a.updatedAt)
-
-  const importFile = async (file: File) => {
-    try {
-      const data = JSON.parse(await file.text())
-      if (!isDeck(data)) throw new Error('invalid')
-      setImportError(false)
-      onOpen({ ...data, id: uid(), updatedAt: Date.now() })
-    } catch {
-      setImportError(true)
-    }
-  }
 
   return (
     <div className="pb-20">
@@ -72,33 +62,17 @@ export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPage
             알체라 PPT 가이드의 레이아웃을 고르고 칸에 글만 채우세요. 글꼴·크기·색·위치는 가이드 그대로 들어가고, 다운로드한 PPTX는 다시 손볼 필요가 없어요.
           </p>
           <div className="mt-7 flex flex-wrap gap-2">
-            <button type="button" className="deck-btn deck-btn-primary h-10 px-5" onClick={() => onOpen(createDeckFromKit(KITS[0]))}>
-              솔루션 소개서로 시작 <ArrowRight size={16} />
+            <button type="button" className="deck-btn deck-btn-primary h-10 px-5" onClick={() => setImporting(true)}>
+              <Upload size={16} /> PPT · 텍스트 불러와서 가이드에 맞추기
             </button>
             <button
               type="button"
               className="deck-btn h-10 border-white/20 bg-white/10 px-5 text-white hover:bg-white/20"
-              onClick={() => importInput.current?.click()}
+              onClick={() => onOpen(createDeckFromKit(KITS[0]))}
             >
-              <Upload size={16} /> 편집 파일 불러오기
+              솔루션 소개서로 새로 시작 <ArrowRight size={16} />
             </button>
-            <input
-              ref={importInput}
-              type="file"
-              accept=".json,application/json"
-              hidden
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                e.target.value = ''
-                if (f) importFile(f)
-              }}
-            />
           </div>
-          {importError && (
-            <p role="alert" className="mt-3 text-[13px] font-semibold text-[#FFB4BA]">
-              Deck Studio 편집 파일(.deck.json)만 불러올 수 있어요. ‘편집 파일’ 버튼으로 내보낸 파일인지 확인해 주세요.
-            </p>
-          )}
         </div>
       </section>
 
@@ -122,6 +96,34 @@ export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPage
                 </div>
                 <p className="mt-1 text-[12px] leading-relaxed text-[#7A8099]">{kit.description}</p>
               </button>
+            ))}
+          </div>
+        </section>
+
+        {/* 샘플 덱 */}
+        <section className="mt-14">
+          <h2 className="text-[20px] font-bold text-[#000038]">알체라 샘플 덱</h2>
+          <p className="mt-1 text-[13px] text-[#7A8099]">실제 알체라 소개서를 가이드 레이아웃으로 옮겨둔 샘플이에요. 복사해서 내 문서로 고쳐 쓰세요.</p>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {SAMPLES.map((s) => (
+              <div key={s.id} className="group flex flex-col rounded-2xl border border-[#E0E5F0] bg-white p-5 transition hover:border-[#4D6BFF] hover:shadow-lg">
+                <button type="button" className="text-left" onClick={() => onOpen(createDeckFromKit(s, s.name))}>
+                  <KitPreview kit={s} />
+                  <div className="mt-4 flex items-start justify-between gap-2">
+                    <h3 className="text-[15px] font-bold text-[#000038]">{s.name}</h3>
+                    <span className="flex-shrink-0 rounded-full bg-[#F2F4FB] px-2 py-0.5 text-[11px] font-semibold text-[#0000A5]">{s.slides.length}장</span>
+                  </div>
+                  <p className="mt-1 text-[12px] leading-relaxed text-[#7A8099]">{s.description}</p>
+                </button>
+                <div className="mt-auto flex items-center gap-3 pt-4 text-[12px] font-semibold">
+                  <button type="button" className="text-[#0000A5] hover:underline" onClick={() => onOpen(createDeckFromKit(s, s.name))}>
+                    복사해서 쓰기 →
+                  </button>
+                  <a href={s.source} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#7A8099] hover:text-[#000038]">
+                    원본 <ExternalLink size={12} />
+                  </a>
+                </div>
+              </div>
             ))}
           </div>
         </section>
@@ -217,6 +219,15 @@ export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPage
           </div>
         </section>
       </div>
+      {importing && (
+        <ImportDialog
+          onClose={() => setImporting(false)}
+          onImported={(deck, source) => {
+            setImporting(false)
+            onImported(deck, source)
+          }}
+        />
+      )}
     </div>
   )
 }

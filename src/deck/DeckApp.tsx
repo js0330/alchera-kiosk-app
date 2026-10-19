@@ -16,6 +16,8 @@ function parseHash(): { route: DeckRoute; deckId?: string } {
 export default function DeckApp() {
   const [loc, setLoc] = useState(parseHash)
   const { decks, upsert, remove, saveState } = useDecks()
+  // 가져오기 직후 스튜디오에 한 번 보여줄 안내
+  const [importNotice, setImportNotice] = useState<{ deckId: string; text: string } | null>(null)
 
   useEffect(() => {
     document.title = 'ALCHERA · Deck Studio'
@@ -32,13 +34,24 @@ export default function DeckApp() {
     window.location.hash = `studio/${deck.id}`
   }
 
+  const openImported = (deck: Deck, source: string) => {
+    setImportNotice({ deckId: deck.id, text: `${source}에서 ${deck.slides.length}장을 가이드 레이아웃으로 가져왔어요. 레이아웃이 맞는지 확인해 주세요.` })
+    open(deck)
+  }
+
   if (loc.route === 'studio') {
     const recent = [...decks].sort((a, b) => b.updatedAt - a.updatedAt)
     const deck = decks.find((d) => d.id === loc.deckId) ?? (loc.deckId ? undefined : recent[0])
     if (deck) {
       return (
         <div className="deck-root">
-          <StudioPage key={deck.id} deck={deck} saveState={saveState} onChange={upsert} />
+          <StudioPage
+            key={deck.id}
+            deck={deck}
+            saveState={saveState}
+            onChange={upsert}
+            initialNotice={importNotice?.deckId === deck.id ? importNotice.text : undefined}
+          />
         </div>
       )
     }
@@ -58,7 +71,7 @@ export default function DeckApp() {
           </a>
         </div>
       ) : (
-        <TemplatesPage decks={decks} onOpen={open} onRemove={remove} />
+        <TemplatesPage decks={decks} onOpen={open} onImported={openImported} onRemove={remove} />
       )}
     </div>
   )

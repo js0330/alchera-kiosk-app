@@ -82,11 +82,11 @@ export function makeSlide(layout: LayoutId, content: Record<string, string> = {}
   return { id: uid(), layout, tone: LAYOUT_MAP[layout].tone, content: { ...content }, notes }
 }
 
-export function createDeckFromKit(kit: Kit): Deck {
+export function createDeckFromKit(kit: Kit, title?: string): Deck {
   const now = Date.now()
   return {
     id: uid(),
-    title: kit.id === 'blank' ? '제목 없는 문서' : `${kit.name} 초안`,
+    title: title ?? (kit.id === 'blank' ? '제목 없는 문서' : `${kit.name} 초안`),
     slides: kit.slides.map((s) => makeSlide(s.layout, s.content, s.notes)),
     createdAt: now,
     updatedAt: now,

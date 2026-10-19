@@ -25,6 +25,7 @@ interface StudioPageProps {
   deck: Deck
   saveState: SaveState
   onChange: (deck: Deck) => void
+  initialNotice?: string
 }
 
 // 업로드한 이미지는 긴 변 1920px 로 줄여 저장 공간을 아낍니다.
@@ -52,14 +53,14 @@ function readImage(file: File): Promise<string> {
   })
 }
 
-export default function StudioPage({ deck, saveState, onChange }: StudioPageProps) {
+export default function StudioPage({ deck, saveState, onChange, initialNotice }: StudioPageProps) {
   const [current, setCurrent] = useState(0)
   const [picker, setPicker] = useState<'add' | 'change' | null>(null)
   const [presenting, setPresenting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [checkOpen, setCheckOpen] = useState(false)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
-  const [notice, setNotice] = useState<{ text: string; undo?: () => void } | null>(null)
+  const [notice, setNotice] = useState<{ text: string; undo?: () => void } | null>(initialNotice ? { text: initialNotice } : null)
   const imageField = useRef<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const stage = useRef<HTMLDivElement>(null)

@@ -84,7 +84,7 @@ function headerPanel(ctx: BuildCtx, key: string, x: number, w: number): SlideEl[
   return [
     { type: 'rect', x, y: 188, w, h: 504, fill: C.white, line: C.line, lineWidth: 0.75, radius: 12, shadow: 'soft' },
     { type: 'rect', x, y: 160.3, w, h: 53.4, fill: C.blue, radius: 12, topOnly: true },
-    field(ctx, key, x + 20, 175, w - 40, 24, { size: 12, bold: true, color: C.white, align: 'center', lineHeight: 1.2 }),
+    field(ctx, key, x + 20, 174, w - 40, 26, { size: 12, bold: true, color: C.white, align: 'center', lineHeight: 1.2 }),
   ]
 }
 
@@ -126,7 +126,7 @@ export const LAYOUTS: LayoutDef[] = [
     build: (ctx) => [
       field(ctx, 'title', 76.8, 191, 1115, 155, { size: 36, bold: true, color: C.white, lineHeight: 1.2 }),
       { type: 'rect', x: 76.8, y: 367.2, w: 75.6, h: 4.8, fill: C.white },
-      field(ctx, 'subtitle', 76.8, 417.5, 1000, 60, { size: 14, color: C.white, lineHeight: 1.4 }),
+      field(ctx, 'subtitle', 76.8, 417.5, 1000, 72, { size: 14, color: C.white, lineHeight: 1.4 }),
       logo(ctx.p, 1073.3, 628.3, 133.7),
     ],
   },
@@ -143,7 +143,7 @@ export const LAYOUTS: LayoutDef[] = [
     sample: { title: 'CONTENTS', items: '회사 소개\n문제 제기\n제품 소개\n작동 원리\n도입 효과' },
     build: (ctx) => [
       logo(ctx.p, 1142.7, 49, 87.5),
-      field(ctx, 'title', 144, 88, 800, 52, { size: 27, bold: true, color: C.white }),
+      field(ctx, 'title', 144, 84, 800, 60, { size: 27, bold: true, color: C.white }),
       field(ctx, 'items', 155, 209, 700, 440, { size: 16, bold: true, color: C.white, lineHeight: 2 }),
     ],
   },
@@ -154,13 +154,13 @@ export const LAYOUTS: LayoutDef[] = [
     category: '표지·구성',
     tone: 'navy',
     fields: [
-      { key: 'title', label: '섹션 타이틀', kind: 'text', placeholder: '섹션 타이틀', max: 24 },
+      { key: 'title', label: '섹션 타이틀', kind: 'text', placeholder: '섹션 타이틀', max: 30 },
       { key: 'description', label: '설명', kind: 'text', placeholder: '이 섹션에서 다룰 내용 (선택)', max: 60 },
     ],
     sample: { title: '제품 소개', description: '기존 CCTV와 환경센서로 공간의 위험을 먼저 판단합니다' },
     build: (ctx) => [
       logo(ctx.p, 1142.7, 49, 87.5),
-      field(ctx, 'title', 140, 282, 1000, 52, { size: 27, bold: true, color: C.white, align: 'center' }),
+      field(ctx, 'title', 140, 278, 1000, 60, { size: 27, bold: true, color: C.white, align: 'center' }),
       field(ctx, 'description', 140, 403, 1000, 36, { size: 16, bold: true, color: C.white, align: 'center' }),
     ],
   },
@@ -189,6 +189,30 @@ export const LAYOUTS: LayoutDef[] = [
       field(ctx, 'note', 75.6, 640, 560, 22, { ...S.note }),
       image('image', 665, 251, 541, 383),
       field(ctx, 'caption', 665, 642, 541, 20, { ...S.note, align: 'center' }),
+    ],
+  },
+  {
+    id: 'line-text',
+    name: '라인형 1단 · 텍스트',
+    description: '이미지 없이 글로만 채우는 넓은 패널',
+    category: '라인형',
+    tone: 'light',
+    fields: [...titleFields, f.title('cTitle'), f.sub('cSub'), f.body('body', '본문', 500), f.note('note')],
+    sample: {
+      title: '도입 6주 만에 현장 운영을 시작합니다',
+      sub: '현장 실사부터 정식 운영 전환까지 단계별로 함께합니다',
+      cTitle: '도입 절차',
+      cSub: '기존 CCTV와 환경센서를 그대로 활용해 설치 부담을 줄입니다',
+      body: '• **1주차** 현장 실사와 센서 설치 위치 확정\n• **2–3주차** AI Box 설치와 기존 설비 연동\n• **4–5주차** 시범 운영과 알림 기준 조정\n• **6주차** 정식 운영 전환과 관리자 교육',
+      note: '※ 현장 규모에 따라 일정은 달라질 수 있습니다.',
+    },
+    build: (ctx) => [
+      ...chrome(ctx),
+      linePanel(50, 164.1, 1179.5, 528),
+      field(ctx, 'cTitle', 75.6, 199, 1128, 52, { ...S.contentTitle }),
+      field(ctx, 'cSub', 75.6, 262, 1128, 46, { ...S.contentSub }),
+      field(ctx, 'body', 75.6, 318, 1128, 300, { ...S.body }),
+      field(ctx, 'note', 75.6, 640, 1128, 22, { ...S.note }),
     ],
   },
   {
@@ -233,6 +257,48 @@ export const LAYOUTS: LayoutDef[] = [
         field(ctx, 'rBody', col(651.9), 262, w, 120, { ...S.body }),
         image('rImage', col(651.9), 394, w, 226),
         field(ctx, 'rCaption', col(651.9), 630, w, 20, { ...S.note, align: 'center' }),
+      ]
+    },
+  },
+  {
+    id: 'line-2t',
+    name: '라인형 2단 · 텍스트',
+    description: '두 가지를 글로 비교 (이미지 없음)',
+    category: '라인형',
+    tone: 'light',
+    fields: [
+      ...titleFields,
+      ...(['l', 'r'] as const).flatMap((k) => {
+        const side = k === 'l' ? '왼쪽' : '오른쪽'
+        return [f.title(`${k}Title`, `${side} 타이틀`), f.sub(`${k}Sub`, `${side} 서브`), f.body(`${k}Body`, `${side} 본문`, 260), f.note(`${k}Note`, `${side} 안내문`)]
+      }),
+    ],
+    sample: {
+      title: '수기 점검에서 실시간 예측으로',
+      sub: '같은 현장, 다른 운영 방식',
+      lTitle: '지금',
+      lSub: '하루 2회 수기 점검',
+      lBody: '• 이상 발생 후 보고\n• 현장별 기록 방식이 제각각\n• 사고 이후에야 원인 추적',
+      rTitle: '도입 후',
+      rSub: '24시간 자동 측정',
+      rBody: '• 위험 **30분 전** 사전 알림\n• 전 현장 데이터를 한 화면에서\n• 판단 근거 자동 기록',
+    },
+    build: (ctx) => {
+      const w = 526
+      return [
+        ...chrome(ctx),
+        linePanel(50.2, 164.1, 577.5, 528),
+        linePanel(651.9, 164.1, 577.5, 528),
+        ...[50.2, 651.9].flatMap<SlideEl>((x, i) => {
+          const k = i === 0 ? 'l' : 'r'
+          const cx = x + 25.6
+          return [
+            field(ctx, `${k}Title`, cx, 199, w, 52, { ...S.contentTitle, align: 'center' }),
+            field(ctx, `${k}Sub`, cx, 262, w, 46, { ...S.contentSub }),
+            field(ctx, `${k}Body`, cx, 318, w, 300, { ...S.body }),
+            field(ctx, `${k}Note`, cx, 640, w, 22, { ...S.note }),
+          ]
+        }),
       ]
     },
   },
@@ -445,8 +511,8 @@ export const LAYOUTS: LayoutDef[] = [
     build: (ctx) => [
       field(ctx, 'title', 76.8, 233.7, 1115, 120, { size: 36, bold: true, color: C.white, lineHeight: 1.2 }),
       { type: 'rect', x: 76.8, y: 367.2, w: 75.6, h: 4.8, fill: C.white },
-      { type: 'text', text: 'ALCHERA Inc.\nE-mail.\nTel.', x: 76.8, y: 584.8, w: 130, h: 72, size: 9, bold: true, color: C.pageNum, lineHeight: 1.6 },
-      field(ctx, 'contact', 219.6, 584.8, 700, 72, { size: 9, color: C.pageNum, lineHeight: 1.6 }),
+      { type: 'text', text: 'ALCHERA Inc.\nE-mail.\nTel.', x: 76.8, y: 584.8, w: 130, h: 80, size: 9, bold: true, color: C.pageNum, lineHeight: 1.6 },
+      field(ctx, 'contact', 219.6, 584.8, 700, 80, { size: 9, color: C.pageNum, lineHeight: 1.6 }),
       logo(ctx.p, 1073.3, 628.3, 133.7),
     ],
   },
