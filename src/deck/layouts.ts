@@ -3,7 +3,7 @@ import type { FieldDef, ImageEl, LayoutId, ShapeEl, Slide, SlideEl, TextEl } fro
 
 // 좌표는 모두 가이드 원본(ALCHERA_PPT_Template_ver.260507)에서 측정한 값입니다. (1280×720 = 10×5.625in)
 
-export type LayoutCategory = '표지·구성' | '라인형' | '타이틀형'
+export type LayoutCategory = '표지·구성' | '라인형' | '타이틀형' | '자유 배치'
 
 export interface BuildCtx {
   c: Record<string, string>
@@ -110,6 +110,9 @@ const f = {
 }
 
 const n3 = [1, 2, 3] as const
+
+// 자유 배치 슬라이드에서 요소가 놓이는 본문 영역 (가이드 패널 영역과 같음)
+export const FREE_AREA = { x: 50, y: 150, w: 1179.5, h: 542 } as const
 
 export const LAYOUTS: LayoutDef[] = [
   {
@@ -498,6 +501,19 @@ export const LAYOUTS: LayoutDef[] = [
     },
   },
   {
+    id: 'free',
+    name: '자유 배치',
+    description: '가이드 상단(타이틀·서브·로고) 아래를 도형·텍스트·이미지로 자유롭게',
+    category: '자유 배치',
+    tone: 'light',
+    fields: [...titleFields],
+    sample: {
+      title: '원본 배치를 유지한 슬라이드',
+      sub: '불러온 PPT의 도형·텍스트·이미지를 그대로 두고 가이드 상단만 입힙니다',
+    },
+    build: (ctx) => chrome(ctx),
+  },
+  {
     id: 'closing',
     name: '마무리',
     description: '감사 인사 + 회사 연락처',
@@ -520,7 +536,7 @@ export const LAYOUTS: LayoutDef[] = [
 
 export const LAYOUT_MAP = Object.fromEntries(LAYOUTS.map((l) => [l.id, l])) as Record<LayoutId, LayoutDef>
 
-export const LAYOUT_CATEGORIES: LayoutCategory[] = ['표지·구성', '라인형', '타이틀형']
+export const LAYOUT_CATEGORIES: LayoutCategory[] = ['표지·구성', '라인형', '타이틀형', '자유 배치']
 
 export function slideTone(slide: Slide): Tone {
   return LAYOUT_MAP[slide.layout].tone

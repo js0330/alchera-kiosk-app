@@ -1,4 +1,6 @@
 import JSZip from 'jszip'
+import { itemsToObjects, readSlideItems, readTheme } from './importKeep'
+import { EMU_ATTR, all, boxFromXfrm, boxOf, ident, kid, kids, normPh, type Box, type Xform } from './pptxXml'
 import { BRAND } from './guide'
 import { makeSlide, uid } from './kits'
 import { isDeck } from './store'
@@ -210,18 +212,6 @@ function importMarkdown(src: string, fileTitle: string): Deck {
 
 // ── PPTX ─────────────────────────────────────────────────────────
 
-const EMU_ATTR = (el: Element | null | undefined, name: string) => Number(el?.getAttribute(name) ?? 0)
-const kids = (el: Element, name: string) => Array.from(el.children).filter((c) => c.tagName === name)
-const kid = (el: Element | null | undefined, name: string) => (el ? Array.from(el.children).find((c) => c.tagName === name) : undefined)
-const all = (el: Element | Document, name: string) => Array.from(el.getElementsByTagName(name))
-
-interface Box {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
 interface Para {
   text: string
   plain: string
@@ -237,40 +227,6 @@ interface TextShape extends Box {
 
 interface PicShape extends Box {
   src: string
-}
-
-interface Xform {
-  ox: number
-  oy: number
-  sx: number
-  sy: number
-  cx: number
-  cy: number
-}
-
-const ident: Xform = { ox: 0, oy: 0, sx: 1, sy: 1, cx: 0, cy: 0 }
-
-// 자리표시자 종류 정리: 제목류 → title, 본문류 → body
-function normPh(type: string | null): string {
-  if (!type || type === 'obj' || type === 'body') return 'body'
-  if (type === 'ctrTitle' || type === 'title') return 'title'
-  return type
-}
-
-function boxOf(spPr: Element | undefined, t: Xform): Box | null {
-  return boxFromXfrm(kid(spPr, 'a:xfrm'), t)
-}
-
-function boxFromXfrm(xfrm: Element | undefined, t: Xform): Box | null {
-  const off = kid(xfrm, 'a:off')
-  const ext = kid(xfrm, 'a:ext')
-  if (!off || !ext) return null
-  return {
-    x: t.ox + (EMU_ATTR(off, 'x') - t.cx) * t.sx,
-    y: t.oy + (EMU_ATTR(off, 'y') - t.cy) * t.sy,
-    w: EMU_ATTR(ext, 'cx') * t.sx,
-    h: EMU_ATTR(ext, 'cy') * t.sy,
-  }
 }
 
 function readParas(txBody: Element): Para[] {
@@ -430,7 +386,7 @@ async function readSlideShapes(zip: JSZip, path: string) {
       .join('\n')
       .trim()
   }
-  return { texts, pics, notes }
+  return { texts, pics, notes, rels, inherited }
 }
 
 // 한 장의 도형들을 제목 · 서브 · 블록(열) · 이미지로 해석합니다.
@@ -445,7 +401,7 @@ function interpret(texts: TextShape[], pics: PicShape[], W: number, H: number) {
 
   let titleShape = useful.find((s) => s.ph === 'title')
   if (!titleShape) {
-    const top = useful.filter((s) => s.y < H * 0.3 && s.paras.length <= 3 && s.paras[0].plain.length <= 80)
+    const top = useful.filter((s) => s.y < H * 0.2 && s.paras.length <= 3 && s.paras[0].plain.length <= 80)
     titleShape = top.sort((a, b) => Math.max(...b.paras.map((p) => p.size)) - Math.max(...a.paras.map((p) => p.size)) || a.y - b.y)[0]
   }
   const title = titleShape ? titleShape.paras.map((p) => p.plain).join(' ') : ''
@@ -527,7 +483,10 @@ function shrinkImage(src: string, max = 1600): Promise<string> {
   })
 }
 
-export async function importPptx(data: ArrayBuffer, fileTitle = ''): Promise<Deck> {
+export type PptxMode = 'keep' | 'rebuild'
+
+// keep: 본문 슬라이드의 도형·텍스트·이미지를 원본 배치 그대로(자유 배치) · rebuild: 내용만 읽어 가이드 레이아웃으로 재구성
+export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMode = 'keep'): Promise<Deck> {
   let zip: JSZip
   try {
     zip = await JSZip.loadAsync(data)
@@ -546,11 +505,12 @@ export async function importPptx(data: ArrayBuffer, fileTitle = ''): Promise<Dec
   const order = all(pres, 'p:sldId').map((s) => relMap[s.getAttribute('r:id') ?? ''])
   const paths = order.filter(Boolean).map((t) => `ppt/${t!.replace(/^\/?ppt\//, '')}`)
 
+  const theme = mode === 'keep' ? await readTheme(zip) : {}
   const slides: Slide[] = []
   let deckTitle = fileTitle
   for (const [i, path] of paths.entries()) {
     if (!zip.file(path)) continue
-    const { texts, pics, notes } = await readSlideShapes(zip, path)
+    const { texts, pics, notes, rels, inherited } = await readSlideShapes(zip, path)
     const s = interpret(texts, pics, W, H)
     if (s.images[0]) s.images = [await shrinkImage(s.images[0])].filter(Boolean)
     const last = i === paths.length - 1
@@ -560,6 +520,24 @@ export async function importPptx(data: ArrayBuffer, fileTitle = ''): Promise<Dec
     else if (isContents(s.title)) layout = 'contents'
     else if (last && (isClosing(s.title) || s.allText.some(isClosing))) layout = 'closing'
     else if (s.blocks.every((b) => b.lines.length + (b.sub ? 1 : 0) <= 1) && !s.images.length && textLen < 90) layout = 'section'
+
+    if (!layout && mode === 'keep') {
+      // 원본 배치 유지: 가이드 상단(타이틀·서브)에 들어갈 글과 그 위쪽 머리 영역을 빼고 나머지를 그대로 옮깁니다
+      const items = await readSlideItems(zip, path, rels, theme, inherited)
+      const titleItem = items.find((it) => it.ph === 'title') ?? items.find((it) => it.text && s.title && it.text.plain.replace(/\s+/g, ' ') === s.title)
+      // 서브는 채우기·테두리 없는 글 상자일 때만 (도식 안의 박스를 서브로 오인하지 않도록)
+      const subItem = s.sub ? items.find((it) => it !== titleItem && it.text && !it.fill && !it.line && it.text.plain.replace(/\s+/g, ' ') === s.sub) : undefined
+      if (!subItem) s.sub = undefined
+      const headerBottom = titleItem ? Math.max(titleItem.y + titleItem.h, subItem ? subItem.y + subItem.h : 0) : 0
+      // 타이틀 위쪽 머리 영역(상단 목차·장식 띠)은 가이드 상단이 대신하므로 뺍니다
+      const body = items.filter((it) => it !== titleItem && it !== subItem && !(titleItem && it.kind !== 'image' && it.y + it.h <= headerBottom + H * 0.01 && it.h < H * 0.12 && !it.fill))
+      const objects = await itemsToObjects(body, W, H)
+      if (objects.length) {
+        const slide = makeSlide('free', { title: clip(s.title, 60), sub: clip(s.sub, 90) }, notes)
+        slides.push({ ...slide, objects })
+        continue
+      }
+    }
 
     if (layout === 'cover') {
       deckTitle ||= s.title
@@ -582,10 +560,10 @@ export async function importPptx(data: ArrayBuffer, fileTitle = ''): Promise<Dec
 
 // ── 진입점 ──────────────────────────────────────────────────────
 
-export async function importFile(file: File): Promise<Deck> {
+export async function importFile(file: File, mode: PptxMode = 'keep'): Promise<Deck> {
   const name = file.name.replace(/\.[^.]+$/, '')
   const ext = file.name.split('.').pop()?.toLowerCase()
-  if (ext === 'pptx') return importPptx(await file.arrayBuffer(), name)
+  if (ext === 'pptx') return importPptx(await file.arrayBuffer(), name, mode)
   if (ext === 'txt' || ext === 'md' || ext === 'markdown') return importText(await file.text(), name)
   if (ext === 'json') {
     let data: unknown

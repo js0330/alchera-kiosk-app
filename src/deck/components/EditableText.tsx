@@ -49,12 +49,14 @@ interface EditableTextProps {
   value: string
   onChange: (value: string) => void
   onFocus?: () => void
+  autoFocus?: boolean
+  onDone?: () => void
 }
 
 // 레이아웃 칸 안에서 바로 입력하는 편집기. 글꼴·크기·색은 레이아웃이 정하고 사용자는 글만 씁니다.
 // 커서가 튀지 않도록 입력 중에는 DOM 을 다시 그리지 않고(uncontrolled), 포커스가 없을 때만 값을 반영합니다.
 // 본문 칸: Enter 를 누르면 다음 줄에 "• " 가 텍스트로 들어가고(가이드: 글머리는 텍스트), Ctrl+B 로 강조합니다.
-export default function EditableText({ el, value, onChange, onFocus }: EditableTextProps) {
+export default function EditableText({ el, value, onChange, onFocus, autoFocus, onDone }: EditableTextProps) {
   const ref = useRef<HTMLDivElement>(null)
   const multiline = !!el.multiline
   const rich = !!el.rich
@@ -74,6 +76,17 @@ export default function EditableText({ el, value, onChange, onFocus }: EditableT
     setEmpty(!value)
     measure()
   }, [value, multiline, rich, measure])
+
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!autoFocus || !node) return
+    node.focus()
+    const range = document.createRange()
+    range.selectNodeContents(node)
+    range.collapse(false)
+    window.getSelection()?.removeAllRanges()
+    window.getSelection()?.addRange(range)
+  }, [autoFocus])
 
   const handleInput = () => {
     const node = ref.current
@@ -125,6 +138,7 @@ export default function EditableText({ el, value, onChange, onFocus }: EditableT
           }
           node.innerHTML = toHtml(v, multiline, rich)
           measure()
+          onDone?.()
         }}
         onKeyDown={(e) => {
           const mod = e.metaKey || e.ctrlKey

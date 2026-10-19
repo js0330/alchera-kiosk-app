@@ -1,6 +1,6 @@
 import { FileText, LoaderCircle, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { ImportError, importFile, importText } from '../importers'
+import { ImportError, importFile, importText, type PptxMode } from '../importers'
 import type { Deck } from '../types'
 
 const TEXT_EXAMPLE = `# 보이지 않는 위험을 먼저 예측하는 AI
@@ -28,6 +28,7 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
   const [text, setText] = useState('')
+  const [mode, setMode] = useState<PptxMode>('keep')
   const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
   }
 
   const onFile = (file: File | undefined) => {
-    if (file) run(() => importFile(file), file.name)
+    if (file) run(() => importFile(file, mode), file.name)
   }
 
   return (
@@ -87,6 +88,24 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
         <div className="overflow-y-auto px-6 py-5">
           {tab === 'file' ? (
             <>
+              <fieldset className="mb-4 grid gap-2 sm:grid-cols-2">
+                <legend className="mb-2 text-[12px] font-bold text-[#000038]">PPTX 본문 슬라이드를 어떻게 가져올까요?</legend>
+                {(
+                  [
+                    ['keep', '원본 배치 유지', '도형 · 텍스트 · 이미지 · 표를 위치 그대로 가져와요. 가이드 상단(타이틀 · 서브 · 로고)만 입히고, 에디터에서 끌어서 고칠 수 있어요.'],
+                    ['rebuild', '가이드 레이아웃으로 재구성', '글과 대표 이미지만 읽어서 라인형 레이아웃 칸에 채워요. 원본 도형은 버려요.'],
+                  ] as const
+                ).map(([id, label, desc]) => (
+                  <label
+                    key={id}
+                    className={`cursor-pointer rounded-xl border p-3 text-left transition ${mode === id ? 'border-[#0000A5] bg-[#F2F4FB] ring-1 ring-[#0000A5]' : 'border-[#E0E5F0] hover:border-[#4D6BFF]'}`}
+                  >
+                    <input type="radio" name="import-mode" value={id} checked={mode === id} onChange={() => setMode(id)} className="sr-only" />
+                    <span className="block text-[13px] font-bold text-[#000038]">{label}</span>
+                    <span className="mt-1 block text-[12px] leading-relaxed text-[#666]">{desc}</span>
+                  </label>
+                ))}
+              </fieldset>
               <button
                 type="button"
                 disabled={busy}
@@ -122,7 +141,7 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
               />
               <ul className="mt-4 space-y-1.5 text-[12px] leading-relaxed text-[#666]">
                 <li>
-                  <b className="text-[#000038]">PPTX</b> — 슬라이드마다 제목·본문·이미지를 읽어 표지·목차·간지·라인형 레이아웃으로 바꿔요.
+                  <b className="text-[#000038]">PPTX</b> — 첫 장은 표지, 목차·간지·마무리는 가이드 레이아웃으로 바꾸고, 본문 슬라이드는 위에서 고른 방식으로 가져와요.
                 </li>
                 <li>
                   <b className="text-[#000038]">Google Slides · Keynote</b> — 파일 › 다운로드 › Microsoft PowerPoint(.pptx)로 받은 뒤 올려주세요.
@@ -130,7 +149,7 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
                 <li>
                   <b className="text-[#000038]">텍스트 · 마크다운</b> — 아래 ‘텍스트 붙여넣기’ 규칙대로 읽어요.
                 </li>
-                <li>원본의 도형·색·배치는 가져오지 않고 내용만 가져와요. 다 가져온 뒤 레이아웃이 맞는지 한 번 확인해 주세요.</li>
+                <li>차트 · SmartArt는 자리만 표시돼요. 원본에서 이미지로 붙여 넣어 주세요. 가져온 뒤 ‘가이드 서식 맞추기’로 글자 크기 · 색을 가이드 값에 맞출 수 있어요.</li>
               </ul>
             </>
           ) : (

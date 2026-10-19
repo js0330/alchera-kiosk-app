@@ -13,6 +13,7 @@ export type LayoutId =
   | 'header-1'
   | 'header-2'
   | 'header-3'
+  | 'free'
   | 'closing'
 
 export type FieldKind = 'text' | 'multiline' | 'bullets' | 'numbers' | 'image'
@@ -31,6 +32,42 @@ export interface Slide {
   tone: Tone
   content: Record<string, string>
   notes: string
+  // 자유 배치(원본 유지) 슬라이드의 도형·텍스트·이미지
+  objects?: FreeObj[]
+}
+
+// 자유 배치 요소. 좌표는 1280×720px, 글자 크기는 pt.
+// PPTX 를 "원본 배치 유지"로 불러오면 원본의 도형·텍스트 상자·이미지·선·표가 이 형태로 들어옵니다.
+export interface FreeObj {
+  id: string
+  kind: 'shape' | 'image' | 'line'
+  x: number
+  y: number
+  w: number
+  h: number
+  rot?: number
+  // shape
+  geom?: 'rect' | 'roundRect' | 'ellipse'
+  fill?: string
+  line?: string
+  lineWidth?: number
+  radius?: number
+  opacity?: number
+  // shape 안의 글 (줄바꿈 + **굵게**)
+  text?: string
+  size?: number
+  color?: string
+  bold?: boolean
+  align?: 'left' | 'center' | 'right'
+  valign?: 'top' | 'middle' | 'bottom'
+  lineHeight?: number
+  // 안쪽 여백 [왼, 위, 오른, 아래] px
+  pad?: [number, number, number, number]
+  // image
+  src?: string
+  // line
+  flipH?: boolean
+  flipV?: boolean
 }
 
 export interface Deck {

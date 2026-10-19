@@ -2,11 +2,14 @@ import { X } from 'lucide-react'
 import { useEffect } from 'react'
 import { LAYOUT_CATEGORIES, LAYOUTS } from '../layouts'
 import type { LayoutId } from '../types'
+import { DEMO_OBJECTS } from '../freeObjects'
 import { makeSlide } from '../kits'
 import SlideCanvas from './SlideCanvas'
 
 // 미리보기용 슬라이드(예시 내용)는 한 번만 만들어 둡니다.
-const SAMPLE_SLIDES = Object.fromEntries(LAYOUTS.map((l) => [l.id, { ...makeSlide(l.id, l.sample), id: `sample-${l.id}` }]))
+const SAMPLE_SLIDES = Object.fromEntries(
+  LAYOUTS.map((l) => [l.id, { ...makeSlide(l.id, l.sample), id: `sample-${l.id}`, objects: l.id === 'free' ? DEMO_OBJECTS : undefined }]),
+)
 
 export function LayoutThumb({ id, width }: { id: LayoutId; width: number }) {
   return <SlideCanvas slide={SAMPLE_SLIDES[id]} index={4} section="2. 제품 소개" width={width} />

@@ -2,9 +2,10 @@ import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react'
 import { memo, type CSSProperties } from 'react'
 import { BRAND, SLIDE_H, SLIDE_W, TONES, ptToPx } from '../guide'
 import { buildSlide, slideTone } from '../layouts'
-import type { ImageEl, ShapeEl, Slide, SlideEl, TextEl } from '../types'
+import type { FreeObj, ImageEl, ShapeEl, Slide, SlideEl, TextEl } from '../types'
 import { listClass, parseRich, textStyle } from '../textStyle'
 import EditableText from './EditableText'
+import FreeLayer from './FreeLayer'
 
 interface SlideCanvasProps {
   slide: Slide
@@ -16,6 +17,12 @@ interface SlideCanvasProps {
   onFieldChange?: (key: string, value: string) => void
   onImagePick?: (key: string) => void
   onImageClear?: (key: string) => void
+  // 자유 배치 슬라이드 편집
+  selectedObj?: string | null
+  editingObj?: string | null
+  onSelectObj?: (id: string | null) => void
+  onEditObj?: (id: string | null) => void
+  onObjChange?: (obj: FreeObj) => void
 }
 
 const box = (el: SlideEl): CSSProperties => ({ position: 'absolute', left: el.x, top: el.y, width: el.w, height: el.h })
@@ -118,6 +125,11 @@ function SlideCanvas({
   onFieldChange,
   onImagePick,
   onImageClear,
+  selectedObj,
+  editingObj,
+  onSelectObj,
+  onEditObj,
+  onObjChange,
 }: SlideCanvasProps) {
   const els = buildSlide(slide, index, section)
   const scale = width / SLIDE_W
@@ -127,6 +139,10 @@ function SlideCanvas({
     <div style={{ width, height: SLIDE_H * scale, position: 'relative', overflow: 'hidden' }}>
       <div
         className="deck-slide"
+        onPointerDown={(e) => {
+          // 빈 곳을 누르면 자유 배치 요소 선택 해제
+          if (editable && !(e.target as HTMLElement).closest('[data-obj]')) onSelectObj?.(null)
+        }}
         style={{
           position: 'absolute',
           width: SLIDE_W,
@@ -177,6 +193,18 @@ function SlideCanvas({
             }
           }
         })}
+        {slide.layout === 'free' && (
+          <FreeLayer
+            objects={slide.objects ?? []}
+            scale={scale}
+            editable={editable}
+            selectedId={selectedObj}
+            editingId={editingObj}
+            onSelect={onSelectObj}
+            onEdit={onEditObj}
+            onChange={onObjChange}
+          />
+        )}
       </div>
     </div>
   )

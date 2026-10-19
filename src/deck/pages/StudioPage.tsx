@@ -7,19 +7,25 @@ import {
   FileJson,
   LayoutTemplate,
   LoaderCircle,
+  ImagePlus,
   Play,
   Plus,
+  Square,
   Trash2,
+  Type,
+  WandSparkles,
 } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import LayoutPicker from '../components/LayoutPicker'
+import ObjectPanel from '../components/ObjectPanel'
 import PresentMode from '../components/PresentMode'
 import SlideCanvas from '../components/SlideCanvas'
 import { SLIDE_H, SLIDE_W } from '../guide'
+import { newBox, newImage, newText, snapToGuide } from '../freeObjects'
 import { makeSlide, uid } from '../kits'
 import { LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
-import type { Deck, LayoutId, Slide } from '../types'
+import type { Deck, FreeObj, LayoutId, Slide } from '../types'
 
 interface StudioPageProps {
   deck: Deck
@@ -65,6 +71,9 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
   const fileInput = useRef<HTMLInputElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const [canvasW, setCanvasW] = useState(960)
+  // 자유 배치 슬라이드: 선택한 요소 · 글을 고치는 중인 요소
+  const [selectedObj, setSelectedObj] = useState<string | null>(null)
+  const [editingObj, setEditingObj] = useState<string | null>(null)
 
   const index = Math.min(current, deck.slides.length - 1)
   const slide = deck.slides[index]
@@ -90,6 +99,67 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
     (key: string, value: string) => updateSlide(slide.id, (s) => ({ ...s, content: { ...s.content, [key]: value } })),
     [slide.id, updateSlide],
   )
+
+  const isFree = slide.layout === 'free'
+  const objects = slide.objects ?? []
+  const selected = isFree ? objects.find((o) => o.id === selectedObj) : undefined
+
+  const setObjects = useCallback(
+    (fn: (objs: FreeObj[]) => FreeObj[]) => updateSlide(slide.id, (s) => ({ ...s, objects: fn(s.objects ?? []) })),
+    [slide.id, updateSlide],
+  )
+  const updateObj = useCallback((o: FreeObj) => setObjects((objs) => objs.map((x) => (x.id === o.id ? o : x))), [setObjects])
+  const addObj = (o: FreeObj) => {
+    setObjects((objs) => [...objs, o])
+    setSelectedObj(o.id)
+  }
+  const removeObj = useCallback(
+    (id: string) => {
+      setObjects((objs) => objs.filter((o) => o.id !== id))
+      setSelectedObj(null)
+    },
+    [setObjects],
+  )
+  const duplicateObj = useCallback(
+    (o: FreeObj) => {
+      const copy = { ...o, id: uid(), x: o.x + 16, y: o.y + 16 }
+      setObjects((objs) => [...objs, copy])
+      setSelectedObj(copy.id)
+    },
+    [setObjects],
+  )
+  const orderObj = (id: string, dir: 'front' | 'back') =>
+    setObjects((objs) => {
+      const o = objs.find((x) => x.id === id)
+      if (!o) return objs
+      const rest = objs.filter((x) => x.id !== id)
+      return dir === 'front' ? [...rest, o] : [o, ...rest]
+    })
+
+  useEffect(() => {
+    setSelectedObj(null)
+    setEditingObj(null)
+  }, [slide.id])
+
+  // 선택한 요소: Delete 삭제 · 방향키 이동 · Ctrl+D 복제 · Esc 선택 해제
+  useEffect(() => {
+    if (!selected || editingObj) return
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement
+      if (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return
+      const step = e.shiftKey ? 10 : 1
+      const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }
+      if (e.key === 'Delete' || e.key === 'Backspace') removeObj(selected.id)
+      else if (moves[e.key]) updateObj({ ...selected, x: selected.x + moves[e.key][0], y: selected.y + moves[e.key][1] })
+      else if ((e.metaKey || e.ctrlKey) && e.key === 'd') duplicateObj(selected)
+      else if (e.key === 'Escape') setSelectedObj(null)
+      else if (e.key === 'Enter' && selected.kind === 'shape') setEditingObj(selected.id)
+      else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected, editingObj, removeObj, updateObj, duplicateObj])
 
   useLayoutEffect(() => {
     const node = stage.current
@@ -125,7 +195,11 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
   }
 
   const duplicate = (i: number) => {
-    setSlides((slides) => [...slides.slice(0, i + 1), { ...slides[i], id: uid(), content: { ...slides[i].content } }, ...slides.slice(i + 1)])
+    setSlides((slides) => [
+      ...slides.slice(0, i + 1),
+      { ...slides[i], id: uid(), content: { ...slides[i].content }, objects: slides[i].objects?.map((o) => ({ ...o, id: uid() })) },
+      ...slides.slice(i + 1),
+    ])
     setCurrent(i + 1)
   }
 
@@ -223,6 +297,33 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
         <button type="button" className="deck-btn deck-btn-ghost" disabled={deck.slides.length === 1} onClick={() => remove(index)}>
           <Trash2 size={15} /> 삭제
         </button>
+        {isFree && (
+          <>
+            <div className="mx-1 h-6 w-px bg-[#E0E5F0]" />
+            <button type="button" className="deck-btn deck-btn-ghost" onClick={() => addObj(newText())}>
+              <Type size={15} /> 텍스트
+            </button>
+            <button type="button" className="deck-btn deck-btn-ghost" onClick={() => addObj(newBox())}>
+              <Square size={15} /> 박스
+            </button>
+            <button type="button" className="deck-btn deck-btn-ghost" onClick={() => pickImage('__free__')}>
+              <ImagePlus size={15} /> 이미지
+            </button>
+            <button
+              type="button"
+              className="deck-btn"
+              disabled={!objects.length}
+              title="이 슬라이드의 모든 글자 크기·색·배경을 가이드 값으로 맞춥니다"
+              onClick={() => {
+                const before = objects
+                setObjects((objs) => objs.map(snapToGuide))
+                setNotice({ text: '이 슬라이드를 가이드 서식(글자 크기·색·배경)에 맞췄어요', undo: () => setObjects(() => before) })
+              }}
+            >
+              <WandSparkles size={15} /> 가이드 서식 맞추기
+            </button>
+          </>
+        )}
       </div>
 
       <div className="flex min-h-0 flex-1">
@@ -282,12 +383,29 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
               onFieldChange={setField}
               onImagePick={pickImage}
               onImageClear={(key) => setField(key, '')}
+              selectedObj={selectedObj}
+              editingObj={editingObj}
+              onSelectObj={(id) => {
+                setSelectedObj(id)
+                if (id !== editingObj) setEditingObj(null)
+              }}
+              onEditObj={setEditingObj}
+              onObjChange={updateObj}
             />
           </div>
         </main>
 
         {/* 오른쪽 패널: 가이드 체크 + 발표자 노트 */}
         <aside className="hidden w-[280px] flex-shrink-0 flex-col overflow-y-auto border-l border-[#E0E5F0] bg-white lg:flex">
+          {selected && (
+            <ObjectPanel
+              obj={selected}
+              onChange={updateObj}
+              onRemove={() => removeObj(selected.id)}
+              onDuplicate={() => duplicateObj(selected)}
+              onOrder={(dir) => orderObj(selected.id, dir)}
+            />
+          )}
           <section className="border-b border-[#E0E5F0] p-4">
             <h3 className="deck-label mb-3">가이드 체크</h3>
             {issues.length === 0 ? (
@@ -352,7 +470,12 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
           const file = e.target.files?.[0]
           e.target.value = ''
           if (!file || !imageField.current) return
-          setField(imageField.current, await readImage(file))
+          const src = await readImage(file)
+          if (imageField.current === '__free__') {
+            const img = new Image()
+            img.onload = () => addObj(newImage(src, img.naturalWidth, img.naturalHeight))
+            img.src = src
+          } else setField(imageField.current, src)
         }}
       />
 

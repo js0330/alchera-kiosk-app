@@ -15,7 +15,7 @@ function parseHash(): { route: DeckRoute; deckId?: string } {
 
 export default function DeckApp() {
   const [loc, setLoc] = useState(parseHash)
-  const { decks, upsert, remove, saveState } = useDecks()
+  const { decks, loaded, upsert, remove, saveState } = useDecks()
   // 가져오기 직후 스튜디오에 한 번 보여줄 안내
   const [importNotice, setImportNotice] = useState<{ deckId: string; text: string } | null>(null)
 
@@ -38,6 +38,9 @@ export default function DeckApp() {
     setImportNotice({ deckId: deck.id, text: `${source}에서 ${deck.slides.length}장을 가이드 레이아웃으로 가져왔어요. 레이아웃이 맞는지 확인해 주세요.` })
     open(deck)
   }
+
+  // 저장된 문서를 다 읽기 전에는 '문서 없음' 화면을 보여주지 않습니다
+  if (!loaded && loc.route === 'studio') return <div className="deck-root min-h-screen" />
 
   if (loc.route === 'studio') {
     const recent = [...decks].sort((a, b) => b.updatedAt - a.updatedAt)

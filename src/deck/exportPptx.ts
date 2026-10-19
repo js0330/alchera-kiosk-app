@@ -3,7 +3,7 @@ import { BRAND, PX_PER_IN, SLIDE_IN, TONES } from './guide'
 import { buildSlide, sectionFor, slideTone } from './layouts'
 import { downloadBlob, safeFileName } from './store'
 import { parseRich } from './textStyle'
-import type { Deck, ShapeEl, TextEl } from './types'
+import type { Deck, FreeObj, ShapeEl, TextEl } from './types'
 
 const inch = (px: number) => px / PX_PER_IN
 const hex = (c: string) => c.replace('#', '').toUpperCase()
@@ -69,6 +69,54 @@ function shadow(el: ShapeEl): PptxGenJS.ShadowProps | undefined {
   if (el.shadow === 'accent') return { type: 'outer', angle: 270, blur: 0.001, offset: 2.25, color: '0000A5', opacity: 1 }
   if (el.shadow === 'soft') return { type: 'outer', angle: 90, blur: 3, offset: 2, color: '000000', opacity: 0.05 }
   return undefined
+}
+
+const pt = (px: number) => (px / PX_PER_IN) * 72
+
+function richRuns(text: string, bold: boolean): PptxGenJS.TextProps[] {
+  const lines = text.split('\n')
+  return lines.flatMap((line, i) => {
+    const runs = parseRich(line)
+    if (!runs.length) runs.push({ text: '', bold: false })
+    return runs.map((r, j) => ({ text: r.text, options: { bold: r.bold || bold, breakLine: j === runs.length - 1 && i < lines.length - 1 } }))
+  })
+}
+
+// 자유 배치 요소 → PPTX 네이티브 도형·텍스트 상자·이미지·선
+async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
+  const box = { x: inch(o.x), y: inch(o.y), w: inch(o.w), h: inch(o.h), rotate: o.rot || undefined }
+  if (o.kind === 'image') {
+    if (!o.src) return
+    s.addImage({ ...box, data: o.src.startsWith('data:') ? o.src : await urlToDataUrl(o.src) })
+    return
+  }
+  if (o.kind === 'line') {
+    s.addShape(pptx.ShapeType.line, { ...box, line: { color: hex(o.line ?? '#000038'), width: o.lineWidth ?? 1 }, flipH: o.flipH, flipV: o.flipV })
+    return
+  }
+  const shape = o.geom === 'ellipse' ? pptx.ShapeType.ellipse : o.geom === 'roundRect' ? pptx.ShapeType.roundRect : pptx.ShapeType.rect
+  const common = {
+    ...box,
+    fill: o.fill ? { color: hex(o.fill), transparency: transparency(o.opacity) } : undefined,
+    line: o.line ? { color: hex(o.line), width: o.lineWidth ?? 0.75 } : undefined,
+    rectRadius: o.geom === 'roundRect' ? inch(o.radius ?? 12) : undefined,
+  }
+  if (!o.text?.trim()) {
+    if (o.fill || o.line) s.addShape(shape, { ...common, line: common.line ?? { type: 'none' } })
+    return
+  }
+  const [l, t, r, b] = o.pad ?? [0, 0, 0, 0]
+  s.addText(richRuns(o.text, !!o.bold), {
+    ...common,
+    shape,
+    fontFace: BRAND.font.ppt,
+    fontSize: o.size ?? 10,
+    color: hex(o.color ?? '#000038'),
+    align: o.align ?? 'left',
+    valign: o.valign ?? 'top',
+    margin: [pt(l), pt(r), pt(b), pt(t)],
+    lineSpacingMultiple: o.lineHeight ?? 1.3,
+  })
 }
 
 // 편집 화면과 같은 요소 목록(buildSlide)을 그대로 PPTX 도형·텍스트 상자로 옮깁니다.
@@ -148,6 +196,9 @@ export async function exportDeckToPptx(deck: Deck) {
           break
         }
       }
+    }
+    if (slide.layout === 'free') {
+      for (const o of slide.objects ?? []) await addFreeObject(pptx, s, o)
     }
   }
 
