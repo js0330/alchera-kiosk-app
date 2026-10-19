@@ -23,6 +23,8 @@ interface SlideCanvasProps {
   onSelectObj?: (id: string | null) => void
   onEditObj?: (id: string | null) => void
   onObjChange?: (obj: FreeObj) => void
+  // false 면 편집 점선·빈 칸 안내를 숨깁니다
+  showGuides?: boolean
 }
 
 const box = (el: SlideEl): CSSProperties => ({ position: 'absolute', left: el.x, top: el.y, width: el.w, height: el.h })
@@ -130,6 +132,7 @@ function SlideCanvas({
   onSelectObj,
   onEditObj,
   onObjChange,
+  showGuides = true,
 }: SlideCanvasProps) {
   const els = buildSlide(slide, index, section)
   const scale = width / SLIDE_W
@@ -138,7 +141,7 @@ function SlideCanvas({
   return (
     <div style={{ width, height: SLIDE_H * scale, position: 'relative', overflow: 'hidden' }}>
       <div
-        className="deck-slide"
+        className={`deck-slide${showGuides ? '' : ' deck-guides-off'}`}
         onPointerDown={(e) => {
           // 빈 곳을 누르면 자유 배치 요소 선택 해제
           if (editable && !(e.target as HTMLElement).closest('[data-obj]')) onSelectObj?.(null)

@@ -67,7 +67,8 @@ function chrome(ctx: BuildCtx): SlideEl[] {
   return [
     { type: 'text', text: ctx.section, x: 49.5, y: 30, w: 750, h: 18, size: 9, color: C.crumb },
     field(ctx, 'title', 49.5, 60.6, 1080, 41, { size: 19, bold: true, color: C.navy, lineHeight: 1.2 }),
-    { type: 'rect', x: 50, y: 112.4, w: 4, h: 18.1, fill: C.blue },
+    // 서브 앞 파란 바는 서브가 있을 때만 (비어 있으면 PPTX에도 남기지 않음)
+    ...(ctx.c.sub?.trim() ? [{ type: 'rect', x: 50, y: 112.4, w: 4, h: 18.1, fill: C.blue } as SlideEl] : []),
     field(ctx, 'sub', 66, 111, 1076, 22, { size: 11, color: C.blue, lineHeight: 1.1 }),
     logo(ctx.p, 1142.6, 49, 87.7),
     { type: 'text', text: String(ctx.index + 1), x: 1150, y: 686, w: 80, h: 18, size: 8, color: C.pageNum, align: 'right' },

@@ -64,7 +64,7 @@
     cursor: text;
     transition: outline-color 0.15s;
   }
-  .deck-slide:hover .deck-field .deck-editable {
+  .deck-field:hover .deck-editable {
     outline-color: rgba(77, 107, 255, 0.28);
   }
   .deck-field .deck-editable:focus {
@@ -163,7 +163,7 @@
     outline: 2px solid transparent;
     outline-offset: 1px;
   }
-  .deck-slide:hover .deck-obj:not(.is-selected):hover {
+  .deck-obj:not(.is-selected):hover {
     outline-color: rgba(77, 107, 255, 0.45);
   }
   .deck-obj.is-selected {
@@ -197,5 +197,21 @@
     left: -8px;
     bottom: -8px;
     cursor: nesw-resize;
+  }
+}
+
+/* 편집선 숨기기: 점선·빈 칸 안내를 끄고 결과처럼 보기 (선택한 요소·입력 중인 칸 표시는 유지) */
+@layer components {
+  .deck-guides-off .deck-field:not(.is-overflow) .deck-editable:not(:focus) {
+    outline-color: transparent !important;
+  }
+  .deck-guides-off .deck-placeholder {
+    visibility: hidden;
+  }
+  .deck-guides-off .deck-image-empty {
+    border-color: transparent;
+  }
+  .deck-guides-off .deck-obj:not(.is-selected):hover {
+    outline-color: transparent;
   }
 }

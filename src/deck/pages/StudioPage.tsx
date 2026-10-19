@@ -7,6 +7,8 @@ import {
   FileJson,
   LayoutTemplate,
   LoaderCircle,
+  Eye,
+  EyeOff,
   ImagePlus,
   Play,
   Plus,
@@ -26,6 +28,19 @@ import { makeSlide, uid } from '../kits'
 import { LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, FreeObj, LayoutId, Slide } from '../types'
+
+// 복사한 자유 배치 요소. 다른 슬라이드·다른 문서에도 붙여넣을 수 있도록 모듈에 둡니다.
+const CLIP_MARK = 'alchera-deck-objects:'
+let objClipboard: { key: string; objs: FreeObj[]; pasted: number } | null = null
+
+const GUIDES_KEY = 'alchera-deck-show-guides'
+const readShowGuides = () => {
+  try {
+    return localStorage.getItem(GUIDES_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
 
 interface StudioPageProps {
   deck: Deck
@@ -74,6 +89,7 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
   // 자유 배치 슬라이드: 선택한 요소 · 글을 고치는 중인 요소
   const [selectedObj, setSelectedObj] = useState<string | null>(null)
   const [editingObj, setEditingObj] = useState<string | null>(null)
+  const [showGuides, setShowGuides] = useState(readShowGuides)
 
   const index = Math.min(current, deck.slides.length - 1)
   const slide = deck.slides[index]
@@ -140,6 +156,75 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
     setSelectedObj(null)
     setEditingObj(null)
   }, [slide.id])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(GUIDES_KEY, showGuides ? 'on' : 'off')
+    } catch {
+      // 무시
+    }
+  }, [showGuides])
+
+  // 복사 · 잘라내기 · 붙여넣기: 선택한 요소, 캡처한 이미지, 다른 곳에서 복사한 글
+  const latest = useRef({ selected, isFree, slideId: slide.id })
+  latest.current = { selected, isFree, slideId: slide.id }
+  useEffect(() => {
+    const typing = (t: EventTarget | null) => {
+      const el = t as HTMLElement | null
+      return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))
+    }
+    const onCopy = (e: ClipboardEvent, cut: boolean) => {
+      const { selected: sel } = latest.current
+      if (typing(e.target) || !sel) return
+      const key = uid()
+      objClipboard = { key, objs: [sel], pasted: 0 }
+      e.clipboardData?.setData('text/plain', `${CLIP_MARK}${key}`)
+      e.preventDefault()
+      if (cut) removeObj(sel.id)
+      setNotice({ text: cut ? '잘라냈어요. 원하는 슬라이드에서 Ctrl+V로 붙여넣으세요.' : '복사했어요. 원하는 슬라이드에서 Ctrl+V로 붙여넣으세요.' })
+    }
+    const onPaste = (e: ClipboardEvent) => {
+      if (typing(e.target)) return
+      const data = e.clipboardData
+      if (!data) return
+      const text = data.getData('text/plain')
+      const image = Array.from(data.files).find((f) => f.type.startsWith('image/'))
+      const internal = text.startsWith(CLIP_MARK) && objClipboard && text === `${CLIP_MARK}${objClipboard.key}` ? objClipboard : null
+      if (!internal && !image && !text.trim()) return
+      e.preventDefault()
+      if (!latest.current.isFree) {
+        setNotice({ text: '요소 붙여넣기는 ‘자유 배치’ 슬라이드에서 돼요. 레이아웃을 자유 배치로 바꾸거나 새 자유 배치 슬라이드를 추가해 주세요.' })
+        return
+      }
+      if (internal) {
+        internal.pasted += 1
+        const shift = 16 * internal.pasted
+        const copies = internal.objs.map((o) => ({ ...o, id: uid(), x: o.x + shift, y: o.y + shift }))
+        setObjects((objs) => [...objs, ...copies])
+        setSelectedObj(copies[copies.length - 1].id)
+      } else if (image) {
+        readImage(image).then((src) => {
+          const img = new Image()
+          img.onload = () => addObj(newImage(src, img.naturalWidth, img.naturalHeight))
+          img.src = src
+        })
+      } else {
+        const lines = text.replace(/\r\n?/g, '\n').trim()
+        addObj(newText({ text: lines, h: Math.min(400, 24 + lines.split('\n').length * 24) }))
+      }
+    }
+    const copy = (e: ClipboardEvent) => onCopy(e, false)
+    const cut = (e: ClipboardEvent) => onCopy(e, true)
+    window.addEventListener('copy', copy)
+    window.addEventListener('cut', cut)
+    window.addEventListener('paste', onPaste)
+    return () => {
+      window.removeEventListener('copy', copy)
+      window.removeEventListener('cut', cut)
+      window.removeEventListener('paste', onPaste)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [removeObj, setObjects])
 
   // 선택한 요소: Delete 삭제 · 방향키 이동 · Ctrl+D 복제 · Esc 선택 해제
   useEffect(() => {
@@ -290,6 +375,14 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
         <button type="button" className="deck-btn" onClick={() => setPicker('change')}>
           <LayoutTemplate size={16} /> 레이아웃: {layout.name}
         </button>
+        <button
+          type="button"
+          className={`deck-btn ${showGuides ? 'deck-btn-ghost' : 'border-[#0000A5] text-[#0000A5]'}`}
+          onClick={() => setShowGuides((v) => !v)}
+          title="편집용 점선과 빈 칸 안내 문구를 숨기고 실제 결과처럼 봅니다"
+        >
+          {showGuides ? <EyeOff size={15} /> : <Eye size={15} />} {showGuides ? '편집선 숨기기' : '편집선 보기'}
+        </button>
         <div className="mx-1 h-6 w-px bg-[#E0E5F0]" />
         <button type="button" className="deck-btn deck-btn-ghost" onClick={() => duplicate(index)}>
           <Copy size={15} /> 복제
@@ -391,6 +484,7 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
               }}
               onEditObj={setEditingObj}
               onObjChange={updateObj}
+              showGuides={showGuides}
             />
           </div>
         </main>

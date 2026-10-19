@@ -148,7 +148,7 @@ export default function ObjectPanel({ obj, onChange, onRemove, onDuplicate, onOr
           </button>
         )}
       </div>
-      <p className="text-[11px] leading-relaxed text-[#9CA3AF]">더블클릭으로 글 수정 · Delete 삭제 · 방향키 이동(Shift 10px) · Ctrl+D 복제</p>
+      <p className="text-[11px] leading-relaxed text-[#9CA3AF]">더블클릭으로 글 수정 · Ctrl+C / Ctrl+V 복사·붙여넣기(다른 슬라이드에도) · Delete 삭제 · 방향키 이동(Shift 10px) · Ctrl+D 복제</p>
     </section>
   )
 }
