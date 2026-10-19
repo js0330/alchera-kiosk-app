@@ -46,7 +46,6 @@ export default function PresentMode({ deck, start, onExit }: { deck: Deck; start
         <SlideCanvas
           slide={slide}
           index={index}
-          footer={deck.footer}
           section={sectionFor(deck.slides, index)}
           width={width}
           showPlaceholders={false}

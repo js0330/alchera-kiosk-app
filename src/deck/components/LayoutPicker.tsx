@@ -1,6 +1,5 @@
 import { X } from 'lucide-react'
 import { useEffect } from 'react'
-import { BRAND } from '../guide'
 import { LAYOUT_CATEGORIES, LAYOUTS } from '../layouts'
 import type { LayoutId } from '../types'
 import { makeSlide } from '../kits'
@@ -10,7 +9,7 @@ import SlideCanvas from './SlideCanvas'
 const SAMPLE_SLIDES = Object.fromEntries(LAYOUTS.map((l) => [l.id, { ...makeSlide(l.id, l.sample), id: `sample-${l.id}` }]))
 
 export function LayoutThumb({ id, width }: { id: LayoutId; width: number }) {
-  return <SlideCanvas slide={SAMPLE_SLIDES[id]} index={1} footer={BRAND.footer} section="01  섹션 제목" width={width} />
+  return <SlideCanvas slide={SAMPLE_SLIDES[id]} index={4} section="2. 제품 소개" width={width} />
 }
 
 interface LayoutPickerProps {

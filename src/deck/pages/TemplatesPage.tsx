@@ -5,6 +5,7 @@ import { LayoutThumb } from '../components/LayoutPicker'
 import SlideCanvas from '../components/SlideCanvas'
 import { KITS, createDeckFromKit, createDeckFromLayout, uid, type Kit } from '../kits'
 import { LAYOUT_CATEGORIES, LAYOUTS, type LayoutCategory } from '../layouts'
+import { BRAND } from '../guide'
 import { isDeck } from '../store'
 import type { Deck } from '../types'
 
@@ -27,7 +28,7 @@ function KitPreview({ kit }: { kit: Kit }) {
             className="absolute overflow-hidden rounded-md shadow-[0_4px_14px_rgba(0,0,56,0.14)] ring-1 ring-black/5"
             style={{ left: i * 18, top: i * 14, zIndex: 3 - i, opacity: 1 - i * 0.15 }}
           >
-            <SlideCanvas slide={s} index={i} footer={deck.footer} width={190} />
+            <SlideCanvas slide={s} index={i} width={190} />
           </div>
         ))
         .reverse()}
@@ -59,22 +60,20 @@ export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPage
   return (
     <div className="pb-20">
       {/* Hero */}
-      <section className="bg-[#000038] text-white">
+      <section className="text-white" style={{ background: `#000038 url(${BRAND.coverBg}) right center / cover no-repeat` }}>
         <div className="relative mx-auto max-w-[1200px] overflow-hidden px-4 py-14 sm:px-6">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-[360px] w-[360px] rounded-full border border-white/15" />
-          <div className="pointer-events-none absolute right-24 top-28 h-6 w-6 rounded-full bg-[#4D6BFF]" />
-          <p className="text-[12px] font-bold tracking-[0.12em] text-[#7B8CFF]">ALCHERA PRESENTATION SYSTEM</p>
+          <p className="text-[12px] font-bold tracking-[0.12em] text-[#7B8CFF]">ALCHERA PPT TEMPLATE · ver.260507</p>
           <h1 className="mt-3 text-[30px] font-bold leading-tight sm:text-[38px]">
             내용만 쓰세요.
             <br />
             디자인은 가이드가 맞춥니다.
           </h1>
           <p className="mt-4 max-w-[520px] text-[15px] leading-relaxed text-[#D3D7EE]">
-            레이아웃을 고르고 칸에 글을 채우면 알체라 가이드에 맞는 슬라이드가 됩니다. 다운로드한 PPTX는 다시 손볼 필요가 없어요.
+            알체라 PPT 가이드의 레이아웃을 고르고 칸에 글만 채우세요. 글꼴·크기·색·위치는 가이드 그대로 들어가고, 다운로드한 PPTX는 다시 손볼 필요가 없어요.
           </p>
           <div className="mt-7 flex flex-wrap gap-2">
             <button type="button" className="deck-btn deck-btn-primary h-10 px-5" onClick={() => onOpen(createDeckFromKit(KITS[0]))}>
-              세일즈 덱으로 시작 <ArrowRight size={16} />
+              솔루션 소개서로 시작 <ArrowRight size={16} />
             </button>
             <button
               type="button"
@@ -137,7 +136,7 @@ export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPage
                 <div key={d.id} className="group overflow-hidden rounded-2xl border border-[#E0E5F0] bg-white transition hover:shadow-lg">
                   <button type="button" className="block w-full bg-[#EEF1F7] p-3" onClick={() => onOpen(d)}>
                     <div className="overflow-hidden rounded-md shadow-sm">
-                      <FitWidth>{(w) => <SlideCanvas slide={d.slides[0]} index={0} footer={d.footer} width={w} />}</FitWidth>
+                      <FitWidth>{(w) => <SlideCanvas slide={d.slides[0]} index={0} width={w} />}</FitWidth>
                     </div>
                   </button>
                   <div className="flex items-start justify-between gap-2 p-4">
@@ -178,7 +177,7 @@ export default function TemplatesPage({ decks, onOpen, onRemove }: TemplatesPage
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-[20px] font-bold text-[#000038]">레이아웃 라이브러리</h2>
-              <p className="mt-1 text-[13px] text-[#7A8099]">알체라 가이드로 만든 {LAYOUTS.length}가지 레이아웃. 눌러서 바로 시작할 수 있어요.</p>
+              <p className="mt-1 text-[13px] text-[#7A8099]">알체라 PPT 가이드의 {LAYOUTS.length}가지 레이아웃. 눌러서 바로 시작할 수 있어요.</p>
             </div>
             <div className="flex flex-wrap gap-1">
               {(['전체', ...LAYOUT_CATEGORIES] as const).map((c) => (

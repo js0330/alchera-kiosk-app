@@ -2,16 +2,15 @@ import type { Tone } from './guide'
 
 export type LayoutId =
   | 'cover'
-  | 'agenda'
+  | 'contents'
   | 'section'
-  | 'statement'
-  | 'title-body'
-  | 'two-column'
-  | 'three-cards'
-  | 'kpi'
-  | 'image-text'
-  | 'timeline'
-  | 'quote'
+  | 'line-1'
+  | 'line-2'
+  | 'line-3'
+  | 'line-grid'
+  | 'header-1'
+  | 'header-2'
+  | 'header-3'
   | 'closing'
 
 export type FieldKind = 'text' | 'multiline' | 'bullets' | 'numbers' | 'image'
@@ -35,7 +34,6 @@ export interface Slide {
 export interface Deck {
   id: string
   title: string
-  footer: string
   slides: Slide[]
   createdAt: number
   updatedAt: number
@@ -57,6 +55,10 @@ export interface ShapeEl extends Box {
   lineWidth?: number
   opacity?: number
   radius?: number
+  // 둥근 모서리를 위쪽에만 (타이틀형 헤더 바)
+  topOnly?: boolean
+  // accent: 라인형 패널 위쪽의 파란 선(가이드의 위쪽 그림자) · soft: 타이틀형 본문의 옅은 그림자
+  shadow?: 'accent' | 'soft'
 }
 
 export interface LineEl extends Box {
@@ -71,6 +73,7 @@ export interface ImageEl extends Box {
   logo?: 'white' | 'navy'
   fill: string
   muted: string
+  radius?: number
 }
 
 export interface TextEl extends Box {
@@ -86,6 +89,8 @@ export interface TextEl extends Box {
   letterSpacing?: number
   list?: 'bullet' | 'number'
   multiline?: boolean
+  // **굵게** 표기를 허용하는 칸 (가이드: 강조는 Bold)
+  rich?: boolean
   placeholder?: string
 }
 

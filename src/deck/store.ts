@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { LAYOUT_MAP } from './layouts'
 import type { Deck } from './types'
 
-const STORAGE_KEY = 'alchera-deck-studio:v1'
+const STORAGE_KEY = 'alchera-deck-studio:v2'
 
 function load(): Deck[] {
   try {

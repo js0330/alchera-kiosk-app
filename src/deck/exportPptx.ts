@@ -1,8 +1,9 @@
 import type PptxGenJS from 'pptxgenjs'
-import { BRAND, PX_PER_IN, TONES } from './guide'
+import { BRAND, PX_PER_IN, SLIDE_IN, TONES } from './guide'
 import { buildSlide, sectionFor, slideTone } from './layouts'
 import { downloadBlob, safeFileName } from './store'
-import type { Deck, TextEl } from './types'
+import { parseRich } from './textStyle'
+import type { Deck, ShapeEl, TextEl } from './types'
 
 const inch = (px: number) => px / PX_PER_IN
 const hex = (c: string) => c.replace('#', '').toUpperCase()
@@ -41,16 +42,33 @@ function coverCrop(dataUrl: string, w: number, h: number): Promise<string> {
   })
 }
 
+// 목차 항목은 PPT 자동 번호, 본문은 줄마다 텍스트(• 포함)로 넣고 **굵게** 구간만 Bold 로 나눕니다.
 function textRuns(el: TextEl, value: string): PptxGenJS.TextProps[] | string {
-  if (!el.list) return value
-  const lines = value.split('\n').filter((l) => l.trim())
-  return lines.map((line, i) => ({
-    text: line,
-    options: {
-      bullet: el.list === 'number' ? { type: 'number', indent: el.size * 1.6 } : { indent: el.size * 1.2 },
-      breakLine: i < lines.length - 1,
-    },
-  }))
+  if (el.list === 'number') {
+    const lines = value.split('\n').filter((l) => l.trim())
+    return lines.map((line, i) => ({
+      text: line,
+      options: { bullet: { type: 'number', indent: el.size * 1.6 }, breakLine: i < lines.length - 1 },
+    }))
+  }
+  if (!el.rich) return value
+  const lines = value.split('\n')
+  return lines.flatMap((line, i) => {
+    const runs = parseRich(line)
+    if (!runs.length) runs.push({ text: '', bold: false })
+    return runs.map((r, j) => ({
+      text: r.text,
+      options: { bold: r.bold || !!el.bold, breakLine: j === runs.length - 1 && i < lines.length - 1 },
+    }))
+  })
+}
+
+// 가이드: 라인형 패널은 위쪽 파란 그림자(2.25pt), 타이틀형 본문은 옅은 아래 그림자
+function shadow(el: ShapeEl): PptxGenJS.ShadowProps | undefined {
+  // blur 0 은 pptxgenjs 가 기본값(8pt)으로 바꾸므로 0에 가까운 값을 넣어 가이드처럼 선명한 선을 만듭니다.
+  if (el.shadow === 'accent') return { type: 'outer', angle: 270, blur: 0.001, offset: 2.25, color: '0000A5', opacity: 1 }
+  if (el.shadow === 'soft') return { type: 'outer', angle: 90, blur: 3, offset: 2, color: '000000', opacity: 0.05 }
+  return undefined
 }
 
 // 편집 화면과 같은 요소 목록(buildSlide)을 그대로 PPTX 도형·텍스트 상자로 옮깁니다.
@@ -58,7 +76,8 @@ function textRuns(el: TextEl, value: string): PptxGenJS.TextProps[] | string {
 export async function exportDeckToPptx(deck: Deck) {
   const { default: Pptx } = await import('pptxgenjs')
   const pptx = new Pptx()
-  pptx.layout = 'LAYOUT_WIDE'
+  pptx.defineLayout({ name: 'ALCHERA', width: SLIDE_IN.w, height: SLIDE_IN.h })
+  pptx.layout = 'ALCHERA'
   pptx.title = deck.title
   pptx.company = BRAND.name
   pptx.theme = { headFontFace: BRAND.font.ppt, bodyFontFace: BRAND.font.ppt }
@@ -67,25 +86,35 @@ export async function exportDeckToPptx(deck: Deck) {
     white: await urlToDataUrl(BRAND.logo.white),
     navy: await urlToDataUrl(BRAND.logo.navy),
   }
+  const coverBg = await urlToDataUrl(BRAND.coverBg)
 
   for (const [index, slide] of deck.slides.entries()) {
     const s = pptx.addSlide()
-    s.background = { color: hex(TONES[slideTone(slide)].bg) }
+    const palette = TONES[slideTone(slide)]
+    s.background = palette.bgImage ? { data: coverBg } : { color: hex(palette.bg) }
     if (slide.notes.trim()) s.addNotes(slide.notes)
 
-    for (const el of buildSlide(slide, index, deck.footer, sectionFor(deck.slides, index))) {
+    for (const el of buildSlide(slide, index, sectionFor(deck.slides, index))) {
       const box = { x: inch(el.x), y: inch(el.y), w: inch(el.w), h: inch(el.h) }
       switch (el.type) {
         case 'rect':
         case 'ellipse': {
-          const shape = el.type === 'ellipse' ? pptx.ShapeType.ellipse : el.radius ? pptx.ShapeType.roundRect : pptx.ShapeType.rect
+          const shape =
+            el.type === 'ellipse'
+              ? pptx.ShapeType.ellipse
+              : el.topOnly
+                ? pptx.ShapeType.round2SameRect
+                : el.radius
+                  ? pptx.ShapeType.roundRect
+                  : pptx.ShapeType.rect
           s.addShape(shape, {
             ...box,
             fill: el.fill ? { color: hex(el.fill), transparency: transparency(el.opacity) } : undefined,
             line: el.line
               ? { color: hex(el.line), width: el.lineWidth ?? 1, transparency: transparency(el.opacity) }
               : { type: 'none' },
-            rectRadius: el.radius ? inch(el.radius) : undefined,
+            rectRadius: el.radius && !el.topOnly ? inch(el.radius) : undefined,
+            shadow: shadow(el),
           })
           break
         }

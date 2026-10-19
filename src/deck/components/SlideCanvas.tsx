@@ -2,14 +2,13 @@ import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react'
 import { memo, type CSSProperties } from 'react'
 import { BRAND, SLIDE_H, SLIDE_W, TONES, ptToPx } from '../guide'
 import { buildSlide, slideTone } from '../layouts'
-import type { ImageEl, Slide, SlideEl, TextEl } from '../types'
-import { listClass, textStyle } from '../textStyle'
+import type { ImageEl, ShapeEl, Slide, SlideEl, TextEl } from '../types'
+import { listClass, parseRich, textStyle } from '../textStyle'
 import EditableText from './EditableText'
 
 interface SlideCanvasProps {
   slide: Slide
   index: number
-  footer: string
   section?: string
   width: number
   editable?: boolean
@@ -26,19 +25,27 @@ function StaticText({ el, value, placeholder }: { el: TextEl; value: string; pla
   if (!value.trim() && !showPh) return null
   const style: CSSProperties = { ...box(el), ...textStyle(el), ['--para-space' as string]: `${el.paraSpace ? ptToPx(el.paraSpace) : 0}px` }
   if (showPh) return <div style={{ ...style, opacity: 0.35 }}>{el.placeholder}</div>
-  if (el.list) {
-    return (
-      <div className={listClass(el)} style={style}>
-        {value
-          .split('\n')
-          .filter((l) => l.trim())
-          .map((line, i) => (
-            <div key={i}>{line}</div>
-          ))}
-      </div>
-    )
+  const lines = value.split('\n')
+  return (
+    <div className={listClass(el)} style={style}>
+      {(el.list === 'number' ? lines.filter((l) => l.trim()) : lines).map((line, i) => (
+        <div key={i}>{el.rich ? parseRich(line).map((r, j) => (r.bold ? <b key={j}>{r.text}</b> : r.text)) : line || '\u00a0'}</div>
+      ))}
+    </div>
+  )
+}
+
+function shapeStyle(el: ShapeEl): CSSProperties {
+  const r = el.type === 'ellipse' ? '50%' : el.topOnly ? `${el.radius}px ${el.radius}px 0 0` : el.radius
+  return {
+    ...box(el),
+    background: el.fill,
+    border: el.line ? `${ptToPx(el.lineWidth ?? 1)}px solid ${el.line}` : undefined,
+    borderRadius: r,
+    opacity: el.opacity,
+    // 가이드: 라인형 패널은 위쪽으로 2.25pt 파란 그림자, 타이틀형 본문은 아래로 옅은 그림자
+    boxShadow: el.shadow === 'accent' ? `0 ${-ptToPx(2.25)}px 0 ${BRAND.colors.blue}` : el.shadow === 'soft' ? '0 3px 6px rgba(0,0,0,0.05)' : undefined,
   }
-  return <div style={style}>{value}</div>
 }
 
 function ImageBox({
@@ -59,7 +66,7 @@ function ImageBox({
   }
   if (src) {
     return (
-      <div style={box(el)} className="deck-image group">
+      <div style={{ ...box(el), borderRadius: el.radius }} className="deck-image group">
         <img src={src} alt="" className="h-full w-full object-cover" draggable={false} />
         {editable && (
           <div className="absolute right-4 top-4 flex gap-2 opacity-0 transition group-hover:opacity-100">
@@ -76,13 +83,14 @@ function ImageBox({
   }
   const inner = (
     <>
-      <ImagePlus size={56} strokeWidth={1.5} />
-      <span style={{ fontSize: 22, marginTop: 12 }}>{editable ? '클릭해서 이미지 넣기' : '이미지'}</span>
+      <ImagePlus size={40} strokeWidth={1.5} />
+      <span style={{ fontSize: 18, marginTop: 10 }}>{editable ? '클릭해서 이미지 넣기' : '이미지'}</span>
     </>
   )
   const style: CSSProperties = {
     ...box(el),
     background: el.fill,
+    borderRadius: el.radius,
     color: el.muted,
     display: 'flex',
     flexDirection: 'column',
@@ -103,7 +111,6 @@ function ImageBox({
 function SlideCanvas({
   slide,
   index,
-  footer,
   section = '',
   width,
   editable,
@@ -112,7 +119,7 @@ function SlideCanvas({
   onImagePick,
   onImageClear,
 }: SlideCanvasProps) {
-  const els = buildSlide(slide, index, footer, section)
+  const els = buildSlide(slide, index, section)
   const scale = width / SLIDE_W
   const palette = TONES[slideTone(slide)]
 
@@ -126,7 +133,7 @@ function SlideCanvas({
           height: SLIDE_H,
           transform: `scale(${scale})`,
           transformOrigin: '0 0',
-          background: palette.bg,
+          background: palette.bgImage ? `${palette.bg} url(${palette.bgImage}) center / cover no-repeat` : palette.bg,
           fontFamily: BRAND.font.web,
         }}
       >
@@ -135,18 +142,7 @@ function SlideCanvas({
           switch (el.type) {
             case 'rect':
             case 'ellipse':
-              return (
-                <div
-                  key={key}
-                  style={{
-                    ...box(el),
-                    background: el.fill,
-                    border: el.line ? `${ptToPx(el.lineWidth ?? 1)}px solid ${el.line}` : undefined,
-                    borderRadius: el.type === 'ellipse' ? '50%' : el.radius,
-                    opacity: el.opacity,
-                  }}
-                />
-              )
+              return <div key={key} style={shapeStyle(el)} />
             case 'line':
               return (
                 <div

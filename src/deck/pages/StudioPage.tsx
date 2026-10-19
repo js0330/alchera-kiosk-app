@@ -15,9 +15,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import LayoutPicker from '../components/LayoutPicker'
 import PresentMode from '../components/PresentMode'
 import SlideCanvas from '../components/SlideCanvas'
-import { TONES, SLIDE_H, SLIDE_W } from '../guide'
+import { SLIDE_H, SLIDE_W } from '../guide'
 import { makeSlide, uid } from '../kits'
-import { LAYOUT_MAP, checkSlide, sectionFor, slideTone } from '../layouts'
+import { LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, LayoutId, Slide } from '../types'
 
@@ -119,7 +119,7 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
   }
 
   const changeLayout = (id: LayoutId) => {
-    updateSlide(slide.id, (s) => ({ ...s, layout: id, tone: LAYOUT_MAP[id].tones.includes(s.tone) ? s.tone : LAYOUT_MAP[id].defaultTone }))
+    updateSlide(slide.id, (s) => ({ ...s, layout: id, tone: LAYOUT_MAP[id].tone }))
     setPicker(null)
   }
 
@@ -176,8 +176,6 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
     downloadBlob(new Blob([JSON.stringify(deck, null, 2)], { type: 'application/json' }), `${safeFileName(deck.title)}.deck.json`)
   }
 
-  const tones = layout.tones
-
   return (
     <div className="flex h-screen flex-col">
       {/* 상단 바 */}
@@ -217,23 +215,6 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
         <button type="button" className="deck-btn" onClick={() => setPicker('change')}>
           <LayoutTemplate size={16} /> 레이아웃: {layout.name}
         </button>
-        {tones.length > 1 && (
-          <div className="flex items-center gap-1 rounded-lg border border-[#E0E5F0] bg-white p-1">
-            {tones.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => updateSlide(slide.id, (s) => ({ ...s, tone: t }))}
-                className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-semibold ${
-                  slideTone(slide) === t ? 'bg-[#EEF0FB] text-[#0000A5]' : 'text-[#666] hover:bg-[#F5F7FC]'
-                }`}
-              >
-                <span className="h-3 w-3 rounded-full border border-black/10" style={{ background: TONES[t].bg }} />
-                {TONES[t].label}
-              </button>
-            ))}
-          </div>
-        )}
         <div className="mx-1 h-6 w-px bg-[#E0E5F0]" />
         <button type="button" className="deck-btn deck-btn-ghost" onClick={() => duplicate(index)}>
           <Copy size={15} /> 복제
@@ -275,7 +256,7 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
                       i === index ? 'border-[#0000A5]' : 'border-transparent ring-1 ring-[#E0E5F0] hover:ring-[#4D6BFF]'
                     }`}
                   >
-                    <SlideCanvas slide={s} index={i} footer={deck.footer} section={sectionFor(deck.slides, i)} width={152} />
+                    <SlideCanvas slide={s} index={i} section={sectionFor(deck.slides, i)} width={152} />
                     {n > 0 && (
                       <span className="absolute right-1 top-1 rounded bg-[#F1A11D] px-1 text-[10px] font-bold text-white" title="가이드 체크 항목">
                         {n}
@@ -294,7 +275,6 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
             <SlideCanvas
               slide={slide}
               index={index}
-              footer={deck.footer}
               section={sectionFor(deck.slides, index)}
               width={canvasW}
               editable
@@ -357,15 +337,6 @@ export default function StudioPage({ deck, saveState, onChange }: StudioPageProp
               onChange={(e) => updateSlide(slide.id, (s) => ({ ...s, notes: e.target.value }))}
               placeholder="발표할 때 말할 내용을 적어두세요. PPTX 노트로 함께 내보내져요."
               className="min-h-[140px] flex-1 resize-none rounded-lg border border-[#E0E5F0] p-3 text-[13px] leading-relaxed outline-none focus:border-[#4D6BFF]"
-            />
-          </section>
-
-          <section className="p-4">
-            <h3 className="deck-label mb-2">하단 문구 (전체 슬라이드)</h3>
-            <input
-              value={deck.footer}
-              onChange={(e) => onChange({ ...deck, footer: e.target.value })}
-              className="w-full rounded-lg border border-[#E0E5F0] px-3 py-2 text-[12px] outline-none focus:border-[#4D6BFF]"
             />
           </section>
         </aside>

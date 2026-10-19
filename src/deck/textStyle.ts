@@ -17,6 +17,25 @@ export function textStyle(el: TextEl): CSSProperties {
   }
 }
 
+// 목차 항목만 PPT 자동 번호를 씁니다. 본문 글머리(•)는 가이드대로 텍스트입니다.
 export function listClass(el: TextEl) {
-  return el.list === 'number' ? 'deck-list deck-num' : el.list === 'bullet' ? 'deck-list' : ''
+  return el.list === 'number' ? 'deck-list deck-num' : ''
 }
+
+export interface Run {
+  text: string
+  bold: boolean
+}
+
+// "**굵게**" 표기를 굵기 구간으로 나눕니다. 한 줄 단위로 사용합니다.
+export function parseRich(line: string): Run[] {
+  const runs: Run[] = []
+  line.split(/(\*\*[^*]+\*\*)/g).forEach((part) => {
+    if (!part) return
+    const bold = part.startsWith('**') && part.endsWith('**') && part.length > 4
+    runs.push({ text: bold ? part.slice(2, -2) : part, bold })
+  })
+  return runs
+}
+
+export const BULLET = '• '
