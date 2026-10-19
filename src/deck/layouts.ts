@@ -8,6 +8,7 @@ export interface BuildCtx {
   p: Palette
   index: number
   footer: string
+  section: string
   fields: FieldDef[]
 }
 
@@ -49,10 +50,11 @@ function logo(p: Palette, x: number, y: number, w: number): SlideEl {
   return { type: 'image', logo: p.logo, x, y, w, h: w / BRAND.logo.ratio, fill: 'transparent', muted: p.muted }
 }
 
-// 본문 슬라이드 공통 요소: 우상단 로고, 하단 푸터와 페이지 번호
+// 본문 슬라이드 공통 요소: 상단 목차(직전 섹션 제목 자동), 우상단 로고, 하단 푸터와 페이지 번호
 function chrome(ctx: BuildCtx): SlideEl[] {
   const { p } = ctx
   return [
+    { type: 'text', text: ctx.section, x: M, y: 22, w: 900, h: 18, size: 9, bold: true, color: p.muted, letterSpacing: 0.5 },
     logo(p, 1280 - M - 96, 52, 96),
     { type: 'text', text: ctx.footer, x: M, y: 668, w: 760, h: 20, size: 9, color: p.muted },
     {
@@ -500,10 +502,22 @@ export const LAYOUT_MAP = Object.fromEntries(LAYOUTS.map((l) => [l.id, l])) as R
 
 export const LAYOUT_CATEGORIES: LayoutCategory[] = ['구성', '본문', '데이터', '마무리']
 
-export function buildSlide(slide: Slide, index: number, footer: string): SlideEl[] {
+export function buildSlide(slide: Slide, index: number, footer: string, section = ''): SlideEl[] {
   const layout = LAYOUT_MAP[slide.layout]
-  const tone = layout.tones.includes(slide.tone) ? slide.tone : layout.defaultTone
-  return layout.build({ c: slide.content, p: TONES[tone], index, footer, fields: layout.fields })
+  return layout.build({ c: slide.content, p: TONES[slideTone(slide)], index, footer, section, fields: layout.fields })
+}
+
+// 상단 목차: 이 슬라이드 앞에 있는 가장 가까운 섹션 슬라이드의 제목
+export function sectionFor(slides: Slide[], index: number): string {
+  for (let i = index; i >= 0; i--) {
+    const s = slides[i]
+    if (s.layout === 'section') {
+      const n = (s.content.number ?? '').trim()
+      const t = (s.content.title ?? '').trim()
+      return [n, t].filter(Boolean).join('  ')
+    }
+  }
+  return ''
 }
 
 export function slideTone(slide: Slide): Tone {
