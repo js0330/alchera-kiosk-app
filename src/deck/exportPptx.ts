@@ -85,7 +85,7 @@ function textRuns(el: TextEl, value: string): PptxGenJS.TextProps[] | string {
 }
 
 // 가이드: 라인형 패널은 위쪽 파란 그림자(2.25pt), 타이틀형 본문은 옅은 아래 그림자
-function shadow(el: ShapeEl): PptxGenJS.ShadowProps | undefined {
+function shadow(el: Pick<ShapeEl, 'shadow'>): PptxGenJS.ShadowProps | undefined {
   // blur 0 은 pptxgenjs 가 기본값(8pt)으로 바꾸므로 0에 가까운 값을 넣어 가이드처럼 선명한 선을 만듭니다.
   if (el.shadow === 'accent') return { type: 'outer', angle: 270, blur: 0.001, offset: 2.25, color: '0000A5', opacity: 1 }
   if (el.shadow === 'soft') return { type: 'outer', angle: 90, blur: 3, offset: 2, color: '000000', opacity: 0.05 }
@@ -137,6 +137,7 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
     fill: o.fill ? { color: hex(o.fill), transparency: transparency(o.opacity) } : undefined,
     line: o.line ? { color: hex(o.line), width: o.lineWidth ?? 0.75, dashType: o.dash === 'dash' ? ('dash' as const) : o.dash === 'dot' ? ('sysDot' as const) : undefined } : undefined,
     rectRadius: radius > 0 ? inch(radius) : undefined,
+    shadow: shadow(o),
   }
   if (!o.text?.trim()) {
     if (o.fill || o.line) s.addShape(shape, { ...common, line: common.line ?? { type: 'none' } })

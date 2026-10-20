@@ -67,7 +67,8 @@ function chrome(ctx: BuildCtx): SlideEl[] {
   return [
     // 키 네임(상단 목차): 비어 있으면 앞쪽 간지 제목("2. 문제 제기")을 대신 씁니다
     { ...field(ctx, 'crumb', 49.5, 30, 750, 18, { size: 9, color: C.crumb, lineHeight: 1.2 }), fallback: ctx.section },
-    field(ctx, 'title', 49.5, 60.6, 1080, 41, { size: 19, bold: true, color: C.navy, lineHeight: 1.2 }),
+    // 타이틀은 서브와 간격을 두려고 가이드 원본(60.6)보다 6px 위에 둡니다
+    field(ctx, 'title', 49.5, 54.6, 1080, 41, { size: 19, bold: true, color: C.navy, lineHeight: 1.2 }),
     // 서브 앞 파란 바는 서브가 있을 때만 (비어 있으면 PPTX에도 남기지 않음)
     ...(ctx.c.sub?.trim() ? [{ type: 'rect', x: 50, y: 112.4, w: 4, h: 18.1, fill: C.blue } as SlideEl] : []),
     field(ctx, 'sub', 66, 111, 1076, 22, { size: 11, color: C.blue, lineHeight: 1.1 }),
@@ -76,16 +77,53 @@ function chrome(ctx: BuildCtx): SlideEl[] {
   ]
 }
 
+// 패널 위치 (라인형·타이틀형 레이아웃과 요소 라이브러리의 '가이드 박스'가 같은 값을 씁니다)
+type PanelBox = readonly [x: number, y: number, w: number, h: number]
+export const LINE_PANELS: Record<'one' | 'two' | 'three' | 'grid', readonly PanelBox[]> = {
+  one: [[50, 164.1, 1179.5, 528]],
+  two: [
+    [50.2, 164.1, 577.5, 528],
+    [651.9, 164.1, 577.5, 528],
+  ],
+  three: [
+    [50.2, 164.1, 375.9, 528],
+    [451.9, 164.1, 375.9, 528],
+    [853.5, 164.1, 375.9, 528],
+  ],
+  grid: [
+    [50.2, 164.1, 578.6, 252],
+    [651.2, 164.1, 578.6, 252],
+    [50.2, 440.2, 578.6, 252],
+    [651.2, 440.2, 578.6, 252],
+  ],
+}
+// 타이틀형: [x, 너비] — 헤더 바 y 160.3 · 높이 53.4, 본문 상자 y 188 · 높이 504
+export const HEADER_PANELS: Record<'one' | 'two' | 'three', readonly (readonly [x: number, w: number])[]> = {
+  one: [[50, 1179.5]],
+  two: [
+    [50, 577.5],
+    [652.1, 577.5],
+  ],
+  three: [
+    [50, 375.9],
+    [451.9, 375.9],
+    [853.5, 375.9],
+  ],
+}
+export const HEADER_BAR = { y: 160.3, h: 53.4 }
+export const HEADER_BODY = { y: 188, h: 504 }
+export const linePanelRadius = (w: number, h: number) => Math.min(13, Math.min(w, h) * 0.03)
+
 // 라인형 패널: 흰 바탕 + 회색 테두리 + 위쪽 파란 선
 function linePanel(x: number, y: number, w: number, h: number): ShapeEl {
-  return { type: 'rect', x, y, w, h, fill: C.white, line: C.line, lineWidth: 0.75, radius: Math.min(13, Math.min(w, h) * 0.03), shadow: 'accent' }
+  return { type: 'rect', x, y, w, h, fill: C.white, line: C.line, lineWidth: 0.75, radius: linePanelRadius(w, h), shadow: 'accent' }
 }
 
 // 타이틀형 패널: 파란 헤더 바 + 흰 본문 박스
 function headerPanel(ctx: BuildCtx, key: string, x: number, w: number): SlideEl[] {
   return [
-    { type: 'rect', x, y: 188, w, h: 504, fill: C.white, line: C.line, lineWidth: 0.75, radius: 12, shadow: 'soft' },
-    { type: 'rect', x, y: 160.3, w, h: 53.4, fill: C.blue, radius: 12, topOnly: true },
+    { type: 'rect', x, y: HEADER_BODY.y, w, h: HEADER_BODY.h, fill: C.white, line: C.line, lineWidth: 0.75, radius: 12, shadow: 'soft' },
+    { type: 'rect', x, y: HEADER_BAR.y, w, h: HEADER_BAR.h, fill: C.blue, radius: 12, topOnly: true },
     field(ctx, key, x + 20, 174, w - 40, 26, { size: 12, bold: true, color: C.white, align: 'center', lineHeight: 1.2 }),
   ]
 }
@@ -188,7 +226,7 @@ export const LAYOUTS: LayoutDef[] = [
     },
     build: (ctx) => [
       ...chrome(ctx),
-      linePanel(50, 164.1, 1179.5, 528),
+      ...LINE_PANELS.one.map((p) => linePanel(...p)),
       field(ctx, 'cTitle', 75.6, 199, 1128, 52, { ...S.contentTitle }),
       field(ctx, 'cSub', 75.6, 262, 560, 46, { ...S.contentSub }),
       field(ctx, 'body', 75.6, 318, 560, 290, { ...S.body }),
@@ -214,7 +252,7 @@ export const LAYOUTS: LayoutDef[] = [
     },
     build: (ctx) => [
       ...chrome(ctx),
-      linePanel(50, 164.1, 1179.5, 528),
+      ...LINE_PANELS.one.map((p) => linePanel(...p)),
       field(ctx, 'cTitle', 75.6, 199, 1128, 52, { ...S.contentTitle }),
       field(ctx, 'cSub', 75.6, 262, 1128, 46, { ...S.contentSub }),
       field(ctx, 'body', 75.6, 318, 1128, 300, { ...S.body }),
@@ -253,8 +291,7 @@ export const LAYOUTS: LayoutDef[] = [
       const w = 526
       return [
         ...chrome(ctx),
-        linePanel(50.2, 164.1, 577.5, 528),
-        linePanel(651.9, 164.1, 577.5, 528),
+        ...LINE_PANELS.two.map((p) => linePanel(...p)),
         field(ctx, 'lTitle', col(50.2), 199, w, 52, { ...S.contentTitle, align: 'center' }),
         field(ctx, 'lSub', col(50.2), 262, w, 46, { ...S.contentSub }),
         field(ctx, 'lBody', col(50.2), 318, w, 300, { ...S.body }),
@@ -293,8 +330,7 @@ export const LAYOUTS: LayoutDef[] = [
       const w = 526
       return [
         ...chrome(ctx),
-        linePanel(50.2, 164.1, 577.5, 528),
-        linePanel(651.9, 164.1, 577.5, 528),
+        ...LINE_PANELS.two.map((p) => linePanel(...p)),
         ...[50.2, 651.9].flatMap<SlideEl>((x, i) => {
           const k = i === 0 ? 'l' : 'r'
           const cx = x + 25.6
@@ -336,7 +372,7 @@ export const LAYOUTS: LayoutDef[] = [
       const w = 326
       return [
         ...chrome(ctx),
-        ...xs.map((x) => linePanel(x, 164.1, 375.9, 528)),
+        ...LINE_PANELS.three.map((p) => linePanel(...p)),
         ...xs.flatMap<SlideEl>((x, i) => {
           const n = i + 1
           const cx = x + 25
@@ -382,7 +418,7 @@ export const LAYOUTS: LayoutDef[] = [
       const w = 527
       return [
         ...chrome(ctx),
-        ...pos.map(([x, y]) => linePanel(x, y, 578.6, 252)),
+        ...LINE_PANELS.grid.map((p) => linePanel(...p)),
         ...pos.flatMap<SlideEl>(([x, y], i) => {
           const n = i + 1
           return [
@@ -412,7 +448,7 @@ export const LAYOUTS: LayoutDef[] = [
     },
     build: (ctx) => [
       ...chrome(ctx),
-      ...headerPanel(ctx, 'head', 50, 1179.5),
+      ...headerPanel(ctx, 'head', ...HEADER_PANELS.one[0]),
       field(ctx, 'cSub', 75.6, 248, 570, 46, { ...S.contentSub }),
       field(ctx, 'body', 75.6, 304, 570, 300, { ...S.body }),
       field(ctx, 'note', 75.6, 640, 570, 22, { ...S.note }),
@@ -451,8 +487,8 @@ export const LAYOUTS: LayoutDef[] = [
       const w = 526
       return [
         ...chrome(ctx),
-        ...headerPanel(ctx, 'lHead', 50, 577.5),
-        ...headerPanel(ctx, 'rHead', 652.1, 577.5),
+        ...headerPanel(ctx, 'lHead', ...HEADER_PANELS.two[0]),
+        ...headerPanel(ctx, 'rHead', ...HEADER_PANELS.two[1]),
         field(ctx, 'lSub', 75.6, 248, w, 46, { ...S.contentSub }),
         field(ctx, 'lBody', 75.6, 304, w, 320, { ...S.body }),
         field(ctx, 'lNote', 75.6, 640, w, 22, { ...S.note }),
@@ -490,7 +526,7 @@ export const LAYOUTS: LayoutDef[] = [
       const w = 326
       return [
         ...chrome(ctx),
-        ...xs.flatMap((x, i) => headerPanel(ctx, `h${i + 1}Head`, x, 375.9)),
+        ...HEADER_PANELS.three.flatMap(([x, w], i) => headerPanel(ctx, `h${i + 1}Head`, x, w)),
         ...xs.flatMap<SlideEl>((x, i) => {
           const n = i + 1
           const cx = x + 25
@@ -505,8 +541,8 @@ export const LAYOUTS: LayoutDef[] = [
   },
   {
     id: 'free',
-    name: '자유 배치',
-    description: '가이드 상단(타이틀·서브·로고) 아래를 도형·텍스트·이미지로 자유롭게',
+    name: '본문 · 자유 배치',
+    description: '타이틀 가이드는 그대로, 아래는 요소 라이브러리의 가이드 박스·블록으로 자유롭게',
     category: '자유 배치',
     tone: 'light',
     fields: [...titleFields],

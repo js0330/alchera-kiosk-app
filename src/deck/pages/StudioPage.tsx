@@ -32,7 +32,7 @@ import { INSERT_MIME, type InsertPayload } from '../insert'
 import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
 import { makeSlide, uid } from '../kits'
 import { FREE_AREA, LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
-import { BLOCKS, newIcon, placeObjects, resolveIcons, tintIcon } from '../library'
+import { BLOCKS, GUIDE_BOXES, newIcon, placeObjects, resolveIcons, tintIcon } from '../library'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, FreeObj, LayoutId, Slide } from '../types'
 
@@ -196,9 +196,10 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
 
   // 새 요소 넣기: 아이콘은 칠하고, 위치를 정한 뒤(끌어다 놓은 곳 또는 원래 자리) 모두 선택합니다
   const insert = useCallback(
-    async (objs: FreeObj[], center?: { x: number; y: number }) => {
+    async (objs: FreeObj[], center?: { x: number; y: number }, back = false) => {
       const placed = placeObjects(await resolveIcons(objs), center)
-      setObjects((list) => [...list, ...placed])
+      // 가이드 박스는 다른 요소 뒤에 깔립니다
+      setObjects((list) => (back ? [...placed, ...list] : [...list, ...placed]))
       setSelectedObjs(placed.map((o) => o.id))
       setEditingObj(null)
       return placed
@@ -420,6 +421,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     if (p.type === 'shape') return [newShape(p.geom)]
     if (p.type === 'line') return [newLine(LINE_KINDS.find((k) => k.id === p.id) ?? LINE_KINDS[0])]
     if (p.type === 'icon') return [newIcon(p.id)]
+    if (p.type === 'box') return GUIDE_BOXES.find((b) => b.id === p.id)?.build() ?? []
     return BLOCKS.find((b) => b.id === p.id)?.build() ?? []
   }
   const onDrop = (e: DragEvent) => {
@@ -428,7 +430,10 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     if (!raw || !box) return
     e.preventDefault()
     const scale = box.width / SLIDE_W
-    insert(payloadObjs(JSON.parse(raw) as InsertPayload), { x: (e.clientX - box.left) / scale, y: (e.clientY - box.top) / scale })
+    const payload = JSON.parse(raw) as InsertPayload
+    // 가이드 박스는 레이아웃과 같은 자리에, 나머지는 놓은 자리에
+    if (payload.type === 'box') insert(payloadObjs(payload), undefined, true)
+    else insert(payloadObjs(payload), { x: (e.clientX - box.left) / scale, y: (e.clientY - box.top) / scale })
   }
   const freeCenter = { x: FREE_AREA.x + FREE_AREA.w / 2, y: FREE_AREA.y + FREE_AREA.h / 2 }
 
@@ -644,6 +649,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             onLine={(k) => addObj(newLine(k))}
             onIcon={(id) => insert([newIcon(id)], freeCenter)}
             onBlock={(b) => insert(b.build())}
+            onBox={(b) => insert(b.build(), undefined, true)}
           />
         )}
 

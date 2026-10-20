@@ -53,6 +53,8 @@ export interface FreeObj {
   lineWidth?: number
   radius?: number
   opacity?: number
+  // 가이드 패널 효과: 라인형 위쪽 파란 선(accent) · 타이틀형 본문 옅은 그림자(soft)
+  shadow?: 'accent' | 'soft'
   // shape 안의 글 (줄바꿈 + **굵게**)
   text?: string
   size?: number
