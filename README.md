@@ -20,7 +20,7 @@
 브라우저 안에서만 처리하며 서버로 보내지 않습니다. 문서는 IndexedDB 에 저장되어 이미지가 많은 문서도 담을 수 있습니다. (`src/deck/importers.ts`)
 마크다운 규칙: `#` 표지(첫 번째)·간지, `##` 본문 슬라이드, `>` 슬라이드 서브, `###` 칸 나누기(1~4칸), `-` 본문 줄, `---` 슬라이드 나누기.
 
-**샘플 덱**: 알체라 세일즈덱(공기질 AI · Physical AI)의 표지(`public/deck/samples/covers`, 구글 슬라이드 첫 장 미리보기)와 원본 주소입니다. 덱을 더하려면 표지 그림을 넣고 `src/deck/samples.ts` 의 `SAMPLES` 에 한 줄 추가합니다. 예전에 원본을 편집 요소로 옮긴 데이터(`public/deck/samples/originals`, `scripts/convert-google-slides.py`)는 이미 복사한 문서가 쓰므로 남겨 둡니다.
+**샘플 덱**: 알체라 세일즈덱(Face Trust 출입통제 · 공기질 AI · Physical AI)의 표지(`public/deck/samples/covers`, 구글 슬라이드 첫 장 미리보기)와 원본 주소입니다. 덱을 더하려면 표지 그림을 넣고 `src/deck/samples.ts` 의 `SAMPLES` 에 한 줄 추가합니다. 예전에 원본을 편집 요소로 옮긴 데이터(`public/deck/samples/originals`, `scripts/convert-google-slides.py`)는 이미 복사한 문서가 쓰므로 남겨 둡니다.
 
 본문 칸에서 Enter 를 누르면 다음 줄에 `• ` 가 텍스트로 들어가고(가이드: 글머리 기호는 텍스트로), Ctrl+B 로 강조합니다.
 본문 슬라이드 맨 위 키 네임(상단 목차)은 직접 쓸 수 있고, 비워 두면 간지 제목(예: `2. 제품 소개`)이 들어갑니다.

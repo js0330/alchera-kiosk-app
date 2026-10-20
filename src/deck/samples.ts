@@ -16,6 +16,14 @@ const cover = (file: string) => `${import.meta.env.BASE_URL}deck/samples/covers/
 
 export const SAMPLES: Sample[] = [
   {
+    id: 'sample-face-trust',
+    name: 'Face Trust 출입통제 솔루션 소개서',
+    description: '1:N 얼굴인식 · Liveness · 키오스크 · 중앙관리',
+    source: 'https://docs.google.com/presentation/d/1GddF9irxkgYRJvocBiY6Jknwa46hStNAH85eZTCEYck/edit',
+    cover: cover('ft'),
+    count: 15,
+  },
+  {
     id: 'sample-air-quality',
     name: '공기질 AI 시스템 소개서',
     description: '회사소개 → 문제 제기 → 제품 소개 → 작동 원리',
