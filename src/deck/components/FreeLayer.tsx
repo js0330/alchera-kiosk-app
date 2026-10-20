@@ -159,7 +159,7 @@ function ObjView({ o }: { o: FreeObj }) {
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
         <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-          <polygon points={pointsAttr(pts)} fill={o.fill ?? 'none'} stroke={o.line ?? 'none'} strokeWidth={bw} strokeLinejoin="round" />
+          <polygon points={pointsAttr(pts)} fill={o.fill ?? 'none'} stroke={o.line ?? 'none'} strokeWidth={bw} strokeDasharray={o.line ? dashArray(o, bw) : undefined} strokeLinejoin="round" />
         </svg>
         {o.text ? (
           <div style={textBox}>
@@ -178,7 +178,7 @@ function ObjView({ o }: { o: FreeObj }) {
         width: '100%',
         height: '100%',
         background: o.fill,
-        border: o.line ? `${bw}px solid ${o.line}` : undefined,
+        border: o.line ? `${bw}px ${o.dash === 'dash' ? 'dashed' : o.dash === 'dot' ? 'dotted' : 'solid'} ${o.line}` : undefined,
         borderRadius: o.geom === 'ellipse' ? '50%' : o.geom === 'roundRect' ? Math.min(o.radius ?? 12, maxRadius(o)) : o.geom === 'round2SameRect' ? `${tr}px ${tr}px 0 0` : 0,
       }}
     >
