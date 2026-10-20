@@ -56,7 +56,7 @@ export const TONES: Record<Tone, Palette> = {
 
 // 가이드 페이지에 노출되는 글자 체계 (가이드 원문 그대로)
 export const TYPE_SCALE = [
-  { name: '표지 타이틀', spec: '36pt · Bold · 두 줄까지', size: 36, bold: true },
+  { name: '표지 타이틀', spec: '36pt · Bold · 1줄 표지 / 2줄 표지', size: 36, bold: true },
   { name: '목차 · 간지 타이틀', spec: '27pt · Bold', size: 27, bold: true },
   { name: '슬라이드 타이틀', spec: '19pt · Bold · #000038', size: 19, bold: true },
   { name: '목차 항목', spec: '16pt · Bold · 두 줄 간격', size: 16, bold: true },
@@ -65,13 +65,16 @@ export const TYPE_SCALE = [
   { name: '슬라이드 서브', spec: '11pt · #0000A5 · 한 줄', size: 11, bold: false },
   { name: '콘텐츠 서브', spec: '10pt · Bold · #000038 · 줄간격 1.3', size: 10, bold: true },
   { name: '본문', spec: '10pt · #000038 · 줄간격 1.3 · 강조는 Bold', size: 10, bold: false },
-  { name: '상단 목차', spec: '9pt · #9CA3AF', size: 9, bold: false },
+  { name: '키 네임 (상단 목차)', spec: '9pt · #9CA3AF · 직접 입력 또는 간지 제목', size: 9, bold: false },
   { name: '안내문', spec: '8pt · #666666 · 줄간격 1.3', size: 8, bold: false },
+  { name: '페이지 번호', spec: '7pt · #BFBFBF · 본문 박스 오른쪽 아래 바깥', size: 7, bold: false },
 ] as const
 
 export const GUIDE_RULES = [
-  { title: '라인형 vs 타이틀형', body: '텍스트 중심이면 라인형, 강조 헤더가 필요하면 타이틀형 패널을 씁니다.' },
-  { title: '글머리는 텍스트로', body: '본문 앞 •는 글머리 기호 기능이 아닌 텍스트로 넣고, 강조는 Bold로만 합니다.' },
-  { title: '슬라이드 서브는 한 줄', body: '타이틀 아래 파란 서브 문장은 한 줄로 씁니다. 상단 목차는 섹션에서 자동으로 채워집니다.' },
-  { title: '이미지 높이는 고정', body: '이미지는 레이아웃이 정한 높이를 지키고, 아래에 이미지 안내 문구를 붙입니다.' },
+  { title: '본문은 라인형 1단 박스', body: '본문 슬라이드는 라인형 1단(가이드 박스 + 사방 여백 24px)에 글·이미지·블록을 넣어 만듭니다. 안의 요소는 박스 밖으로 나가지 않습니다.' },
+  { title: '칸은 가이드 박스로', body: '2단·3단·4분할·타이틀형이 필요하면 자유 배치 슬라이드에 요소 라이브러리의 가이드 박스를 넣습니다. 박스는 잠가서 고정할 수 있어요.' },
+  { title: '키 네임 · 서브는 한 줄', body: '맨 위 키 네임(상단 목차)은 직접 쓰고, 비우면 간지 제목이 들어갑니다. 타이틀 아래 파란 서브 문장은 한 줄로 씁니다.' },
+  { title: '색은 가이드 색만', body: '글자·선·채우기는 가이드 팔레트에서만 고릅니다. 불러오거나 붙여넣은 다른 색은 ‘가이드 서식 맞추기’로 정리합니다.' },
+  { title: '글머리는 텍스트로', body: '본문 앞 •는 글머리 기호 기능이 아닌 텍스트로 넣고, 강조는 Bold(Ctrl+B)로만 합니다.' },
+  { title: '표지는 제목 줄 수에 맞춰', body: '표지 제목이 한 줄이면 ‘표지 (제목 1줄)’, 두 줄이면 ‘표지 (제목 2줄)’을 씁니다. 흰 바와 서브타이틀 자리는 같습니다.' },
 ] as const

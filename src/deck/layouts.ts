@@ -77,8 +77,8 @@ function chrome(ctx: BuildCtx): SlideEl[] {
     ...(ctx.c.sub?.trim() ? [{ type: 'rect', x: 50, y: 112.4, w: 4, h: 18.1, fill: C.blue } as SlideEl] : []),
     field(ctx, 'sub', 66, 111, 1076, 22, { size: 11, color: C.blue, lineHeight: 1.1 }),
     logo(ctx.p, 1142.6, 49, 87.7),
-    // 페이지 번호: 본문 패널(아래 끝 692px)과 겹치지 않게 7pt 로 줄여 패널 아래 여백에 둡니다
-    { type: 'text', text: String(ctx.index + 1), x: 1150, y: 698, w: 80, h: 15, size: 7, color: C.pageNum, align: 'right', lineHeight: 1.2 },
+    // 페이지 번호: 7pt, 본문 패널 오른쪽 아래 모서리(1229.5, 692) 바깥 대각선 자리 — 패널과 겹치지 않게
+    { type: 'text', text: String(ctx.index + 1), x: 1236, y: 692, w: 40, h: 15, size: 7, color: C.pageNum, align: 'left', lineHeight: 1.2 },
   ]
 }
 
@@ -179,7 +179,7 @@ export const LAYOUTS: LayoutDef[] = [
       { key: 'title', label: '표지 타이틀', kind: 'multiline', placeholder: '발표 제목 (두 줄까지)', max: 36 },
       { key: 'subtitle', label: '서브타이틀', kind: 'multiline', placeholder: '서브타이틀 — 대상·목적', max: 80 },
     ],
-    sample: { title: 'ALCHERA Face Trust\n출입통제 솔루션', subtitle: '공공 · 공공 · 대기업 현장에서 검증된 Face AI 기반 출입통제 서비스' },
+    sample: { title: 'ALCHERA Face Trust\n출입통제 솔루션', subtitle: '공공 · 금융 · 대기업 현장에서 검증된 Face AI 기반 출입통제 서비스' },
     build: (ctx) => [
       field(ctx, 'title', 76.8, 191, 1115, 155, { size: 36, bold: true, color: C.white, lineHeight: 1.2 }),
       { type: 'rect', x: 76.8, y: 367.2, w: 75.6, h: 4.8, fill: C.white },
