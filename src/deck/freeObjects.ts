@@ -1,5 +1,5 @@
 import { BRAND } from './guide'
-import { FREE_AREA } from './layouts'
+import { FREE_AREA, LINE_PANELS, linePanelRadius } from './layouts'
 import { uid } from './kits'
 import { textInsets } from './shapes'
 import type { FreeObj, Geom, LineDash, LineEnd, TextEl } from './types'
@@ -125,11 +125,23 @@ export const maxRadius = (o: FreeObj) => Math.min(o.w, o.h) / 2
 // 모서리 둥글기를 조절할 수 있는 요소 (둥근 사각형 · 이미지)
 export const hasRadius = (o: FreeObj) => o.kind === 'image' || (o.kind === 'shape' && o.geom === 'roundRect')
 
-// 레이아웃 미리보기용 예시
+// 레이아웃 미리보기용 예시: 라인형 1단 가이드 박스 안에 글과 이미지 자리
+const [px, py, pw, ph] = LINE_PANELS.one[0]
 export const DEMO_OBJECTS: FreeObj[] = [
-  newBox({ id: 'demo-1', x: 50, y: 164, w: 570, h: 300, text: '**원본 도형과 텍스트**\n• 위치·크기를 끌어서 조정\n• 더블클릭해서 글 수정', pad: [24, 22, 24, 22] }),
-  newBox({ id: 'demo-2', x: 650, y: 164, w: 579, h: 300, fill: C.imageFill, line: undefined, text: '이미지 · 표 · 도형', align: 'center', valign: 'middle', color: C.gray }),
-  newText({ id: 'demo-3', x: 50, y: 490, w: 1179, h: 40, text: '※ "가이드 서식 맞추기"로 글자 크기·색을 가이드 값에 맞출 수 있어요', size: 8, color: C.gray }),
+  newBox({
+    id: 'demo-1',
+    x: px,
+    y: py,
+    w: pw,
+    h: ph,
+    fill: C.white,
+    line: C.line,
+    radius: linePanelRadius(pw, ph),
+    shadow: 'accent',
+    text: '**가이드 박스 · 라인형 1단**\n\n• 요소 라이브러리에서 박스를 골라 넣기\n• 안의 글 · 이미지 · 도형은 자유롭게\n• 박스를 더블클릭해서 바로 글쓰기',
+    pad: [25.6, 22, 25.6, 22],
+  }),
+  newBox({ id: 'demo-2', x: 665, y: 251, w: 541, h: 383, fill: C.imageFill, line: undefined, radius: 16, text: '이미지 · 도형 · 블록', align: 'center', valign: 'middle', color: C.gray }),
 ]
 
 // ── 가이드 서식 맞추기 ─────────────────────────────────────────

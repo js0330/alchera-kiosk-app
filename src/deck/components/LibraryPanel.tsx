@@ -2,11 +2,13 @@ import { X } from 'lucide-react'
 import { memo, useEffect, useMemo, useState } from 'react'
 import { BRAND } from '../guide'
 import { dragProps } from '../insert'
-import { BLOCKS, ICONS, iconUrl, placeObjects, resolveIcons, type BlockDef } from '../library'
+import { BLOCKS, GUIDE_BOXES, ICONS, iconUrl, placeObjects, resolveIcons, type BlockDef } from '../library'
 import { LINE_KINDS, type LineKind } from '../freeObjects'
 import { SHAPES } from '../shapes'
 import type { FreeObj, Geom } from '../types'
+import { makeSlide } from '../kits'
 import FreeLayer from './FreeLayer'
+import SlideCanvas from './SlideCanvas'
 import { LineIcon, ShapeIcon } from './InsertMenus'
 
 interface LibraryPanelProps {
@@ -15,9 +17,10 @@ interface LibraryPanelProps {
   onLine: (kind: LineKind) => void
   onIcon: (id: string) => void
   onBlock: (block: BlockDef) => void
+  onBox: (box: BlockDef) => void
 }
 
-type Tab = 'blocks' | 'icons' | 'shapes'
+type Tab = 'boxes' | 'blocks' | 'icons' | 'shapes'
 
 const PREVIEW_W = 244
 
@@ -47,11 +50,22 @@ const BlockPreview = memo(function BlockPreview({ block }: { block: BlockDef }) 
   )
 })
 
+// 가이드 박스 미리보기: 슬라이드 전체에 그려서 '레이아웃과 같은 자리'에 들어가는 것을 보여 줍니다
+const BoxPreview = memo(function BoxPreview({ block }: { block: BlockDef }) {
+  const slide = useMemo(() => ({ ...makeSlide('free', { title: '슬라이드 타이틀', sub: '슬라이드 서브' }), objects: block.build() }), [block])
+  return (
+    <div className="overflow-hidden rounded-t-lg">
+      <SlideCanvas slide={slide} index={0} width={PREVIEW_W - 2} showPlaceholders={false} />
+    </div>
+  )
+})
+
 // 웹플로우의 "추가" 패널처럼: 샘플덱에서 가져온 구성 블록 · 아이콘 · 도형을 클릭하거나 슬라이드로 끌어다 놓습니다.
-export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock }: LibraryPanelProps) {
-  const [tab, setTab] = useState<Tab>('blocks')
+export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock, onBox }: LibraryPanelProps) {
+  const [tab, setTab] = useState<Tab>('boxes')
   const tabs: [Tab, string][] = [
-    ['blocks', '구성 블록'],
+    ['boxes', '가이드 박스'],
+    ['blocks', '블록'],
     ['icons', '아이콘'],
     ['shapes', '도형·선'],
   ]
@@ -79,6 +93,29 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock
         ))}
       </div>
       <div className="flex-1 overflow-y-auto p-4 pt-3">
+        {tab === 'boxes' && (
+          <>
+            <p className="mb-3 text-[11px] leading-relaxed text-[#7A8099]">레이아웃의 틀만 같은 크기·위치로 들어가요. 안의 글·이미지는 자유롭게 배치하고, 박스를 더블클릭하면 바로 글을 쓸 수 있어요.</p>
+            <ul className="space-y-3">
+              {GUIDE_BOXES.map((b) => (
+                <li key={b.id}>
+                  <button
+                    type="button"
+                    className="w-full rounded-lg border border-[#E0E5F0] text-left transition hover:border-[#4D6BFF] hover:shadow-[0_4px_14px_rgba(0,0,165,0.08)]"
+                    onClick={() => onBox(b)}
+                    {...dragProps({ type: 'box', id: b.id })}
+                  >
+                    <BoxPreview block={b} />
+                    <div className="border-t border-[#EEF1F7] px-3 py-2">
+                      <p className="text-[12px] font-bold text-[#000038]">{b.label}</p>
+                      <p className="text-[11px] leading-snug text-[#7A8099]">{b.description}</p>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         {tab === 'blocks' && (
           <ul className="space-y-3">
             {BLOCKS.map((b) => (

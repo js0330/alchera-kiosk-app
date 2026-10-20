@@ -179,6 +179,8 @@ function ObjView({ o }: { o: FreeObj }) {
         height: '100%',
         background: o.fill,
         border: o.line ? `${bw}px ${o.dash === 'dash' ? 'dashed' : o.dash === 'dot' ? 'dotted' : 'solid'} ${o.line}` : undefined,
+        // 가이드 패널 효과 (레이아웃과 같은 값)
+        boxShadow: o.shadow === 'accent' ? `0 ${-ptToPx(2.25)}px 0 ${BRAND.colors.blue}` : o.shadow === 'soft' ? '0 3px 6px rgba(0,0,0,0.05)' : undefined,
         borderRadius: o.geom === 'ellipse' ? '50%' : o.geom === 'roundRect' ? Math.min(o.radius ?? 12, maxRadius(o)) : o.geom === 'round2SameRect' ? `${tr}px ${tr}px 0 0` : 0,
       }}
     >

@@ -1,5 +1,5 @@
 import { BRAND, ptToPx } from './guide'
-import { FREE_AREA } from './layouts'
+import { FREE_AREA, HEADER_BAR, HEADER_BODY, HEADER_PANELS, LINE_PANELS, linePanelRadius } from './layouts'
 import { uid } from './kits'
 import type { FreeObj, Geom } from './types'
 
@@ -368,6 +368,46 @@ export const BLOCKS: BlockDef[] = [
     description: '파란·네이비 둥근 라벨',
     source: 'Face Trust · Use Case 라벨',
     build: () => [pill(X, Y, 120, 'Use Case'), pill(X + 130, Y, 120, 'AI Solution', C.navy), pill(X + 260, Y, 120, '도입 효과', C.gray)],
+  },
+]
+
+// ── 가이드 박스 ─────────────────────────────────────────────────
+// 라인형·타이틀형 레이아웃의 틀(패널)만 같은 크기·위치로 넣습니다. 안의 글·이미지는 자유롭게.
+// 박스를 더블클릭하면 바로 글을 쓸 수 있고, 다른 요소보다 뒤에 깔립니다.
+
+const panelText = { text: '', size: 10, color: C.navy, align: 'left' as const, valign: 'top' as const, lineHeight: 1.3 }
+
+function linePanelObj([x, y, w, h]: readonly [number, number, number, number]): FreeObj {
+  return { id: uid(), kind: 'shape', geom: 'roundRect', x, y, w, h, fill: C.white, line: C.line, lineWidth: 0.75, radius: linePanelRadius(w, h), shadow: 'accent', ...panelText, pad: [25.6, 22, 25.6, 22] }
+}
+
+function headerPanelObjs([x, w]: readonly [number, number], label: string): FreeObj[] {
+  const below = HEADER_BAR.y + HEADER_BAR.h - HEADER_BODY.y
+  return [
+    { id: uid(), kind: 'shape', geom: 'roundRect', x, y: HEADER_BODY.y, w, h: HEADER_BODY.h, fill: C.white, line: C.line, lineWidth: 0.75, radius: 12, shadow: 'soft', ...panelText, pad: [25, below + 24, 25, 22] },
+    { id: uid(), kind: 'shape', geom: 'round2SameRect', x, y: HEADER_BAR.y, w, h: HEADER_BAR.h, fill: C.blue, text: label, size: 12, bold: true, color: C.white, align: 'center', valign: 'middle', lineHeight: 1.2, pad: [20, 0, 20, 0] },
+  ]
+}
+
+export const GUIDE_BOXES: BlockDef[] = [
+  { id: 'box-line-1', label: '라인형 1단', description: '넓은 패널 하나 (가장 많이 씀)', source: '가이드 · 라인형', build: () => LINE_PANELS.one.map(linePanelObj) },
+  { id: 'box-line-2', label: '라인형 2단', description: '나란히 두 칸', source: '가이드 · 라인형', build: () => LINE_PANELS.two.map(linePanelObj) },
+  { id: 'box-line-3', label: '라인형 3단', description: '나란히 세 칸', source: '가이드 · 라인형', build: () => LINE_PANELS.three.map(linePanelObj) },
+  { id: 'box-line-grid', label: '라인형 4분할', description: '2×2 네 칸', source: '가이드 · 라인형', build: () => LINE_PANELS.grid.map(linePanelObj) },
+  { id: 'box-header-1', label: '타이틀형 1단', description: '파란 헤더 + 넓은 본문', source: '가이드 · 타이틀형', build: () => headerPanelObjs(HEADER_PANELS.one[0], '헤더 타이틀') },
+  {
+    id: 'box-header-2',
+    label: '타이틀형 2단',
+    description: '헤더 두 칸',
+    source: '가이드 · 타이틀형',
+    build: () => HEADER_PANELS.two.flatMap((p, i) => headerPanelObjs(p, `헤더 타이틀 ${i + 1}`)),
+  },
+  {
+    id: 'box-header-3',
+    label: '타이틀형 3단',
+    description: '헤더 세 칸',
+    source: '가이드 · 타이틀형',
+    build: () => HEADER_PANELS.three.flatMap((p, i) => headerPanelObjs(p, `헤더 타이틀 ${i + 1}`)),
   },
 ]
 
