@@ -206,6 +206,18 @@
   .deck-obj.is-line.is-selected svg {
     filter: drop-shadow(0 0 2px rgba(77, 107, 255, 0.9));
   }
+  /* 모서리 둥글기 손잡이 (구글 슬라이드의 노란 마름모처럼) */
+  .deck-handle-radius {
+    width: 12px;
+    height: 12px;
+    background: #ffc93c;
+    border: 2px solid #fff;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px #b8860b;
+    rotate: 45deg;
+    cursor: ew-resize;
+    z-index: 6;
+  }
   .deck-handle-end {
     border-radius: 50%;
     cursor: crosshair;

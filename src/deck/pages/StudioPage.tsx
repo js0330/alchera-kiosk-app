@@ -29,6 +29,7 @@ import SlideCanvas from '../components/SlideCanvas'
 import { SLIDE_H, SLIDE_W } from '../guide'
 import { LINE_KINDS, newImage, newLine, newShape, newText, snapToGuide } from '../freeObjects'
 import { INSERT_MIME, type InsertPayload } from '../insert'
+import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
 import { makeSlide, uid } from '../kits'
 import { FREE_AREA, LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
 import { BLOCKS, newIcon, placeObjects, resolveIcons, tintIcon } from '../library'
@@ -92,7 +93,9 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   const [checkOpen, setCheckOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
-  const [notice, setNotice] = useState<{ text: string; undo?: () => void } | null>(initialNotice ? { text: initialNotice } : null)
+  const [notice, setNotice] = useState<{ text: string; undo?: () => void; action?: { label: string; run: () => void } } | null>(
+    initialNotice ? { text: initialNotice } : null,
+  )
   const imageField = useRef<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -198,6 +201,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       setObjects((list) => [...list, ...placed])
       setSelectedObjs(placed.map((o) => o.id))
       setEditingObj(null)
+      return placed
     },
     [setObjects],
   )
@@ -242,6 +246,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
 
   const latestSel = useRef(selectedObjs)
   latestSel.current = selectedObjs
+  const latestObjIds = useRef<string[]>([])
+  latestObjIds.current = objects.map((o) => o.id)
 
   useEffect(() => {
     setSelectedObjs([])
@@ -280,10 +286,32 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       const data = e.clipboardData
       if (!data) return
       const text = data.getData('text/plain')
+      const html = data.getData('text/html')
       const image = Array.from(data.files).find((f) => f.type.startsWith('image/'))
       const internal = text.startsWith(CLIP_MARK) && objClipboard && text === `${CLIP_MARK}${objClipboard.key}` ? objClipboard : null
-      if (!internal && !image && !text.trim()) return
+      const google = !internal && hasGoogleShapes(data)
+      if (!internal && !google && !image && !text.trim() && !htmlHasText(html)) return
       e.preventDefault()
+      // 구글 슬라이드: 도형·글·이미지를 같은 자리에 그대로
+      if (google) {
+        // 클립보드 내용은 이 순간에만 읽을 수 있어서, 읽는 부분은 objectsFromGoogle 첫머리에서 바로 처리합니다
+        objectsFromGoogle(data)
+          .then(async ({ objs, skipped }) => {
+            const left = skipped ? ` 직접 그린 도형 등 ${skipped}개는 가져오지 못했어요.` : ''
+            if (!objs.length) return setNotice({ text: `붙여넣을 도형을 찾지 못했어요.${left}` })
+            const before = new Set(latestObjIds.current)
+            await insert(objs, undefined)
+            setNotice({
+              text: `구글 슬라이드에서 ${objs.length}개 요소를 가져왔어요.${left}`,
+              action: {
+                label: '가이드 서식 맞추기',
+                run: () => setObjects((list) => list.map((o) => (before.has(o.id) ? o : snapToGuide(o)))),
+              },
+            })
+          })
+          .catch(() => setNotice({ text: '구글 슬라이드 내용을 읽지 못했어요. 이미지로 붙여넣으려면 캡처해서 붙여넣어 주세요.' }))
+        return
+      }
       if (internal) {
         internal.pasted += 1
         const shift = 16 * internal.pasted
@@ -291,11 +319,30 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         setObjects((objs) => [...objs, ...copies])
         setSelectedObjs(copies.map((o) => o.id))
       } else if (image) {
+        // PowerPoint 처럼 그림과 서식 있는 글이 함께 오면: 보이는 그대로 그림으로 넣고, 글로 바꾸는 버튼을 줍니다
+        const textObjs = htmlHasText(html) ? objectsFromHtml(html) : []
         readImage(image).then((src) => {
           const img = new Image()
-          img.onload = () => addObj(newImage(src, img.naturalWidth, img.naturalHeight))
+          img.onload = async () => {
+            const [pic] = await insert([newImage(src, img.naturalWidth, img.naturalHeight)])
+            if (textObjs.length)
+              setNotice({
+                text: '그림으로 붙여넣었어요. 글을 고치려면 편집 가능한 글로 바꾸세요.',
+                action: {
+                  label: '글로 바꾸기',
+                  run: () => {
+                    const placed = placeObjects(textObjs)
+                    setObjects((list) => [...list.filter((o) => o.id !== pic.id), ...placed])
+                    setSelectedObjs(placed.map((o) => o.id))
+                  },
+                },
+              })
+          }
           img.src = src
         })
+      } else if (htmlHasText(html)) {
+        // 서식 있는 글(웹·문서·PowerPoint 글 상자): 굵게·크기·색·글머리·표를 살려서
+        insert(objectsFromHtml(html))
       } else {
         const lines = text.replace(/\r\n?/g, '\n').trim()
         addObj(newText({ text: lines, h: Math.min(400, 24 + lines.split('\n').length * 24) }))
@@ -773,6 +820,18 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       {notice && (
         <div role="status" className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-[#000038] px-4 py-3 text-[13px] text-white shadow-xl">
           {notice.text}
+          {notice.action && (
+            <button
+              type="button"
+              className="font-bold text-[#9CA8FF] hover:text-white"
+              onClick={() => {
+                notice.action?.run()
+                setNotice(null)
+              }}
+            >
+              {notice.action.label}
+            </button>
+          )}
           {notice.undo && (
             <button
               type="button"
