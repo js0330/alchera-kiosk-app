@@ -65,7 +65,8 @@ function image(key: string, x: number, y: number, w: number, h: number): ImageEl
 // 본문 슬라이드 상단: 상단 목차 · 슬라이드 타이틀 · 파란 바 + 슬라이드 서브 · 로고 · 페이지 번호
 function chrome(ctx: BuildCtx): SlideEl[] {
   return [
-    { type: 'text', text: ctx.section, x: 49.5, y: 30, w: 750, h: 18, size: 9, color: C.crumb },
+    // 키 네임(상단 목차): 비어 있으면 앞쪽 간지 제목("2. 문제 제기")을 대신 씁니다
+    { ...field(ctx, 'crumb', 49.5, 30, 750, 18, { size: 9, color: C.crumb, lineHeight: 1.2 }), fallback: ctx.section },
     field(ctx, 'title', 49.5, 60.6, 1080, 41, { size: 19, bold: true, color: C.navy, lineHeight: 1.2 }),
     // 서브 앞 파란 바는 서브가 있을 때만 (비어 있으면 PPTX에도 남기지 않음)
     ...(ctx.c.sub?.trim() ? [{ type: 'rect', x: 50, y: 112.4, w: 4, h: 18.1, fill: C.blue } as SlideEl] : []),
@@ -90,6 +91,7 @@ function headerPanel(ctx: BuildCtx, key: string, x: number, w: number): SlideEl[
 }
 
 const titleFields: FieldDef[] = [
+  { key: 'crumb', label: '키 네임 (상단 목차)', kind: 'text', placeholder: '키 네임 · 상단 목차 (선택)', max: 40 },
   { key: 'title', label: '슬라이드 타이틀', kind: 'text', placeholder: '슬라이드 타이틀 (결론을 한 문장으로)', max: 40 },
   { key: 'sub', label: '슬라이드 서브', kind: 'text', placeholder: '슬라이드 서브 — 한 줄로 요약', max: 70 },
 ]
@@ -534,6 +536,9 @@ export const LAYOUTS: LayoutDef[] = [
     ],
   },
 ]
+
+// 본문 레이아웃 예시에도 키 네임 자리를 채워 둡니다 (가이드의 "1. 목차 - …" 자리)
+for (const l of LAYOUTS) if (l.fields.some((fd) => fd.key === 'crumb')) l.sample.crumb ??= '1. 목차 - 키 네임'
 
 export const LAYOUT_MAP = Object.fromEntries(LAYOUTS.map((l) => [l.id, l])) as Record<LayoutId, LayoutDef>
 

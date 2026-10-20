@@ -46,8 +46,8 @@ export interface FreeObj {
   w: number
   h: number
   rot?: number
-  // shape
-  geom?: 'rect' | 'roundRect' | 'ellipse'
+  // shape — 도형 종류는 shapes.ts 의 SHAPES 참고 (PowerPoint 기본 도형 이름과 같음)
+  geom?: Geom
   fill?: string
   line?: string
   lineWidth?: number
@@ -65,10 +65,42 @@ export interface FreeObj {
   pad?: [number, number, number, number]
   // image
   src?: string
-  // line
+  // 라이브러리 아이콘: 원본 아이콘 경로. 색을 바꾸면 src 를 그 색으로 다시 칠합니다.
+  icon?: string
+  // line — 점선 · 양 끝 화살표
   flipH?: boolean
   flipV?: boolean
+  dash?: LineDash
+  arrowStart?: LineEnd
+  arrowEnd?: LineEnd
 }
+
+export type Geom =
+  | 'rect'
+  | 'roundRect'
+  | 'round2SameRect'
+  | 'ellipse'
+  | 'triangle'
+  | 'rtTriangle'
+  | 'diamond'
+  | 'parallelogram'
+  | 'trapezoid'
+  | 'hexagon'
+  | 'octagon'
+  | 'homePlate'
+  | 'chevron'
+  | 'plus'
+  | 'star5'
+  | 'wedgeRectCallout'
+  | 'rightArrow'
+  | 'leftArrow'
+  | 'upArrow'
+  | 'downArrow'
+  | 'leftRightArrow'
+  | 'upDownArrow'
+
+export type LineDash = 'solid' | 'dash' | 'dot'
+export type LineEnd = 'none' | 'triangle' | 'oval'
 
 export interface Deck {
   id: string
@@ -131,6 +163,8 @@ export interface TextEl extends Box {
   // **굵게** 표기를 허용하는 칸 (가이드: 강조는 Bold)
   rich?: boolean
   placeholder?: string
+  // 칸이 비어 있을 때 대신 보여 주고 내보낼 글 (예: 키 네임 → 간지 제목)
+  fallback?: string
 }
 
 export type SlideEl = ShapeEl | LineEl | ImageEl | TextEl

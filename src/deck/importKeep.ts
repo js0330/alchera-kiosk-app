@@ -3,7 +3,10 @@ import { BRAND } from './guide'
 import { uid } from './kits'
 import { FREE_AREA } from './layouts'
 import { EMU_ATTR, all, boxFromXfrm, boxOf, ident, kid, kids, normPh, type Box, type Xform } from './pptxXml'
-import type { FreeObj } from './types'
+import { SHAPES } from './shapes'
+import type { FreeObj, Geom, LineDash, LineEnd } from './types'
+
+const SHAPE_GEOMS = new Set<Geom>(SHAPES.map((s) => s.geom))
 
 // "원본 배치 유지" 불러오기: 슬라이드의 도형·텍스트 상자·이미지·선·표를 위치와 모양 그대로 읽어
 // 가이드 상단(타이틀·서브·로고) 아래 본문 영역에 비율을 유지해 옮깁니다. 결과는 편집 가능한 자유 배치 요소입니다.
@@ -121,6 +124,9 @@ export interface RawItem extends Box {
   fill?: Color | null
   line?: Color | null
   lineW?: number
+  dash?: LineDash
+  arrowStart?: LineEnd
+  arrowEnd?: LineEnd
   text?: RawText
   ph?: string
   src?: string
@@ -200,6 +206,9 @@ function geomOf(spPr: Element | undefined): { geom: FreeObj['geom'] | 'line'; ra
   const prst = kid(spPr, 'a:prstGeom')?.getAttribute('prst') ?? 'rect'
   if (/^(line|straightConnector1|bentConnector\d|curvedConnector\d)$/.test(prst)) return { geom: 'line' }
   if (prst === 'ellipse' || prst === 'circle') return { geom: 'ellipse' }
+  if (prst === 'round2SameRect') return { geom: 'round2SameRect' }
+  // 지원하는 기본 도형·화살표는 같은 이름으로
+  if (SHAPE_GEOMS.has(prst as Geom)) return { geom: prst as Geom }
   if (/round|snip/i.test(prst)) {
     const adj = kid(kid(spPr, 'a:prstGeom'), 'a:avLst')?.getElementsByTagName('a:gd')[0]
     const v = adj ? Number((adj.getAttribute('fmla') ?? '').replace('val ', '')) / 100000 : 0.16667
@@ -221,12 +230,25 @@ function fillOf(spPr: Element | undefined, style: Element | undefined, theme: Th
   return styleRefColor(style, 'a:fillRef', theme)
 }
 
-function lineOf(spPr: Element | undefined, style: Element | undefined, theme: ThemeColors): { color: Color | null; w: number } {
+// 선 끝 모양: 화살촉 종류는 삼각형으로, 원·마름모는 원으로
+const endOf = (el: Element | undefined): LineEnd | undefined => {
+  const t = el?.getAttribute('type')
+  if (!t || t === 'none') return undefined
+  return t === 'oval' || t === 'diamond' ? 'oval' : 'triangle'
+}
+
+function lineOf(
+  spPr: Element | undefined,
+  style: Element | undefined,
+  theme: ThemeColors,
+): { color: Color | null; w: number; dash?: LineDash; head?: LineEnd; tail?: LineEnd } {
   const ln = kid(spPr, 'a:ln')
   if (ln) {
     if (kid(ln, 'a:noFill')) return { color: null, w: 0 }
     const c = resolveColor(kid(ln, 'a:solidFill'), theme) ?? resolveColor(all(ln, 'a:gs')[0], theme) ?? styleRefColor(style, 'a:lnRef', theme)
-    return { color: c, w: EMU_ATTR(ln, 'w') / 12700 || 0.75 }
+    const d = kid(ln, 'a:prstDash')?.getAttribute('val') ?? 'solid'
+    const dash: LineDash | undefined = /dot/i.test(d) && !/dash/i.test(d) ? 'dot' : /dash/i.test(d) ? 'dash' : undefined
+    return { color: c, w: EMU_ATTR(ln, 'w') / 12700 || 0.75, dash, head: endOf(kid(ln, 'a:headEnd')), tail: endOf(kid(ln, 'a:tailEnd')) }
   }
   return { color: styleRefColor(style, 'a:lnRef', theme), w: 0.75 }
 }
@@ -278,7 +300,7 @@ export async function readSlideItems(
         const { geom, radiusRatio } = geomOf(spPr)
         const ln = lineOf(spPr, style, theme)
         if (geom === 'line' || tag === 'p:cxnSp') {
-          if (ln.color) items.push({ kind: 'line', ...box, ...extras, line: ln.color, lineW: ln.w })
+          if (ln.color) items.push({ kind: 'line', ...box, ...extras, line: ln.color, lineW: ln.w, dash: ln.dash, arrowStart: ln.head, arrowEnd: ln.tail })
           continue
         }
         const phType = ph ? normPh(ph.getAttribute('type')) : undefined
@@ -442,7 +464,7 @@ export async function itemsToObjects(items: RawItem[], slideW: number, slideH: n
       continue
     }
     if (it.kind === 'line') {
-      out.push({ id: uid(), kind: 'line', ...geo, flipH: it.flipH, flipV: it.flipV, line: hexOf(it.line) ?? BRAND.colors.navy, lineWidth: r1(Math.max(0.5, (it.lineW ?? 0.75) * ptScale)) })
+      out.push({ id: uid(), kind: 'line', ...geo, flipH: it.flipH, flipV: it.flipV, line: hexOf(it.line) ?? BRAND.colors.navy, lineWidth: r1(Math.max(0.5, (it.lineW ?? 0.75) * ptScale)), dash: it.dash, arrowStart: it.arrowStart, arrowEnd: it.arrowEnd })
       continue
     }
     const t = it.text

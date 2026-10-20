@@ -1,7 +1,8 @@
 import { BRAND } from './guide'
 import { FREE_AREA } from './layouts'
 import { uid } from './kits'
-import type { FreeObj, TextEl } from './types'
+import { textInsets } from './shapes'
+import type { FreeObj, Geom, LineDash, LineEnd, TextEl } from './types'
 
 const C = BRAND.colors
 
@@ -9,7 +10,8 @@ const C = BRAND.colors
 export const GUIDE_TEXT_SIZES = [16, 12, 10, 9, 8] as const
 export const GUIDE_TEXT_COLORS = [C.navy, C.blue, C.gray, C.crumb, C.white] as const
 export const GUIDE_FILLS = [C.white, C.imageFill, C.line, C.navy, C.blue] as const
-export const GUIDE_LINES = [C.line, C.crumb, C.blue, C.navy] as const
+export const GUIDE_LINES = [C.line, C.crumb, C.gray, C.blue, C.navy, C.white] as const
+export const GUIDE_ICON_COLORS = [C.blue, C.navy, C.gray, C.crumb, C.white] as const
 
 const DEFAULT_PAD: [number, number, number, number] = [12.8, 6.4, 12.8, 6.4]
 
@@ -54,6 +56,61 @@ export function newBox(at?: Partial<FreeObj>): FreeObj {
     lineHeight: 1.3,
     pad: [20, 16, 20, 16],
     ...at,
+  }
+}
+
+// 도형 메뉴에서 고른 도형. 화살표 도형은 가로로 긴 기본 크기, 나머지는 정사각형에 가깝게.
+export function newShape(geom: Geom): FreeObj {
+  const wide = /Arrow|homePlate|chevron|parallelogram|trapezoid|round2SameRect|wedgeRectCallout/.test(geom) && !/^(up|down|upDown)Arrow$/.test(geom)
+  const tall = /^(up|down|upDown)Arrow$/.test(geom)
+  const w = wide ? 220 : tall ? 100 : 160
+  const h = wide ? 100 : tall ? 200 : 160
+  return newBox({
+    geom,
+    w,
+    h,
+    x: FREE_AREA.x + (FREE_AREA.w - w) / 2,
+    y: FREE_AREA.y + (FREE_AREA.h - h) / 2,
+    fill: C.blue,
+    line: undefined,
+    color: C.white,
+    align: 'center',
+    valign: 'middle',
+    pad: [12, 8, 12, 8],
+    radius: geom === 'roundRect' ? 16 : undefined,
+  })
+}
+
+export interface LineKind {
+  id: string
+  label: string
+  dash?: LineDash
+  arrowStart?: LineEnd
+  arrowEnd?: LineEnd
+}
+
+export const LINE_KINDS: LineKind[] = [
+  { id: 'line', label: '선' },
+  { id: 'arrow', label: '화살표', arrowEnd: 'triangle' },
+  { id: 'double', label: '양쪽 화살표', arrowStart: 'triangle', arrowEnd: 'triangle' },
+  { id: 'dash', label: '점선', dash: 'dash' },
+  { id: 'dash-arrow', label: '점선 화살표', dash: 'dash', arrowEnd: 'triangle' },
+  { id: 'dot-end', label: '끝점 원', arrowStart: 'oval', arrowEnd: 'oval' },
+]
+
+export function newLine(kind: LineKind): FreeObj {
+  return {
+    id: uid(),
+    kind: 'line',
+    x: FREE_AREA.x + FREE_AREA.w / 2 - 150,
+    y: FREE_AREA.y + FREE_AREA.h / 2,
+    w: 300,
+    h: 0,
+    line: C.navy,
+    lineWidth: 1.5,
+    dash: kind.dash,
+    arrowStart: kind.arrowStart,
+    arrowEnd: kind.arrowEnd,
   }
 }
 
@@ -131,7 +188,9 @@ export function snapToGuide(obj: FreeObj): FreeObj {
 
 // 자유 배치 요소의 글을 편집기(EditableText)에 넘길 텍스트 요소로 바꿉니다. 좌표는 요소 안쪽 기준.
 export function objTextEl(o: FreeObj): TextEl {
-  const [l, t, r, b] = o.pad ?? [0, 0, 0, 0]
+  const [pl, pt, pr, pb] = o.pad ?? [0, 0, 0, 0]
+  const [il, it, ir, ib] = textInsets(o.geom, o.w, o.h)
+  const [l, t, r, b] = [pl + il, pt + it, pr + ir, pb + ib]
   return {
     type: 'text',
     field: o.id,

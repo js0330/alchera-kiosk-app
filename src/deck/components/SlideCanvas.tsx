@@ -1,5 +1,5 @@
 import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react'
-import { memo, type CSSProperties } from 'react'
+import { memo, useRef, useState, type CSSProperties } from 'react'
 import { BRAND, SLIDE_H, SLIDE_W, TONES, ptToPx } from '../guide'
 import { buildSlide, slideTone } from '../layouts'
 import type { FreeObj, ImageEl, ShapeEl, Slide, SlideEl, TextEl } from '../types'
@@ -17,12 +17,13 @@ interface SlideCanvasProps {
   onFieldChange?: (key: string, value: string) => void
   onImagePick?: (key: string) => void
   onImageClear?: (key: string) => void
-  // 자유 배치 슬라이드 편집
-  selectedObj?: string | null
+  // 슬라이드 위 요소(도형·선·이미지·아이콘) 편집
+  selectedObjs?: string[]
   editingObj?: string | null
-  onSelectObj?: (id: string | null) => void
+  onSelectObj?: (id: string | null, additive?: boolean) => void
+  onSelectObjs?: (ids: string[]) => void
   onEditObj?: (id: string | null) => void
-  onObjChange?: (obj: FreeObj) => void
+  onObjChange?: (objs: FreeObj[]) => void
   // false 면 편집 점선·빈 칸 안내를 숨깁니다
   showGuides?: boolean
 }
@@ -127,9 +128,10 @@ function SlideCanvas({
   onFieldChange,
   onImagePick,
   onImageClear,
-  selectedObj,
+  selectedObjs,
   editingObj,
   onSelectObj,
+  onSelectObjs,
   onEditObj,
   onObjChange,
   showGuides = true,
@@ -137,14 +139,41 @@ function SlideCanvas({
   const els = buildSlide(slide, index, section)
   const scale = width / SLIDE_W
   const palette = TONES[slideTone(slide)]
+  const objects = slide.objects ?? []
+  const hasLayer = slide.layout === 'free' || objects.length > 0
+  // 빈 곳을 끌어서 여러 요소를 한 번에 선택 (슬라이드 좌표)
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  const marqueeStart = useRef<{ x: number; y: number; rect: DOMRect } | null>(null)
+
+  const toSlide = (e: { clientX: number; clientY: number }, rect: DOMRect) => ({ x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale })
 
   return (
     <div style={{ width, height: SLIDE_H * scale, position: 'relative', overflow: 'hidden' }}>
       <div
         className={`deck-slide${showGuides ? '' : ' deck-guides-off'}`}
         onPointerDown={(e) => {
-          // 빈 곳을 누르면 자유 배치 요소 선택 해제
-          if (editable && !(e.target as HTMLElement).closest('[data-obj]')) onSelectObj?.(null)
+          const t = e.target as HTMLElement
+          if (!editable || t.closest('[data-obj]')) return
+          // 빈 곳을 누르면 요소 선택 해제, 글 칸·버튼이 아닌 곳에서 끌면 범위 선택
+          onSelectObj?.(null)
+          if (!hasLayer || !onSelectObjs || t.closest('[contenteditable], button, .deck-field')) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          const p = toSlide(e, rect)
+          marqueeStart.current = { ...p, rect }
+          e.currentTarget.setPointerCapture(e.pointerId)
+        }}
+        onPointerMove={(e) => {
+          const m = marqueeStart.current
+          if (!m) return
+          const p = toSlide(e, m.rect)
+          setMarquee({ x: Math.min(m.x, p.x), y: Math.min(m.y, p.y), w: Math.abs(p.x - m.x), h: Math.abs(p.y - m.y) })
+        }}
+        onPointerUp={() => {
+          const r = marquee
+          marqueeStart.current = null
+          setMarquee(null)
+          if (!r || r.w + r.h < 6) return
+          onSelectObjs?.(objects.filter((o) => o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y + r.h && o.y + o.h > r.y).map((o) => o.id))
         }}
         style={{
           position: 'absolute',
@@ -187,7 +216,8 @@ function SlideCanvas({
                 />
               )
             case 'text': {
-              const value = el.field ? (slide.content[el.field] ?? '') : (el.text ?? '')
+              const raw = el.field ? (slide.content[el.field] ?? '') : (el.text ?? '')
+              const value = raw.trim() ? raw : (el.fallback ?? raw)
               if (editable && el.field && onFieldChange) {
                 const field = el.field
                 return <EditableText key={`${slide.id}-${key}`} el={el} value={value} onChange={(v) => onFieldChange(field, v)} />
@@ -196,18 +226,19 @@ function SlideCanvas({
             }
           }
         })}
-        {slide.layout === 'free' && (
+        {hasLayer && (
           <FreeLayer
-            objects={slide.objects ?? []}
+            objects={objects}
             scale={scale}
             editable={editable}
-            selectedId={selectedObj}
+            selectedIds={selectedObjs}
             editingId={editingObj}
             onSelect={onSelectObj}
             onEdit={onEditObj}
             onChange={onObjChange}
           />
         )}
+        {marquee && <div className="deck-marquee" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}
       </div>
     </div>
   )

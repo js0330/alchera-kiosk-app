@@ -91,10 +91,23 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
     return
   }
   if (o.kind === 'line') {
-    s.addShape(pptx.ShapeType.line, { ...box, line: { color: hex(o.line ?? '#000038'), width: o.lineWidth ?? 1 }, flipH: o.flipH, flipV: o.flipV })
+    const end = (e?: string) => (e === 'triangle' ? 'triangle' : e === 'oval' ? 'oval' : undefined)
+    s.addShape(pptx.ShapeType.line, {
+      ...box,
+      line: {
+        color: hex(o.line ?? '#000038'),
+        width: o.lineWidth ?? 1,
+        dashType: o.dash === 'dash' ? 'dash' : o.dash === 'dot' ? 'sysDot' : undefined,
+        beginArrowType: end(o.arrowStart),
+        endArrowType: end(o.arrowEnd),
+      },
+      flipH: o.flipH,
+      flipV: o.flipV,
+    })
     return
   }
-  const shape = o.geom === 'ellipse' ? pptx.ShapeType.ellipse : o.geom === 'roundRect' ? pptx.ShapeType.roundRect : pptx.ShapeType.rect
+  // 도형 이름(geom)은 PowerPoint 도형 이름과 같습니다
+  const shape = (o.geom ?? 'rect') as PptxGenJS.ShapeType
   const common = {
     ...box,
     fill: o.fill ? { color: hex(o.fill), transparency: transparency(o.opacity) } : undefined,
@@ -178,7 +191,8 @@ export async function exportDeckToPptx(deck: Deck) {
           break
         }
         case 'text': {
-          const value = el.field ? (slide.content[el.field] ?? '') : (el.text ?? '')
+          const raw = el.field ? (slide.content[el.field] ?? '') : (el.text ?? '')
+          const value = raw.trim() ? raw : (el.fallback ?? raw)
           if (!value.trim()) break
           s.addText(textRuns(el, value), {
             ...box,
@@ -197,9 +211,8 @@ export async function exportDeckToPptx(deck: Deck) {
         }
       }
     }
-    if (slide.layout === 'free') {
-      for (const o of slide.objects ?? []) await addFreeObject(pptx, s, o)
-    }
+    // 슬라이드 위에 올린 요소(자유 배치·도형·아이콘)는 레이아웃 위에 그립니다
+    for (const o of slide.objects ?? []) await addFreeObject(pptx, s, o)
   }
 
   const blob = (await pptx.write({ outputType: 'blob' })) as Blob

@@ -1,15 +1,17 @@
 import { ArrowDownToLine, ArrowUpToLine, Bold, Copy, TextAlignCenter, TextAlignEnd, TextAlignStart, Trash2, WandSparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { BRAND } from '../guide'
-import { GUIDE_FILLS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, snapToGuide } from '../freeObjects'
-import type { FreeObj } from '../types'
+import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES } from '../freeObjects'
+import { SHAPES } from '../shapes'
+import type { FreeObj, Geom, LineDash, LineEnd } from '../types'
 
 interface ObjectPanelProps {
-  obj: FreeObj
-  onChange: (obj: FreeObj) => void
+  objs: FreeObj[]
+  onPatch: (patch: Partial<FreeObj>) => void
   onRemove: () => void
   onDuplicate: () => void
   onOrder: (dir: 'front' | 'back') => void
+  onSnap: () => void
 }
 
 const COLOR_NAMES: Record<string, string> = {
@@ -22,11 +24,13 @@ const COLOR_NAMES: Record<string, string> = {
   [BRAND.colors.line]: '테두리 회색',
 }
 
+const LINE_WIDTHS = [0.75, 1, 1.5, 2.25, 3] as const
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-[12px] text-[#666]">{label}</span>
-      <div className="flex flex-wrap justify-end gap-1">{children}</div>
+      <span className="flex-shrink-0 text-[12px] text-[#666]">{label}</span>
+      <div className="flex flex-wrap justify-end gap-[3px]">{children}</div>
     </div>
   )
 }
@@ -37,7 +41,7 @@ function Swatch({ color, active, onClick }: { color?: string; active: boolean; o
       type="button"
       onClick={onClick}
       title={color ? (COLOR_NAMES[color] ?? color) : '없음'}
-      className={`h-6 w-6 rounded-md border ${active ? 'ring-2 ring-[#4D6BFF] ring-offset-1' : ''} ${color ? 'border-black/10' : 'border-dashed border-[#B6BCD0]'}`}
+      className={`h-[22px] w-[22px] rounded-md border ${active ? 'ring-2 ring-[#4D6BFF] ring-offset-1' : ''} ${color ? 'border-black/10' : 'border-dashed border-[#B6BCD0]'}`}
       style={{ background: color ?? 'transparent' }}
     >
       {!color && <span className="block text-[10px] text-[#B6BCD0]">✕</span>}
@@ -48,38 +52,81 @@ function Swatch({ color, active, onClick }: { color?: string; active: boolean; o
 const chip = (active: boolean) =>
   `h-7 min-w-[30px] rounded-md px-1.5 text-[12px] font-semibold tabular-nums ${active ? 'bg-[#0000A5] text-white' : 'bg-[#F2F4FB] text-[#333A4D] hover:bg-[#E5E9F7]'}`
 
-// 선택한 자유 배치 요소의 속성. 고를 수 있는 값은 가이드 값(크기·색)으로만 제한합니다.
-export default function ObjectPanel({ obj, onChange, onRemove, onDuplicate, onOrder }: ObjectPanelProps) {
-  const set = (patch: Partial<FreeObj>) => onChange({ ...obj, ...patch })
-  const isShape = obj.kind === 'shape'
-  const offGuideSize = isShape && obj.text && !GUIDE_TEXT_SIZES.includes((obj.size ?? 10) as (typeof GUIDE_TEXT_SIZES)[number])
+// 선 끝 모양 미리보기
+function EndIcon({ end, start }: { end: LineEnd; start?: boolean }) {
+  return (
+    <svg width="22" height="12" viewBox="0 0 22 12" style={{ transform: start ? 'scaleX(-1)' : undefined }}>
+      <line x1="1" y1="6" x2={end === 'triangle' ? 14 : 17} y2="6" stroke="currentColor" strokeWidth="1.6" />
+      {end === 'triangle' && <path d="M13,1.5 L21,6 L13,10.5 z" fill="currentColor" />}
+      {end === 'oval' && <circle cx="17" cy="6" r="3.5" fill="currentColor" />}
+    </svg>
+  )
+}
+
+function kindName(o: FreeObj) {
+  if (o.kind === 'image') return o.icon ? '아이콘' : '이미지'
+  if (o.kind === 'line') return o.arrowEnd || o.arrowStart ? '화살표' : '선'
+  if (o.geom && o.geom !== 'rect') return SHAPES.find((s) => s.geom === o.geom)?.label ?? '도형'
+  return o.fill || o.line ? '도형' : '텍스트'
+}
+
+// 선택한 요소(하나 또는 여러 개)의 속성. 고를 수 있는 값은 가이드 값(크기·색)으로만 제한합니다.
+// 여러 개를 고르면 바꾼 값이 모두에게 한꺼번에 적용됩니다.
+export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOrder, onSnap }: ObjectPanelProps) {
+  const shapes = objs.filter((o) => o.kind === 'shape')
+  const lines = objs.filter((o) => o.kind === 'line')
+  const icons = objs.filter((o) => o.kind === 'image' && o.icon)
+  const s0 = shapes[0]
+  const l0 = lines[0]
+  const offGuideSize = s0?.text && !GUIDE_TEXT_SIZES.includes((s0.size ?? 10) as (typeof GUIDE_TEXT_SIZES)[number])
+  const title = objs.length === 1 ? kindName(objs[0]) : `${objs.length}개 선택`
 
   return (
     <section className="space-y-3 border-b border-[#E0E5F0] p-4">
       <div className="flex items-center justify-between">
-        <h3 className="deck-label">선택한 요소 · {obj.kind === 'image' ? '이미지' : obj.kind === 'line' ? '선' : obj.text ? '텍스트' : '도형'}</h3>
-        <span className="text-[11px] tabular-nums text-[#9CA3AF]">
-          {Math.round(obj.w)}×{Math.round(obj.h)}
-        </span>
+        <h3 className="deck-label">선택한 요소 · {title}</h3>
+        {objs.length === 1 && (
+          <span className="text-[11px] tabular-nums text-[#9CA3AF]">
+            {Math.round(objs[0].w)}×{Math.round(objs[0].h)}
+          </span>
+        )}
       </div>
 
-      {isShape && (
+      {s0 && (
         <>
+          <Row label="모양">
+            <select
+              value={s0.geom ?? 'rect'}
+              onChange={(e) => onPatch({ geom: e.target.value as Geom, radius: e.target.value === 'roundRect' ? (s0.radius ?? 12) : s0.radius })}
+              className="h-7 rounded-md border border-[#E0E5F0] bg-white px-1.5 text-[12px] text-[#333A4D] outline-none focus:border-[#4D6BFF]"
+              aria-label="도형 모양"
+            >
+              {(['기본 도형', '화살표'] as const).map((g) => (
+                <optgroup key={g} label={g}>
+                  {SHAPES.filter((x) => x.group === g).map((x) => (
+                    <option key={x.geom} value={x.geom}>
+                      {x.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </Row>
           <Row label="글자 크기">
             {GUIDE_TEXT_SIZES.map((s) => (
-              <button key={s} type="button" className={chip(obj.size === s)} onClick={() => set({ size: s })}>
+              <button key={s} type="button" className={chip(s0.size === s)} onClick={() => onPatch({ size: s })}>
                 {s}
               </button>
             ))}
           </Row>
-          {offGuideSize && <p className="text-right text-[11px] text-[#F1A11D]">지금 {obj.size}pt — 가이드 크기가 아니에요</p>}
+          {offGuideSize && <p className="text-right text-[11px] text-[#F1A11D]">지금 {s0.size}pt — 가이드 크기가 아니에요</p>}
           <Row label="글자 색">
             {GUIDE_TEXT_COLORS.map((c) => (
-              <Swatch key={c} color={c} active={obj.color === c} onClick={() => set({ color: c })} />
+              <Swatch key={c} color={c} active={s0.color === c} onClick={() => onPatch({ color: c })} />
             ))}
           </Row>
           <Row label="굵게 · 정렬">
-            <button type="button" className={chip(!!obj.bold)} onClick={() => set({ bold: !obj.bold })} aria-label="굵게">
+            <button type="button" className={chip(!!s0.bold)} onClick={() => onPatch({ bold: !s0.bold })} aria-label="굵게">
               <Bold size={14} className="mx-auto" />
             </button>
             {(
@@ -89,42 +136,86 @@ export default function ObjectPanel({ obj, onChange, onRemove, onDuplicate, onOr
                 ['right', TextAlignEnd],
               ] as const
             ).map(([a, Icon]) => (
-              <button key={a} type="button" className={chip((obj.align ?? 'left') === a)} onClick={() => set({ align: a })} aria-label={a}>
+              <button key={a} type="button" className={chip((s0.align ?? 'left') === a)} onClick={() => onPatch({ align: a })} aria-label={a}>
                 <Icon size={14} className="mx-auto" />
               </button>
             ))}
           </Row>
           <Row label="채우기">
-            <Swatch active={!obj.fill} onClick={() => set({ fill: undefined })} />
+            <Swatch active={!s0.fill} onClick={() => onPatch({ fill: undefined })} />
             {GUIDE_FILLS.map((c) => (
-              <Swatch key={c} color={c} active={obj.fill === c} onClick={() => set({ fill: c, color: c === BRAND.colors.navy || c === BRAND.colors.blue ? BRAND.colors.white : obj.color })} />
+              <Swatch key={c} color={c} active={s0.fill === c} onClick={() => onPatch({ fill: c, ...(c === BRAND.colors.navy || c === BRAND.colors.blue ? { color: BRAND.colors.white } : {}) })} />
             ))}
           </Row>
-          <Row label="테두리">
-            <Swatch active={!obj.line} onClick={() => set({ line: undefined })} />
+          <Row label="테두리 색">
+            <Swatch active={!s0.line} onClick={() => onPatch({ line: undefined })} />
             {GUIDE_LINES.map((c) => (
-              <Swatch key={c} color={c} active={obj.line === c} onClick={() => set({ line: c, lineWidth: obj.lineWidth ?? 0.75 })} />
+              <Swatch key={c} color={c} active={s0.line === c} onClick={() => onPatch({ line: c, lineWidth: s0.lineWidth ?? 0.75 })} />
             ))}
           </Row>
-          <Row label="모서리">
+          {s0.line && (
+            <Row label="테두리 두께">
+              {LINE_WIDTHS.map((w) => (
+                <button key={w} type="button" className={chip((s0.lineWidth ?? 0.75) === w)} onClick={() => onPatch({ lineWidth: w })}>
+                  {w}
+                </button>
+              ))}
+            </Row>
+          )}
+        </>
+      )}
+
+      {l0 && (
+        <>
+          <Row label="선 색">
+            {GUIDE_LINES.map((c) => (
+              <Swatch key={c} color={c} active={l0.line === c} onClick={() => onPatch({ line: c })} />
+            ))}
+          </Row>
+          <Row label="선 두께">
+            {LINE_WIDTHS.map((w) => (
+              <button key={w} type="button" className={chip((l0.lineWidth ?? 1) === w)} onClick={() => onPatch({ lineWidth: w })}>
+                {w}
+              </button>
+            ))}
+          </Row>
+          <Row label="선 모양">
             {(
               [
-                ['rect', '각진'],
-                ['roundRect', '둥근'],
-                ['ellipse', '원'],
-              ] as const
-            ).map(([g, label]) => (
-              <button key={g} type="button" className={chip((obj.geom ?? 'rect') === g)} onClick={() => set({ geom: g, radius: g === 'roundRect' ? (obj.radius ?? 12) : obj.radius })}>
+                ['solid', '실선'],
+                ['dash', '점선'],
+                ['dot', '점'],
+              ] as [LineDash, string][]
+            ).map(([d, label]) => (
+              <button key={d} type="button" className={chip((l0.dash ?? 'solid') === d)} onClick={() => onPatch({ dash: d === 'solid' ? undefined : d })}>
                 {label}
               </button>
             ))}
           </Row>
+          {(['arrowStart', 'arrowEnd'] as const).map((key) => (
+            <Row key={key} label={key === 'arrowStart' ? '시작 모양' : '끝 모양'}>
+              {(['none', 'triangle', 'oval'] as LineEnd[]).map((end) => (
+                <button
+                  key={end}
+                  type="button"
+                  className={chip((l0[key] ?? 'none') === end)}
+                  onClick={() => onPatch({ [key]: end === 'none' ? undefined : end })}
+                  aria-label={end}
+                >
+                  <span className="flex justify-center">
+                    <EndIcon end={end} start={key === 'arrowStart'} />
+                  </span>
+                </button>
+              ))}
+            </Row>
+          ))}
         </>
       )}
-      {obj.kind === 'line' && (
-        <Row label="선 색">
-          {GUIDE_LINES.map((c) => (
-            <Swatch key={c} color={c} active={obj.line === c} onClick={() => set({ line: c })} />
+
+      {icons.length > 0 && (
+        <Row label="아이콘 색">
+          {GUIDE_ICON_COLORS.map((c) => (
+            <Swatch key={c} color={c} active={icons[0].color === c} onClick={() => onPatch({ color: c })} />
           ))}
         </Row>
       )}
@@ -142,13 +233,15 @@ export default function ObjectPanel({ obj, onChange, onRemove, onDuplicate, onOr
         <button type="button" className="deck-btn h-8 justify-center px-2 text-[12px] text-[#C2333D]" onClick={onRemove}>
           <Trash2 size={14} /> 삭제
         </button>
-        {obj.kind !== 'image' && (
-          <button type="button" className="deck-btn col-span-2 h-8 justify-center px-2 text-[12px]" onClick={() => onChange(snapToGuide(obj))}>
-            <WandSparkles size={14} /> 이 요소만 가이드 서식 맞추기
+        {(shapes.length > 0 || lines.length > 0) && (
+          <button type="button" className="deck-btn col-span-2 h-8 justify-center px-2 text-[12px]" onClick={onSnap}>
+            <WandSparkles size={14} /> 선택한 요소 가이드 서식 맞추기
           </button>
         )}
       </div>
-      <p className="text-[11px] leading-relaxed text-[#9CA3AF]">더블클릭으로 글 수정 · Ctrl+C / Ctrl+V 복사·붙여넣기(다른 슬라이드에도) · Delete 삭제 · 방향키 이동(Shift 10px) · Ctrl+D 복제</p>
+      <p className="text-[11px] leading-relaxed text-[#9CA3AF]">
+        더블클릭으로 글 수정 · Shift+클릭·빈 곳 끌기로 여러 개 선택 · Ctrl+A 전체 선택 · Ctrl+C / V 복사·붙여넣기 · Ctrl+Z 되돌리기 · 방향키 이동
+      </p>
     </section>
   )
 }
