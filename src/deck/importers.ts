@@ -558,6 +558,36 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
   return finishDeck(deckTitle, slides)
 }
 
+// ── Google Slides 링크 ─────────────────────────────────────────
+
+export function parseGoogleSlidesId(url: string): string | null {
+  const m = url.trim().match(/docs\.google\.com\/presentation\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]{20,})/)
+  return m ? m[1] : null
+}
+
+// 공유 링크의 슬라이드를 PPTX 로 받아 같은 방식으로 가져옵니다.
+// Google 이 내보내기 응답에 CORS 를 허용하므로 서버 없이 브라우저에서 바로 받습니다.
+// "링크가 있는 모든 사용자"로 공유된 파일만 받을 수 있습니다 (회사 내부로 제한된 파일은 로그인이 필요).
+export async function importGoogleSlides(url: string, mode: PptxMode = 'keep'): Promise<Deck> {
+  const id = parseGoogleSlidesId(url)
+  if (!id) throw new ImportError('구글 슬라이드 주소가 아니에요. docs.google.com/presentation/d/… 로 시작하는 주소를 붙여넣어 주세요.')
+  let res: Response
+  try {
+    res = await fetch(`https://docs.google.com/presentation/d/${id}/export/pptx`)
+  } catch {
+    throw new ImportError(NOT_SHARED)
+  }
+  const type = res.headers.get('content-type') ?? ''
+  if (!res.ok || !type.includes('presentationml')) throw new ImportError(res.status === 404 ? '슬라이드를 찾지 못했어요. 주소를 다시 확인해 주세요.' : NOT_SHARED)
+  const disposition = res.headers.get('content-disposition') ?? ''
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  const name = (encoded ? decodeURIComponent(encoded) : (disposition.match(/filename="([^"]+)"/)?.[1] ?? 'Google Slides')).replace(/\.pptx$/i, '')
+  return importPptx(await res.arrayBuffer(), name, mode)
+}
+
+const NOT_SHARED =
+  '이 슬라이드를 열 수 없어요. 구글 슬라이드에서 [공유] → 일반 액세스를 "링크가 있는 모든 사용자"로 바꾼 뒤 다시 시도해 주세요. 회사 안에서만 공유된 파일은 파일 › 다운로드 › PPTX로 받아 "파일 불러오기"를 써주세요.'
+
 // ── 진입점 ──────────────────────────────────────────────────────
 
 export async function importFile(file: File, mode: PptxMode = 'keep'): Promise<Deck> {

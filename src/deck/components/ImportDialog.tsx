@@ -1,6 +1,6 @@
 import { FileText, LoaderCircle, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { ImportError, importFile, importText, type PptxMode } from '../importers'
+import { ImportError, importFile, importGoogleSlides, importText, type PptxMode } from '../importers'
 import type { Deck } from '../types'
 
 const TEXT_EXAMPLE = `# 보이지 않는 위험을 먼저 예측하는 AI
@@ -23,7 +23,8 @@ interface ImportDialogProps {
 
 // PPTX · 텍스트 · 편집 파일을 받아 가이드 레이아웃으로 바꿉니다. 모든 처리는 브라우저 안에서 이뤄집니다.
 export default function ImportDialog({ onImported, onClose }: ImportDialogProps) {
-  const [tab, setTab] = useState<'file' | 'text'>('file')
+  const [tab, setTab] = useState<'file' | 'link' | 'text'>('file')
+  const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
@@ -54,6 +55,30 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
     if (file) run(() => importFile(file, mode), file.name)
   }
 
+  const importLink = () => run(() => importGoogleSlides(url, mode), 'Google Slides')
+
+  // PPTX · 구글 슬라이드 본문을 가져오는 방식 (두 탭이 함께 씁니다)
+  const modeChooser = (
+    <fieldset className="mb-4 grid gap-2 sm:grid-cols-2">
+      <legend className="mb-2 text-[12px] font-bold text-[#000038]">PPTX 본문 슬라이드를 어떻게 가져올까요?</legend>
+      {(
+        [
+          ['keep', '원본 배치 유지', '도형 · 텍스트 · 이미지 · 표를 위치 그대로 가져와요. 가이드 상단(타이틀 · 서브 · 로고)만 입히고, 에디터에서 끌어서 고칠 수 있어요.'],
+          ['rebuild', '가이드 레이아웃으로 재구성', '글과 대표 이미지만 읽어서 라인형 레이아웃 칸에 채워요. 원본 도형은 버려요.'],
+        ] as const
+      ).map(([id, label, desc]) => (
+        <label
+          key={id}
+          className={`cursor-pointer rounded-xl border p-3 text-left transition ${mode === id ? 'border-[#0000A5] bg-[#F2F4FB] ring-1 ring-[#0000A5]' : 'border-[#E0E5F0] hover:border-[#4D6BFF]'}`}
+        >
+          <input type="radio" name="import-mode" value={id} checked={mode === id} onChange={() => setMode(id)} className="sr-only" />
+          <span className="block text-[13px] font-bold text-[#000038]">{label}</span>
+          <span className="mt-1 block text-[12px] leading-relaxed text-[#666]">{desc}</span>
+        </label>
+      ))}
+    </fieldset>
+  )
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000038]/40 p-4" onClick={() => !busy && onClose()}>
       <div className="flex max-h-full w-full max-w-[640px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -71,6 +96,7 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
           {(
             [
               ['file', '파일 불러오기'],
+              ['link', '구글 슬라이드 링크'],
               ['text', '텍스트 붙여넣기'],
             ] as const
           ).map(([id, label]) => (
@@ -86,26 +112,38 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
         </div>
 
         <div className="overflow-y-auto px-6 py-5">
-          {tab === 'file' ? (
+          {tab === 'link' ? (
             <>
-              <fieldset className="mb-4 grid gap-2 sm:grid-cols-2">
-                <legend className="mb-2 text-[12px] font-bold text-[#000038]">PPTX 본문 슬라이드를 어떻게 가져올까요?</legend>
-                {(
-                  [
-                    ['keep', '원본 배치 유지', '도형 · 텍스트 · 이미지 · 표를 위치 그대로 가져와요. 가이드 상단(타이틀 · 서브 · 로고)만 입히고, 에디터에서 끌어서 고칠 수 있어요.'],
-                    ['rebuild', '가이드 레이아웃으로 재구성', '글과 대표 이미지만 읽어서 라인형 레이아웃 칸에 채워요. 원본 도형은 버려요.'],
-                  ] as const
-                ).map(([id, label, desc]) => (
-                  <label
-                    key={id}
-                    className={`cursor-pointer rounded-xl border p-3 text-left transition ${mode === id ? 'border-[#0000A5] bg-[#F2F4FB] ring-1 ring-[#0000A5]' : 'border-[#E0E5F0] hover:border-[#4D6BFF]'}`}
-                  >
-                    <input type="radio" name="import-mode" value={id} checked={mode === id} onChange={() => setMode(id)} className="sr-only" />
-                    <span className="block text-[13px] font-bold text-[#000038]">{label}</span>
-                    <span className="mt-1 block text-[12px] leading-relaxed text-[#666]">{desc}</span>
-                  </label>
-                ))}
-              </fieldset>
+              {modeChooser}
+              <label htmlFor="import-url" className="text-[12px] font-bold text-[#000038]">
+                구글 슬라이드 주소
+              </label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="import-url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && url.trim() && !busy && importLink()}
+                  placeholder="https://docs.google.com/presentation/d/…"
+                  className="h-10 min-w-0 flex-1 rounded-lg border border-[#E0E5F0] px-3 text-[13px] outline-none focus:border-[#4D6BFF]"
+                />
+                <button type="button" className="deck-btn deck-btn-primary h-10" disabled={!url.trim() || busy} onClick={importLink}>
+                  {busy && <LoaderCircle size={15} className="animate-spin" />} {busy ? '가져오는 중…' : '가져오기'}
+                </button>
+              </div>
+              <div className="mt-4 rounded-xl bg-[#F5F7FC] p-4 text-[12px] leading-relaxed text-[#333A4D]">
+                <p className="font-bold text-[#000038]">먼저 구글 슬라이드에서 공유를 열어 주세요</p>
+                <ol className="mt-1.5 list-decimal space-y-0.5 pl-4">
+                  <li>구글 슬라이드 오른쪽 위 [공유] 클릭</li>
+                  <li>‘일반 액세스’를 ‘링크가 있는 모든 사용자’(뷰어)로 바꾸기</li>
+                  <li>[링크 복사] 후 위 칸에 붙여넣고 [가져오기]</li>
+                </ol>
+                <p className="mt-2 text-[#666]">가져온 뒤에는 공유를 다시 ‘제한됨’으로 돌려도 돼요. 회사 사람만 보도록 제한된 파일은 아직 링크로 가져올 수 없어요 — 파일 › 다운로드 › Microsoft PowerPoint(.pptx)로 받아 ‘파일 불러오기’를 써주세요.</p>
+              </div>
+            </>
+          ) : tab === 'file' ? (
+            <>
+              {modeChooser}
               <button
                 type="button"
                 disabled={busy}
@@ -144,7 +182,7 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
                   <b className="text-[#000038]">PPTX</b> — 첫 장은 표지, 목차·간지·마무리는 가이드 레이아웃으로 바꾸고, 본문 슬라이드는 위에서 고른 방식으로 가져와요.
                 </li>
                 <li>
-                  <b className="text-[#000038]">Google Slides · Keynote</b> — 파일 › 다운로드 › Microsoft PowerPoint(.pptx)로 받은 뒤 올려주세요.
+                  <b className="text-[#000038]">Google Slides</b> — ‘구글 슬라이드 링크’ 탭에 주소를 붙여넣거나, 파일 › 다운로드 › Microsoft PowerPoint(.pptx)로 받아 올려주세요. Keynote는 .pptx로 내보낸 뒤 올려주세요.
                 </li>
                 <li>
                   <b className="text-[#000038]">텍스트 · 마크다운</b> — 아래 ‘텍스트 붙여넣기’ 규칙대로 읽어요.
