@@ -1,7 +1,7 @@
 import { ArrowDownToLine, ArrowUpToLine, Bold, Copy, TextAlignCenter, TextAlignEnd, TextAlignStart, Trash2, WandSparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { BRAND } from '../guide'
-import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES } from '../freeObjects'
+import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, hasRadius, maxRadius } from '../freeObjects'
 import { SHAPES } from '../shapes'
 import type { FreeObj, Geom, LineDash, LineEnd } from '../types'
 
@@ -25,6 +25,48 @@ const COLOR_NAMES: Record<string, string> = {
 }
 
 const LINE_WIDTHS = [0.75, 1, 1.5, 2.25, 3] as const
+const RADII = [0, 4, 8, 12, 16, 24] as const
+
+// 모서리 둥글기: 자주 쓰는 값 + 슬라이더(px, 1280 기준) · 최대는 짧은 변의 절반(알약 모양)
+function RadiusRow({ objs, onPatch }: { objs: FreeObj[]; onPatch: (patch: Partial<FreeObj>) => void }) {
+  const o = objs[0]
+  const max = Math.floor(Math.min(...objs.map(maxRadius)))
+  const cur = Math.min(o.radius ?? (o.kind === 'image' ? 0 : 12), max)
+  return (
+    <div className="space-y-1.5">
+      <Row label="모서리 둥글기">
+        {RADII.filter((r) => r <= max).map((r) => (
+          <button key={r} type="button" className={chip(Math.round(cur) === r)} onClick={() => onPatch({ radius: r })}>
+            {r}
+          </button>
+        ))}
+        <button type="button" className={chip(Math.round(cur) === max)} onClick={() => onPatch({ radius: max })} title="짧은 변의 절반 — 알약·원 모양">
+          최대
+        </button>
+      </Row>
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          min={0}
+          max={max}
+          value={Math.round(cur)}
+          onChange={(e) => onPatch({ radius: Number(e.target.value) })}
+          className="flex-1 accent-[#0000A5]"
+          aria-label="모서리 둥글기"
+        />
+        <input
+          type="number"
+          min={0}
+          max={max}
+          value={Math.round(cur)}
+          onChange={(e) => onPatch({ radius: Math.max(0, Math.min(max, Number(e.target.value) || 0)) })}
+          className="h-7 w-14 rounded-md border border-[#E0E5F0] px-1.5 text-right text-[12px] tabular-nums outline-none focus:border-[#4D6BFF]"
+          aria-label="모서리 둥글기 값"
+        />
+      </div>
+    </div>
+  )
+}
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -164,6 +206,8 @@ export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOr
           )}
         </>
       )}
+
+      {objs.some(hasRadius) && <RadiusRow objs={objs.filter(hasRadius)} onPatch={onPatch} />}
 
       {l0 && (
         <>

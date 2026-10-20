@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { BRAND, ptToPx } from '../guide'
 import { parseRich } from '../textStyle'
-import { objTextEl } from '../freeObjects'
+import { hasRadius, maxRadius, objTextEl } from '../freeObjects'
 import { pointsAttr, shapePoints, textInsets } from '../shapes'
 import type { FreeObj } from '../types'
 import EditableText from './EditableText'
@@ -18,7 +18,7 @@ interface FreeLayerProps {
   onChange?: (objs: FreeObj[]) => void
 }
 
-type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'p1' | 'p2'
+type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'p1' | 'p2' | 'radius'
 const HANDLES: Handle[] = ['nw', 'ne', 'sw', 'se']
 const MIN = 12
 // 선은 얇아서 잡기 어려우므로 주변 여백까지 잡히게 합니다
@@ -135,7 +135,9 @@ function TextView({ o }: { o: FreeObj }) {
 
 function ObjView({ o }: { o: FreeObj }) {
   if (o.kind === 'image') {
-    return o.src ? <img src={o.src} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }} /> : null
+    return o.src ? (
+      <img src={o.src} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', borderRadius: Math.min(o.radius ?? 0, maxRadius(o)) || undefined }} />
+    ) : null
   }
   if (o.kind === 'line') return <LineView o={o} />
   const [l, t, r, b] = o.pad ?? [0, 0, 0, 0]
@@ -176,7 +178,7 @@ function ObjView({ o }: { o: FreeObj }) {
         height: '100%',
         background: o.fill,
         border: o.line ? `${bw}px solid ${o.line}` : undefined,
-        borderRadius: o.geom === 'ellipse' ? '50%' : o.geom === 'roundRect' ? (o.radius ?? 12) : o.geom === 'round2SameRect' ? `${tr}px ${tr}px 0 0` : 0,
+        borderRadius: o.geom === 'ellipse' ? '50%' : o.geom === 'roundRect' ? Math.min(o.radius ?? 12, maxRadius(o)) : o.geom === 'round2SameRect' ? `${tr}px ${tr}px 0 0` : 0,
       }}
     >
       {o.text ? <TextView o={o} /> : null}
@@ -201,6 +203,11 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
         return
       }
       const s = d.starts[0]
+      if (d.mode === 'radius') {
+        const start = Math.min(s.radius ?? (s.kind === 'image' ? 0 : 12), maxRadius(s))
+        onChange?.([{ ...s, radius: Math.round(Math.max(0, Math.min(maxRadius(s), start + dx))) }])
+        return
+      }
       if (d.mode === 'p1' || d.mode === 'p2') {
         const ends = lineEnds(s)
         const fixed = d.mode === 'p1' ? ends.p2 : ends.p1
@@ -296,6 +303,14 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
               !editing &&
               !isLine &&
               HANDLES.map((hd) => <span key={hd} className={`deck-handle deck-handle-${hd}`} style={{ transform: `scale(${1 / scale})` }} onPointerDown={(e) => start(e, o, hd)} />)}
+            {selected && single && !editing && hasRadius(o) && (
+              <span
+                className="deck-handle deck-handle-radius"
+                title="끌어서 모서리 둥글기 조절"
+                style={{ left: Math.min(o.radius ?? (o.kind === 'image' ? 0 : 12), maxRadius(o)) - 6, top: -6, transform: `scale(${1 / scale})` }}
+                onPointerDown={(e) => start(e, o, 'radius')}
+              />
+            )}
             {selected &&
               single &&
               ends &&

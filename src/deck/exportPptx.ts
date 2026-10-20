@@ -42,6 +42,27 @@ function coverCrop(dataUrl: string, w: number, h: number): Promise<string> {
   })
 }
 
+// 둥근 모서리 이미지: PowerPoint 이미지에는 모서리 값이 없어서, 모서리를 깎은 PNG 로 넣습니다.
+function roundCorners(dataUrl: string, w: number, h: number, r: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(3, Math.max(1, img.naturalWidth / w))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(w * scale)
+      canvas.height = Math.round(h * scale)
+      const ctx = canvas.getContext('2d')!
+      ctx.beginPath()
+      ctx.roundRect(0, 0, canvas.width, canvas.height, r * scale)
+      ctx.clip()
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = reject
+    img.src = dataUrl
+  })
+}
+
 // 목차 항목은 PPT 자동 번호, 본문은 줄마다 텍스트(• 포함)로 넣고 **굵게** 구간만 Bold 로 나눕니다.
 function textRuns(el: TextEl, value: string): PptxGenJS.TextProps[] | string {
   if (el.list === 'number') {
@@ -87,7 +108,9 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
   const box = { x: inch(o.x), y: inch(o.y), w: inch(o.w), h: inch(o.h), rotate: o.rot || undefined }
   if (o.kind === 'image') {
     if (!o.src) return
-    s.addImage({ ...box, data: o.src.startsWith('data:') ? o.src : await urlToDataUrl(o.src) })
+    const data = o.src.startsWith('data:') ? o.src : await urlToDataUrl(o.src)
+    const r = Math.min(o.radius ?? 0, Math.min(o.w, o.h) / 2)
+    s.addImage({ ...box, data: r > 0 ? await roundCorners(data, o.w, o.h, r) : data })
     return
   }
   if (o.kind === 'line') {
@@ -106,13 +129,14 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
     })
     return
   }
-  // 도형 이름(geom)은 PowerPoint 도형 이름과 같습니다
-  const shape = (o.geom ?? 'rect') as PptxGenJS.ShapeType
+  // 도형 이름(geom)은 PowerPoint 도형 이름과 같습니다. 모서리 0 인 둥근 사각형은 사각형으로.
+  const radius = o.geom === 'roundRect' ? Math.min(o.radius ?? 12, Math.min(o.w, o.h) / 2) : 0
+  const shape = (o.geom === 'roundRect' && radius <= 0 ? 'rect' : (o.geom ?? 'rect')) as PptxGenJS.ShapeType
   const common = {
     ...box,
     fill: o.fill ? { color: hex(o.fill), transparency: transparency(o.opacity) } : undefined,
     line: o.line ? { color: hex(o.line), width: o.lineWidth ?? 0.75 } : undefined,
-    rectRadius: o.geom === 'roundRect' ? inch(o.radius ?? 12) : undefined,
+    rectRadius: radius > 0 ? inch(radius) : undefined,
   }
   if (!o.text?.trim()) {
     if (o.fill || o.line) s.addShape(shape, { ...common, line: common.line ?? { type: 'none' } })

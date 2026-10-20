@@ -120,6 +120,11 @@ export function newImage(src: string, naturalW: number, naturalH: number): FreeO
   return { id: uid(), kind: 'image', x: FREE_AREA.x + 60, y: FREE_AREA.y + 50, w: (h * naturalW) / naturalH, h, src }
 }
 
+// 둥근 모서리: 도형·이미지 모두 짧은 변의 절반까지
+export const maxRadius = (o: FreeObj) => Math.min(o.w, o.h) / 2
+// 모서리 둥글기를 조절할 수 있는 요소 (둥근 사각형 · 이미지)
+export const hasRadius = (o: FreeObj) => o.kind === 'image' || (o.kind === 'shape' && o.geom === 'roundRect')
+
 // 레이아웃 미리보기용 예시
 export const DEMO_OBJECTS: FreeObj[] = [
   newBox({ id: 'demo-1', x: 50, y: 164, w: 570, h: 300, text: '**원본 도형과 텍스트**\n• 위치·크기를 끌어서 조정\n• 더블클릭해서 글 수정', pad: [24, 22, 24, 22] }),
