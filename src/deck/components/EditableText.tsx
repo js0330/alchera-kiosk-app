@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { ptToPx } from '../guide'
-import { BULLET, listClass, textStyle } from '../textStyle'
+import { BULLET, listClass, phOpacity, textStyle } from '../textStyle'
 import type { TextEl } from '../types'
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -105,7 +105,7 @@ export default function EditableText({ el, value, onChange, onFocus, autoFocus, 
       style={{ position: 'absolute', left: el.x, top: el.y, width: el.w, minHeight: el.h }}
     >
       {empty && (
-        <div className="deck-placeholder" style={{ ...textStyle(el), color: el.color }} aria-hidden>
+        <div className="deck-placeholder" style={{ ...textStyle(el), color: el.color, opacity: phOpacity(el) }} aria-hidden>
           {el.placeholder}
         </div>
       )}

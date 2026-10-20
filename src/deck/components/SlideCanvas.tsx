@@ -3,7 +3,7 @@ import { memo, useRef, useState, type CSSProperties } from 'react'
 import { BRAND, SLIDE_H, SLIDE_W, TONES, ptToPx } from '../guide'
 import { LAYOUT_MAP, buildSlide, slideTone } from '../layouts'
 import type { FreeObj, ImageEl, ShapeEl, Slide, SlideEl, TextEl } from '../types'
-import { listClass, parseRich, textStyle } from '../textStyle'
+import { listClass, parseRich, phOpacity, textStyle } from '../textStyle'
 import EditableText from './EditableText'
 import FreeLayer from './FreeLayer'
 
@@ -34,7 +34,7 @@ function StaticText({ el, value, placeholder }: { el: TextEl; value: string; pla
   const showPh = !value.trim() && placeholder && el.placeholder
   if (!value.trim() && !showPh) return null
   const style: CSSProperties = { ...box(el), ...textStyle(el), ['--para-space' as string]: `${el.paraSpace ? ptToPx(el.paraSpace) : 0}px` }
-  if (showPh) return <div style={{ ...style, opacity: 0.35 }}>{el.placeholder}</div>
+  if (showPh) return <div style={{ ...style, opacity: phOpacity(el) }}>{el.placeholder}</div>
   const lines = value.split('\n')
   return (
     <div className={listClass(el)} style={style}>

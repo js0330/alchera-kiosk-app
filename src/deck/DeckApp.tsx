@@ -7,7 +7,7 @@ import TemplatesPage from './pages/TemplatesPage'
 import { useDecks } from './store'
 import type { Deck } from './types'
 
-// 해시 라우팅: #templates · #sales/<덱 id> · #studio/<문서 id> · #guide
+// 해시 라우팅: #templates · #sales · #studio/<문서 id> · #guide
 function parseHash(): { route: DeckRoute; deckId?: string } {
   const [route, deckId] = window.location.hash.replace(/^#\/?/, '').split('/')
   if (route === 'studio' || route === 'guide' || route === 'sales') return { route, deckId }
@@ -67,7 +67,7 @@ export default function DeckApp() {
       {loc.route === 'guide' ? (
         <GuidePage />
       ) : loc.route === 'sales' ? (
-        <SalesDeckPage focus={loc.deckId} onOpen={open} />
+        <SalesDeckPage />
       ) : loc.route === 'studio' ? (
         <div className="mx-auto max-w-[560px] px-6 py-24 text-center">
           <h1 className="text-[20px] font-bold text-[#000038]">열 문서가 없어요</h1>
