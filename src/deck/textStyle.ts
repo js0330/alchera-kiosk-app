@@ -39,3 +39,6 @@ export function parseRich(line: string): Run[] {
 }
 
 export const BULLET = '• '
+
+// 빈 칸 안내 문구의 진하기. 키 네임은 원래 연한 회색(#9CA3AF)이라 흐리게 하지 않고 그 색 그대로 보여 줍니다.
+export const phOpacity = (el: TextEl) => (el.field === 'crumb' ? 1 : 0.35)

@@ -1,14 +1,15 @@
-import { ArrowRight, Copy, ExternalLink, Trash2, Upload } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowRight, Copy, Trash2, Upload } from 'lucide-react'
+import { useState } from 'react'
 import FitWidth from '../components/FitWidth'
 import ImportDialog from '../components/ImportDialog'
 import { LayoutThumb } from '../components/LayoutPicker'
 import SlideCanvas from '../components/SlideCanvas'
 import { KITS, createDeckFromKit, createDeckFromLayout, uid, type Kit } from '../kits'
-import { SAMPLES, createDeckFromSample, loadSampleSlides, type Sample } from '../samples'
+import { SAMPLES } from '../samples'
+import SampleCard from '../components/SampleCard'
 import { VISIBLE_LAYOUTS } from '../layouts'
 import { BRAND } from '../guide'
-import type { Deck, Slide } from '../types'
+import type { Deck } from '../types'
 
 interface TemplatesPageProps {
   decks: Deck[]
@@ -38,50 +39,11 @@ function KitPreview({ kit }: { kit: Kit }) {
   )
 }
 
-// 원본 샘플 덱 앞 3장을 겹쳐서 (불러오는 동안은 빈 자리)
-function SamplePreview({ sample }: { sample: Sample }) {
-  const [slides, setSlides] = useState<Slide[] | null>(null)
-  useEffect(() => {
-    let alive = true
-    loadSampleSlides(sample)
-      .then((list) => alive && setSlides(list.slice(0, 3)))
-      .catch(() => alive && setSlides([]))
-    return () => {
-      alive = false
-    }
-  }, [sample])
-  return (
-    <div className="relative h-[136px]">
-      {!slides && <div className="h-[107px] w-[190px] animate-pulse rounded-md bg-[#EEF1F7]" />}
-      {slides
-        ?.map((s, i) => (
-          <div
-            key={s.id}
-            className="absolute overflow-hidden rounded-md shadow-[0_4px_14px_rgba(0,0,56,0.14)] ring-1 ring-black/5"
-            style={{ left: i * 18, top: i * 14, zIndex: 3 - i, opacity: 1 - i * 0.15 }}
-          >
-            <SlideCanvas slide={s} index={i} width={190} showPlaceholders={false} />
-          </div>
-        ))
-        .reverse()}
-    </div>
-  )
-}
-
 const formatDate = (t: number) =>
   new Date(t).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: TemplatesPageProps) {
   const [importing, setImporting] = useState(false)
-  const [opening, setOpening] = useState<string | null>(null)
-  const openSample = (s: Sample) => {
-    if (opening) return
-    setOpening(s.id)
-    createDeckFromSample(s)
-      .then(onOpen)
-      .catch(() => alert('샘플을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'))
-      .finally(() => setOpening(null))
-  }
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const recent = [...decks].sort((a, b) => b.updatedAt - a.updatedAt)
 
@@ -146,30 +108,10 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
               세일즈덱 모아보기 →
             </a>
           </div>
-          <p className="mt-1 text-[13px] text-[#7A8099]">알체라 세일즈덱 원본 그대로예요. 배경·도형·글·이미지 모두 편집할 수 있어서, 복사해서 필요한 장을 고쳐 쓰거나 다른 문서로 복사해 붙여넣을 수 있어요.</p>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <p className="mt-1 text-[13px] text-[#7A8099]">알체라 세일즈덱이에요. 누르면 구글 슬라이드 원본이 열려요. 필요한 요소는 구글 슬라이드에서 복사해 스튜디오에 붙여넣을 수 있어요.</p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {SAMPLES.map((s) => (
-              <div key={s.id} className="group flex flex-col rounded-2xl border border-[#E0E5F0] bg-white p-5 transition hover:border-[#4D6BFF] hover:shadow-lg">
-                <button type="button" className="text-left" onClick={() => openSample(s)}>
-                  <SamplePreview sample={s} />
-                  <div className="mt-4 flex items-start justify-between gap-2">
-                    <h3 className="text-[15px] font-bold text-[#000038]">{s.name}</h3>
-                    <span className="flex-shrink-0 rounded-full bg-[#F2F4FB] px-2 py-0.5 text-[11px] font-semibold text-[#0000A5]">{s.count}장</span>
-                  </div>
-                  <p className="mt-1 text-[12px] leading-relaxed text-[#7A8099]">{s.description}</p>
-                </button>
-                <div className="mt-auto flex items-center gap-3 pt-4 text-[12px] font-semibold">
-                  <button type="button" className="text-[#0000A5] hover:underline disabled:opacity-50" disabled={opening === s.id} onClick={() => openSample(s)}>
-                    {opening === s.id ? '불러오는 중…' : '복사해서 쓰기 →'}
-                  </button>
-                  <a href={`#sales/${s.id}`} className="text-[#7A8099] hover:text-[#000038]">
-                    전체 장 보기
-                  </a>
-                  <a href={s.source} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#7A8099] hover:text-[#000038]">
-                    원본 <ExternalLink size={12} />
-                  </a>
-                </div>
-              </div>
+              <SampleCard key={s.id} sample={s} />
             ))}
           </div>
         </section>
