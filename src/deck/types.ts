@@ -131,6 +131,8 @@ export interface TextEl extends Box {
   // **굵게** 표기를 허용하는 칸 (가이드: 강조는 Bold)
   rich?: boolean
   placeholder?: string
+  // 칸이 비어 있을 때 대신 보여 주고 내보낼 글 (예: 키 네임 → 간지 제목)
+  fallback?: string
 }
 
 export type SlideEl = ShapeEl | LineEl | ImageEl | TextEl

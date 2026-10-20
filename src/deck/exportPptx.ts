@@ -178,7 +178,8 @@ export async function exportDeckToPptx(deck: Deck) {
           break
         }
         case 'text': {
-          const value = el.field ? (slide.content[el.field] ?? '') : (el.text ?? '')
+          const raw = el.field ? (slide.content[el.field] ?? '') : (el.text ?? '')
+          const value = raw.trim() ? raw : (el.fallback ?? raw)
           if (!value.trim()) break
           s.addText(textRuns(el, value), {
             ...box,

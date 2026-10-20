@@ -29,6 +29,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: 'PART 1. 회사 개요',
           title: '현장 데이터를 AI 자산으로, AI를 현장의 성과로 전환하는 알체라',
           sub: '고객의 데이터를 AI 자산으로 만들고, 산업 현장에서 작동하는 AI 서비스와 성과로 구현합니다',
           cTitle: '글로벌 거점과 검증된 사업 규모',
@@ -43,6 +44,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-3',
         content: {
+          crumb: 'PART 2. 사업 영역',
           title: '데이터 설계부터 전용 AI 엔진까지, AI의 모든 단계를 책임집니다',
           sub: 'AI 도입 리스크는 낮추고, 상용화 속도와 기술 자산화 가치는 높이는 3대 핵심 전략',
           c1Title: 'CORE 01\nAI DATA',
@@ -59,6 +61,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-2',
         content: {
+          crumb: 'PART 2. 사업 영역',
           title: '(AI Solution) 전국민의 일상을 지키는 고신뢰 AI',
           sub: '대규모 트래픽의 실제 환경에서 입증된 고정확·무중단·무결점 보안',
           lTitle: '안면인식 AI 기반\n본인인증 솔루션',
@@ -74,6 +77,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-grid',
         content: {
+          crumb: 'SOLUTION OVERVIEW',
           title: '검증된 Face Trust AI 출입통제 역량',
           sub: '금융·공공·대기업 환경에서 Gate, Kiosk, 금융 단말까지 다양한 인증 구조를 운영했습니다',
           g1Sub: '공공 / Walk-Through · 1:N',
@@ -89,6 +93,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: 'SOLUTION OVERVIEW',
           title: '출입 대상별 3가지 핵심 운영 시나리오',
           sub: '인증 경험은 대상별로 나누고, 얼굴 DB·정책·로그는 중앙에서 일관되게 관리합니다',
           cTitle: '임직원은 빠르게, 방문자는 키오스크에서, 관리자는 한 곳에서',
@@ -102,6 +107,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-1',
         content: {
+          crumb: 'SOLUTION OVERVIEW',
           title: 'Use Case 01 | 임직원 1:N Walk-through 출입',
           sub: '카메라 구간을 통과하면 Liveness와 1:N 매칭으로 본인을 식별하고 권한을 즉시 판단합니다',
           head: '얼굴만으로 Gate Open',
@@ -115,6 +121,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-2',
         content: {
+          crumb: 'SOLUTION OVERVIEW',
           title: 'Use Case 02 | 방문자·협력사 키오스크 출입증 발급',
           sub: '키오스크에서 Liveness와 1:N 매칭을 수행한 뒤, 확인된 방문자에게 출입증을 발급합니다',
           lHead: 'AUTHENTICATION FLOW',
@@ -129,6 +136,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-1',
         content: {
+          crumb: 'SOLUTION OVERVIEW',
           title: 'Use Case 03 | 내부 통제용 안면인증',
           sub: '업무용 PC 웹캠으로 Liveness와 1:1·1:N 매칭을 수행해 인가된 사용자만 PC를 쓰게 합니다',
           head: '업무용 PC (Webcam) 안면인증',
@@ -142,6 +150,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-grid',
         content: {
+          crumb: 'SOLUTION OVERVIEW',
           title: '주요 운영 레퍼런스 | 공공·대기업 출입 환경',
           sub: 'Walk-Through형 출입과 키오스크형 출입증 발급 등 현장에 맞는 1:N 운영 방식을 적용했습니다',
           g1Sub: 'CASE 01 · 인천국제공항',
@@ -157,6 +166,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-3',
         content: {
+          crumb: 'SOLUTION OVERVIEW',
           title: '검증된 안면인증 Face Trust AI 운영 역량',
           sub: '다양한 현장 패턴을 기존 출입 인프라에 유연하게 연결할 수 있습니다',
           h1Head: 'NH농협은행 · 2 SCENARIOS',
@@ -173,6 +183,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: 'SOLUTION OVERVIEW',
           title: '1:N 출입통제를 실제 현장에서 운영한 경험',
           sub: 'Walk-Through, 키오스크, 금융 단말 인증까지 하나의 Face AI 역량으로 지원합니다',
           cTitle: 'CORE CAPABILITY',
@@ -197,6 +208,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: '1. 회사소개',
           title: '검증된 Vision AI 기술을 공간 안전으로 확장하는 전문기업',
           sub: '글로벌 성능 검증부터 해외 운영, 국내 현장 적용까지 이어지는 알체라의 기술 기반',
           cTitle: '기술력의 검증 · 운영 · 적용 체계',
@@ -211,6 +223,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: '2. 문제 제기',
           title: '개별 정보로 놓치게 되는 복합 위험',
           sub: '단일 수치만으로는 복합적인 위험 상황을 정확히 구분하지 못합니다',
           cTitle: 'CO 수치는 정상, 실제 공기는 위험',
@@ -223,6 +236,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-1',
         content: {
+          crumb: '2. 문제 제기',
           title: '비효율적 환기 운영',
           sub: '환기설비가 실제 오염도와 무관하게 상시 가동되거나 수동으로 제어되어 에너지가 낭비됩니다',
           head: 'THE GAP — 필요한 시점 ≠ 실제 가동 시점',
@@ -236,6 +250,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: '2. 문제 제기',
           title: '사후 대응 중심의 구조',
           sub: '민원이 접수된 후에야 조치가 이루어지고, 대응 근거도 남지 않습니다',
           cTitle: '판단 근거가 남지 않아 같은 문제가 반복돼도 학습할 자료가 없음',
@@ -250,6 +265,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-1',
         content: {
+          crumb: '3. 제품 소개',
           title: 'CCTV 영상·환경센서 데이터 통합 분석',
           sub: '현장에 설치된 CCTV와 환경센서를 AI로 연결해 밀폐공간 위험을 미리 판단합니다',
           head: 'ONE UNIFIED AI — 멀티모달 안전 예측 AI',
@@ -263,6 +279,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: '3. 제품 소개',
           title: '개별 관리에서 통합 AI 관리 전환',
           sub: '감지·판단·대응·환기 운영의 기준이 경험에서 데이터 기반 통합 관리로 바뀝니다',
           cTitle: '사후 대응에서 예측 기반 대응으로',
@@ -276,6 +293,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-1',
         content: {
+          crumb: '4. 작동 원리',
           title: '멀티모달 공기질 상태판단',
           sub: '센서 시계열과 CCTV 영상을 함께 분석해 3단계로 실시간 분류합니다',
           head: 'AI Box 멀티모달 융합 엔진',
@@ -288,6 +306,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-3',
         content: {
+          crumb: '4. 작동 원리',
           title: '영상 기반 오염원 · 이상 징후 탐지',
           sub: 'CCTV 영상과 환경센서를 함께 활용해 수치만으로 어려운 실제 상황을 판단합니다',
           c1Title: 'CAPABILITY 01\n차량 인식·추적',
@@ -305,6 +324,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-2',
         content: {
+          crumb: '4. 작동 원리',
           title: '예측 기반 환기 스케줄링',
           sub: '기준치에 도달하기 전, 최적의 환기 시점을 미리 계산해 제안합니다',
           lHead: 'KEY POINTS',
@@ -319,6 +339,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-2',
         content: {
+          crumb: '4. 작동 원리',
           title: '자동 조치 리포트 생성',
           sub: '언제·무엇을·왜 판단했고 어떻게 조치했는지 한 화면에서 확인합니다',
           lTitle: '판단과 조치의 모든 근거를 기록',
@@ -333,6 +354,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-1',
         content: {
+          crumb: '4. 작동 원리',
           title: '통합 서비스 플랫폼 · 지속 학습',
           sub: '관리자·입주민·현장이 같은 정보를 공유하고, 운영 데이터가 다시 정확도를 높입니다',
           head: 'UNIFIED HUB — 통합 공기질 판단 허브',
@@ -345,6 +367,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: '4-1. 작동 원리_설계구조',
           title: '현장은 그대로, 안전 판단 방식은 고도화',
           sub: 'CCTV·환경센서 연계 → 현장 보호·추론 → 예측 운영',
           cTitle: '설치 부담은 줄이고, 개인정보는 보호하고, 불필요한 가동은 줄입니다',
@@ -357,6 +380,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-3',
         content: {
+          crumb: '4-2. 작동 원리_정량 목표',
           title: '실시간 위험 판단성능과 현장 운영 속도를 함께 목표화',
           sub: 'AI 판단과 운영·도입, 각 4개 지표를 하나의 KPI 체계로 통합 관리',
           h1Head: 'AI 판단 성능',
@@ -374,6 +398,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-3',
         content: {
+          crumb: '4-3. 작동 원리_기술 혁신',
           title: '단일센서의 한계를 복합 분석과 자체 AI로 보완',
           sub: '성능 개선 목표를 자체 풀스택과 등록 특허가 뒷받침합니다',
           c1Title: '탐지 성능 개선',
@@ -391,6 +416,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-grid',
         content: {
+          crumb: '4-4. 작동 원리_모두를 위한 안전',
           title: '390개소 구축이 사람·환경·운영의 변화로 확산',
           sub: '12개월 구축 목표(390개소 통합 안전 운영)를 기준으로 산정한 사회·환경적 기대 효과',
           g1Sub: '안전 수혜 확대 · 약 61만 명',
@@ -407,6 +433,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: '4. 작동 원리',
           title: '통합 공기질 관리 시스템 서비스 UI',
           sub: '통합 분석을 위한 AI BOX와 운영 관리를 위한 통합 대시보드',
           cTitle: '운영자 · 입주민 · 현장이 같은 화면을 봅니다',
@@ -434,6 +461,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-3',
         content: {
+          crumb: 'THE PROBLEM',
           title: '판단 기준이 없으면, 데이터가 쌓여도 확신은 쌓이지 않습니다',
           sub: 'Physical AI 데이터 구축 현장에서 반복되는 세 가지 질문',
           c1Title: '01\n무엇을 더 모아야 하나?',
@@ -451,6 +479,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: 'Physical AI Data Solutions',
           title: '신뢰를 만드는 두 가지 검증',
           sub: '학습에 쓸 수 있는 데이터인지, 실제 작업을 잘 수행하는지 확인합니다',
           cTitle: '데이터 검수 + 로봇 실기평가',
@@ -463,6 +492,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: 'Physical AI Data Solutions',
           title: '신뢰된 로봇데이터, 설계부터 평가까지 전과정',
           sub: '필요한 단계부터, 전과정 통합 수행 — 데이터 검수와 평가를 품질 기준으로 연결',
           cTitle: '요구설계부터 평가까지 5단계',
@@ -475,6 +505,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-1',
         content: {
+          crumb: 'Physical AI Data Solutions',
           title: '목표 성능을 위한 생산과 검수',
           sub: 'Success · Fail — 작업 성공 조건을 수집 설계부터 반영합니다',
           head: '검수 4단계 · 평가 요소 8종',
@@ -488,6 +519,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: 'Physical AI Data Solutions',
           title: '데이터 품질 검수',
           sub: '수집 원본 데이터에 7종 검사를 자동 실행하고, 담당자가 검토해 학습 가능 데이터로 만듭니다',
           cTitle: '검사 7종 자동 실행 → 담당자 검토',
@@ -500,6 +532,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-2',
         content: {
+          crumb: 'Physical AI Data Solutions',
           title: '실제 성능과 실패 원인을 검증',
           sub: '평가 기반으로 취약 구간을 찾고 후속 데이터 수집 우선순위를 정합니다',
           lTitle: '평가 프로세스',
@@ -515,6 +548,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-1',
         content: {
+          crumb: 'Physical AI Data Supply Chain System',
           title: 'Physical AI Data Supply Chain System',
           sub: '평가에서 얻은 지식으로 다음 데이터 생산을 더 정교하게',
           cTitle: '실패 분석과 보완 수집, 학습과 실기평가의 반복',
@@ -529,6 +563,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-2',
         content: {
+          crumb: 'DATA FACTORY / BUILD',
           title: '설계부터 셋업, 운영 체계까지 고객 데이터 팩토리 구축',
           sub: '현장을 모사한 공간과 수집·운영·검수 체계를 함께 만듭니다',
           lTitle: 'BUILD 4 STEPS',
@@ -543,6 +578,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'line-grid',
         content: {
+          crumb: 'DATA FACTORY / COLLECT',
           title: 'Task 특화 데이터를 수집',
           sub: '요구사항 구체화부터 검수한 데이터 납품까지 — 실기평가를 연계해 개선점을 다음 수집에 반영',
           g1Sub: '요구사항 분석 → 요구 명세서',
@@ -558,6 +594,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-3',
         content: {
+          crumb: 'Service OPTIONS',
           title: '고객의 준비 단계에 맞춘 서비스 구성',
           sub: 'End-to-End: 설계부터 구축·수집·검수·실기평가까지 통합 수행',
           h1Head: '팩토리 구축형',
@@ -578,6 +615,7 @@ export const SAMPLES: Sample[] = [
       {
         layout: 'header-3',
         content: {
+          crumb: 'REFERENCE',
           title: '주요 기업과 함께해 온 협업 경험',
           sub: 'A 고객사 사례 — 기존 성공률 40% → 73% 개선, 수집 기간 단축 후 납품 완료',
           h1Head: '고객사 상황',

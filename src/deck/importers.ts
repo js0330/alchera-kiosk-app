@@ -21,6 +21,7 @@ interface Block {
 
 interface ContentSlide {
   title: string
+  crumb?: string
   sub?: string
   blocks: Block[]
   images: string[]
@@ -43,7 +44,7 @@ function bulletize(lines: string[]) {
 
 function contentToSlide(cs: ContentSlide): Slide {
   const blocks = cs.blocks.filter((b) => b.title || b.sub || b.lines.length)
-  const base = { title: clip(cs.title, 60), sub: clip(cs.sub, 90) }
+  const base = { crumb: clip(cs.crumb, 40), title: clip(cs.title, 60), sub: clip(cs.sub, 90) }
   const image = cs.images[0]
   const k = Math.max(blocks.length, 1)
   const b = (i: number): Block => blocks[i] ?? { lines: [] }
@@ -418,8 +419,13 @@ function interpret(texts: TextShape[], pics: PicShape[], W: number, H: number) {
       rest = rest.filter((s) => s !== below)
     }
   }
-  // 제목 위 작은 글자(상단 목차 등)는 버립니다
-  if (titleShape) rest = rest.filter((s) => !(s.y + s.h <= titleShape!.y + 1 && s.paras.length === 1))
+  // 제목 위 한 줄짜리 작은 글자 = 키 네임(상단 목차). 가장 위의 것을 키 네임으로 쓰고 나머지는 버립니다
+  let crumb: string | undefined
+  if (titleShape) {
+    const above = rest.filter((s) => s.y + s.h <= titleShape!.y + 1 && s.paras.length === 1).sort((a, b) => a.y - b.y || a.x - b.x)
+    crumb = above.map((s) => s.paras[0].plain.trim()).find((t) => t && t.length <= 60)
+    rest = rest.filter((s) => !above.includes(s))
+  }
 
   // 가로 위치로 열 묶기
   const cols: TextShape[][] = []
@@ -456,7 +462,7 @@ function interpret(texts: TextShape[], pics: PicShape[], W: number, H: number) {
     blk.lines = paras.slice(i).map((p) => (p.bold && p.plain.length <= 60 ? `**${p.plain}**` : p.text))
     return blk
   })
-  return { title, sub, blocks, images, allText: useful.flatMap((s) => s.paras.map((p) => p.plain)) }
+  return { title, crumb, sub, blocks, images, allText: useful.flatMap((s) => s.paras.map((p) => p.plain)) }
 }
 
 // 가져온 이미지는 긴 변 1600px 로 줄여 브라우저 저장 공간을 아낍니다.
@@ -533,7 +539,7 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
       const body = items.filter((it) => it !== titleItem && it !== subItem && !(titleItem && it.kind !== 'image' && it.y + it.h <= headerBottom + H * 0.01 && it.h < H * 0.12 && !it.fill))
       const objects = await itemsToObjects(body, W, H)
       if (objects.length) {
-        const slide = makeSlide('free', { title: clip(s.title, 60), sub: clip(s.sub, 90) }, notes)
+        const slide = makeSlide('free', { crumb: clip(s.crumb, 40), title: clip(s.title, 60), sub: clip(s.sub, 90) }, notes)
         slides.push({ ...slide, objects })
         continue
       }
@@ -552,7 +558,7 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
       const desc = [s.sub, ...s.blocks.flatMap((b) => [b.title, b.sub, ...b.lines])].filter(Boolean).join(' ').replace(/\*\*/g, '')
       slides.push(makeSlide('section', { title: clip(s.title || desc, 24), description: s.title ? clip(desc, 60) : '' }, notes))
     } else {
-      slides.push(contentToSlide({ title: s.title, sub: s.sub, blocks: s.blocks, images: s.images, notes }))
+      slides.push(contentToSlide({ title: s.title, crumb: s.crumb, sub: s.sub, blocks: s.blocks, images: s.images, notes }))
     }
   }
   return finishDeck(deckTitle, slides)

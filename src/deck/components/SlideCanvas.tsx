@@ -187,7 +187,8 @@ function SlideCanvas({
                 />
               )
             case 'text': {
-              const value = el.field ? (slide.content[el.field] ?? '') : (el.text ?? '')
+              const raw = el.field ? (slide.content[el.field] ?? '') : (el.text ?? '')
+              const value = raw.trim() ? raw : (el.fallback ?? raw)
               if (editable && el.field && onFieldChange) {
                 const field = el.field
                 return <EditableText key={`${slide.id}-${key}`} el={el} value={value} onChange={(v) => onFieldChange(field, v)} />
