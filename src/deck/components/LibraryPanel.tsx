@@ -1,13 +1,13 @@
 import { X } from 'lucide-react'
-import { memo, useEffect, useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { BRAND } from '../guide'
 import { dragProps } from '../insert'
-import { BLOCKS, GUIDE_BOXES, ICONS, iconUrl, placeObjects, resolveIcons, type BlockDef } from '../library'
+import { BLOCKS, GUIDE_BOXES, ICONS, iconUrl, placeObjects, type BlockDef } from '../library'
 import { LINE_KINDS, type LineKind } from '../freeObjects'
 import { SHAPES } from '../shapes'
-import type { FreeObj, Geom } from '../types'
+import type { Geom } from '../types'
 import { makeSlide } from '../kits'
-import FreeLayer from './FreeLayer'
+import ObjectsPreview from './ObjectsPreview'
 import SlideCanvas from './SlideCanvas'
 import { LineIcon, ShapeIcon } from './InsertMenus'
 
@@ -24,30 +24,10 @@ type Tab = 'boxes' | 'blocks' | 'icons' | 'shapes'
 
 const PREVIEW_W = 244
 
-// 블록 미리보기: 실제 요소를 작게 그립니다 (아이콘은 칠한 뒤 표시)
+// 블록 미리보기
 const BlockPreview = memo(function BlockPreview({ block }: { block: BlockDef }) {
-  const base = useMemo(() => placeObjects(block.build()), [block])
-  const [objs, setObjs] = useState<FreeObj[]>(base)
-  useEffect(() => {
-    let alive = true
-    resolveIcons(base).then((r) => alive && setObjs(r))
-    return () => {
-      alive = false
-    }
-  }, [base])
-  const minX = Math.min(...objs.map((o) => o.x))
-  const minY = Math.min(...objs.map((o) => o.y))
-  const w = Math.max(...objs.map((o) => o.x + o.w)) - minX
-  const h = Math.max(...objs.map((o) => o.y + o.h)) - minY
-  const pad = 12
-  const scale = Math.min((PREVIEW_W - pad * 2) / w, 96 / h)
-  return (
-    <div className="relative overflow-hidden rounded-md bg-white" style={{ width: PREVIEW_W - 2, height: h * scale + pad * 2, fontFamily: BRAND.font.web }}>
-      <div style={{ position: 'absolute', left: (PREVIEW_W - w * scale) / 2 - minX * scale, top: pad - minY * scale, width: 1280, height: 720, transform: `scale(${scale})`, transformOrigin: '0 0' }}>
-        <FreeLayer objects={objs} scale={scale} />
-      </div>
-    </div>
-  )
+  const objs = useMemo(() => placeObjects(block.build()), [block])
+  return <ObjectsPreview objects={objs} width={PREVIEW_W} />
 })
 
 // 가이드 박스 미리보기: 슬라이드 전체에 그려서 '레이아웃과 같은 자리'에 들어가는 것을 보여 줍니다
