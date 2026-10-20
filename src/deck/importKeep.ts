@@ -318,7 +318,7 @@ export async function readSlideItems(
           continue
         }
         if (!text && !fill && !ln.color) continue
-        items.push({ kind: 'shape', ...box, ...extras, geom, radiusRatio, fill, line: ln.color, lineW: ln.w, text, ph: phType })
+        items.push({ kind: 'shape', ...box, ...extras, geom, radiusRatio, fill, line: ln.color, lineW: ln.w, dash: ln.dash, text, ph: phType })
       } else if (tag === 'p:pic') {
         const spPr = kid(el, 'p:spPr')
         const box = boxOf(spPr, t)
@@ -478,6 +478,7 @@ export async function itemsToObjects(items: RawItem[], slideW: number, slideH: n
       opacity: it.fill && (it.fill as Color).alpha < 1 ? (it.fill as Color).alpha : undefined,
       line: hexOf(it.line),
       lineWidth: it.line ? r1(Math.max(0.5, (it.lineW ?? 0.75) * ptScale)) : undefined,
+      dash: it.line ? it.dash : undefined,
       text: t?.text,
       size: t ? r1(Math.max(6, t.size * ptScale)) : undefined,
       color: t?.color ?? (it.placeholder ? BRAND.colors.gray : '#000000'),

@@ -135,7 +135,7 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
   const common = {
     ...box,
     fill: o.fill ? { color: hex(o.fill), transparency: transparency(o.opacity) } : undefined,
-    line: o.line ? { color: hex(o.line), width: o.lineWidth ?? 0.75 } : undefined,
+    line: o.line ? { color: hex(o.line), width: o.lineWidth ?? 0.75, dashType: o.dash === 'dash' ? ('dash' as const) : o.dash === 'dot' ? ('sysDot' as const) : undefined } : undefined,
     rectRadius: radius > 0 ? inch(radius) : undefined,
   }
   if (!o.text?.trim()) {

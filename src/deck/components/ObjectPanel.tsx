@@ -105,6 +105,29 @@ function EndIcon({ end, start }: { end: LineEnd; start?: boolean }) {
   )
 }
 
+// 실선 · 점선 · 점 (선과 도형 테두리 공통)
+function DashChips({ value, onPatch }: { value?: LineDash; onPatch: (patch: Partial<FreeObj>) => void }) {
+  const dashes: [LineDash, string][] = [
+    ['solid', '실선'],
+    ['dash', '점선'],
+    ['dot', '점'],
+  ]
+  return (
+    <>
+      {dashes.map(([d, label]) => (
+        <button key={d} type="button" className={chip((value ?? 'solid') === d)} onClick={() => onPatch({ dash: d === 'solid' ? undefined : d })}>
+          <span className="flex items-center gap-1">
+            <svg width="16" height="6" viewBox="0 0 16 6">
+              <line x1="1" y1="3" x2="15" y2="3" stroke="currentColor" strokeWidth="1.6" strokeDasharray={d === 'dash' ? '4 2.5' : d === 'dot' ? '1.5 1.5' : undefined} />
+            </svg>
+            {label}
+          </span>
+        </button>
+      ))}
+    </>
+  )
+}
+
 function kindName(o: FreeObj) {
   if (o.kind === 'image') return o.icon ? '아이콘' : '이미지'
   if (o.kind === 'line') return o.arrowEnd || o.arrowStart ? '화살표' : '선'
@@ -196,13 +219,18 @@ export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOr
             ))}
           </Row>
           {s0.line && (
-            <Row label="테두리 두께">
-              {LINE_WIDTHS.map((w) => (
-                <button key={w} type="button" className={chip((s0.lineWidth ?? 0.75) === w)} onClick={() => onPatch({ lineWidth: w })}>
-                  {w}
-                </button>
-              ))}
-            </Row>
+            <>
+              <Row label="테두리 두께">
+                {LINE_WIDTHS.map((w) => (
+                  <button key={w} type="button" className={chip((s0.lineWidth ?? 0.75) === w)} onClick={() => onPatch({ lineWidth: w })}>
+                    {w}
+                  </button>
+                ))}
+              </Row>
+              <Row label="테두리 모양">
+                <DashChips value={s0.dash} onPatch={onPatch} />
+              </Row>
+            </>
           )}
         </>
       )}
@@ -224,17 +252,7 @@ export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOr
             ))}
           </Row>
           <Row label="선 모양">
-            {(
-              [
-                ['solid', '실선'],
-                ['dash', '점선'],
-                ['dot', '점'],
-              ] as [LineDash, string][]
-            ).map(([d, label]) => (
-              <button key={d} type="button" className={chip((l0.dash ?? 'solid') === d)} onClick={() => onPatch({ dash: d === 'solid' ? undefined : d })}>
-                {label}
-              </button>
-            ))}
+            <DashChips value={l0.dash} onPatch={onPatch} />
           </Row>
           {(['arrowStart', 'arrowEnd'] as const).map((key) => (
             <Row key={key} label={key === 'arrowStart' ? '시작 모양' : '끝 모양'}>
