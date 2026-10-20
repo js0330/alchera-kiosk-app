@@ -1,0 +1,172 @@
+import { X } from 'lucide-react'
+import { memo, useEffect, useMemo, useState } from 'react'
+import { BRAND } from '../guide'
+import { dragProps } from '../insert'
+import { BLOCKS, ICONS, iconUrl, placeObjects, resolveIcons, type BlockDef } from '../library'
+import { LINE_KINDS, type LineKind } from '../freeObjects'
+import { SHAPES } from '../shapes'
+import type { FreeObj, Geom } from '../types'
+import FreeLayer from './FreeLayer'
+import { LineIcon, ShapeIcon } from './InsertMenus'
+
+interface LibraryPanelProps {
+  onClose: () => void
+  onShape: (geom: Geom) => void
+  onLine: (kind: LineKind) => void
+  onIcon: (id: string) => void
+  onBlock: (block: BlockDef) => void
+}
+
+type Tab = 'blocks' | 'icons' | 'shapes'
+
+const PREVIEW_W = 244
+
+// 블록 미리보기: 실제 요소를 작게 그립니다 (아이콘은 칠한 뒤 표시)
+const BlockPreview = memo(function BlockPreview({ block }: { block: BlockDef }) {
+  const base = useMemo(() => placeObjects(block.build()), [block])
+  const [objs, setObjs] = useState<FreeObj[]>(base)
+  useEffect(() => {
+    let alive = true
+    resolveIcons(base).then((r) => alive && setObjs(r))
+    return () => {
+      alive = false
+    }
+  }, [base])
+  const minX = Math.min(...objs.map((o) => o.x))
+  const minY = Math.min(...objs.map((o) => o.y))
+  const w = Math.max(...objs.map((o) => o.x + o.w)) - minX
+  const h = Math.max(...objs.map((o) => o.y + o.h)) - minY
+  const pad = 12
+  const scale = Math.min((PREVIEW_W - pad * 2) / w, 96 / h)
+  return (
+    <div className="relative overflow-hidden rounded-md bg-white" style={{ width: PREVIEW_W - 2, height: h * scale + pad * 2, fontFamily: BRAND.font.web }}>
+      <div style={{ position: 'absolute', left: (PREVIEW_W - w * scale) / 2 - minX * scale, top: pad - minY * scale, width: 1280, height: 720, transform: `scale(${scale})`, transformOrigin: '0 0' }}>
+        <FreeLayer objects={objs} scale={scale} />
+      </div>
+    </div>
+  )
+})
+
+// 웹플로우의 "추가" 패널처럼: 샘플덱에서 가져온 구성 블록 · 아이콘 · 도형을 클릭하거나 슬라이드로 끌어다 놓습니다.
+export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock }: LibraryPanelProps) {
+  const [tab, setTab] = useState<Tab>('blocks')
+  const tabs: [Tab, string][] = [
+    ['blocks', '구성 블록'],
+    ['icons', '아이콘'],
+    ['shapes', '도형·선'],
+  ]
+  return (
+    <div className="flex w-[288px] flex-shrink-0 flex-col border-r border-[#E0E5F0] bg-white">
+      <div className="flex items-center justify-between px-4 pb-2 pt-3">
+        <div>
+          <h3 className="text-[14px] font-bold text-[#000038]">요소 라이브러리</h3>
+          <p className="text-[11px] text-[#7A8099]">클릭하거나 슬라이드로 끌어다 놓으세요</p>
+        </div>
+        <button type="button" className="deck-btn deck-btn-ghost px-1.5" onClick={onClose} aria-label="닫기">
+          <X size={16} />
+        </button>
+      </div>
+      <div className="mx-4 flex rounded-lg bg-[#F2F4FB] p-0.5">
+        {tabs.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold ${tab === id ? 'bg-white text-[#000038] shadow-sm' : 'text-[#7A8099]'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 pt-3">
+        {tab === 'blocks' && (
+          <ul className="space-y-3">
+            {BLOCKS.map((b) => (
+              <li key={b.id}>
+                <button
+                  type="button"
+                  className="w-full rounded-lg border border-[#E0E5F0] text-left transition hover:border-[#4D6BFF] hover:shadow-[0_4px_14px_rgba(0,0,165,0.08)]"
+                  onClick={() => onBlock(b)}
+                  {...dragProps({ type: 'block', id: b.id })}
+                >
+                  <BlockPreview block={b} />
+                  <div className="border-t border-[#EEF1F7] px-3 py-2">
+                    <p className="text-[12px] font-bold text-[#000038]">{b.label}</p>
+                    <p className="text-[11px] leading-snug text-[#7A8099]">{b.description}</p>
+                    <p className="mt-0.5 text-[10px] text-[#9CA3AF]">샘플: {b.source}</p>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {tab === 'icons' && (
+          <>
+            {(['Face Trust', 'Physical AI'] as const).map((src) => (
+              <div key={src} className="mb-4">
+                <p className="deck-label mb-2">{src} 샘플</p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {ICONS.filter((i) => i.source === src).map((i) => (
+                    <button
+                      key={i.id}
+                      type="button"
+                      title={i.label}
+                      className="flex flex-col items-center gap-1 rounded-lg px-1 py-2 hover:bg-[#EEF1FB]"
+                      onClick={() => onIcon(i.id)}
+                      {...dragProps({ type: 'icon', id: i.id })}
+                    >
+                      <span
+                        className="block h-8 w-8"
+                        style={{ background: BRAND.colors.blue, WebkitMask: `url(${iconUrl(i.id)}) center / contain no-repeat`, mask: `url(${iconUrl(i.id)}) center / contain no-repeat` }}
+                      />
+                      <span className="w-full truncate text-center text-[10px] text-[#7A8099]">{i.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <p className="text-[11px] leading-relaxed text-[#9CA3AF]">넣은 뒤 오른쪽 패널에서 아이콘 색(블루·네이비·그레이·흰색)을 바꿀 수 있어요.</p>
+          </>
+        )}
+        {tab === 'shapes' && (
+          <>
+            {(['기본 도형', '화살표'] as const).map((g) => (
+              <div key={g} className="mb-4">
+                <p className="deck-label mb-2">{g}</p>
+                <div className="grid grid-cols-5 gap-1">
+                  {SHAPES.filter((s) => s.group === g).map((s) => (
+                    <button
+                      key={s.geom}
+                      type="button"
+                      title={s.label}
+                      className="flex h-12 items-center justify-center rounded-lg hover:bg-[#EEF1FB]"
+                      onClick={() => onShape(s.geom)}
+                      {...dragProps({ type: 'shape', geom: s.geom })}
+                    >
+                      <ShapeIcon geom={s.geom} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <p className="deck-label mb-2">선</p>
+            <div className="space-y-0.5">
+              {LINE_KINDS.map((k) => (
+                <button
+                  key={k.id}
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-[13px] text-[#333A4D] hover:bg-[#EEF1FB]"
+                  onClick={() => onLine(k)}
+                  {...dragProps({ type: 'line', id: k.id })}
+                >
+                  <LineIcon kind={k} width={56} />
+                  {k.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

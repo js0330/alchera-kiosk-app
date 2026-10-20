@@ -6,32 +6,42 @@ import {
   Download,
   FileJson,
   LayoutTemplate,
+  LibraryBig,
   LoaderCircle,
   Eye,
   EyeOff,
   ImagePlus,
   Play,
   Plus,
-  Square,
+  Redo2,
   Trash2,
   Type,
+  Undo2,
   WandSparkles,
 } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { LineMenu, ShapeMenu } from '../components/InsertMenus'
 import LayoutPicker from '../components/LayoutPicker'
+import LibraryPanel from '../components/LibraryPanel'
 import ObjectPanel from '../components/ObjectPanel'
 import PresentMode from '../components/PresentMode'
 import SlideCanvas from '../components/SlideCanvas'
 import { SLIDE_H, SLIDE_W } from '../guide'
-import { newBox, newImage, newText, snapToGuide } from '../freeObjects'
+import { LINE_KINDS, newImage, newLine, newShape, newText, snapToGuide } from '../freeObjects'
+import { INSERT_MIME, type InsertPayload } from '../insert'
 import { makeSlide, uid } from '../kits'
-import { LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
+import { FREE_AREA, LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
+import { BLOCKS, newIcon, placeObjects, resolveIcons, tintIcon } from '../library'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, FreeObj, LayoutId, Slide } from '../types'
 
 // 복사한 자유 배치 요소. 다른 슬라이드·다른 문서에도 붙여넣을 수 있도록 모듈에 둡니다.
 const CLIP_MARK = 'alchera-deck-objects:'
 let objClipboard: { key: string; objs: FreeObj[]; pasted: number } | null = null
+
+// 되돌리기 기록: 같은 칸을 이어서 입력하거나 같은 요소를 끄는 동안의 변화는 한 단계로 묶습니다
+const MERGE_MS = 1000
+const HISTORY_MAX = 100
 
 const GUIDES_KEY = 'alchera-deck-show-guides'
 const readShowGuides = () => {
@@ -74,20 +84,22 @@ function readImage(file: File): Promise<string> {
   })
 }
 
-export default function StudioPage({ deck, saveState, onChange, initialNotice }: StudioPageProps) {
+export default function StudioPage({ deck, saveState, onChange: saveDeck, initialNotice }: StudioPageProps) {
   const [current, setCurrent] = useState(0)
   const [picker, setPicker] = useState<'add' | 'change' | null>(null)
   const [presenting, setPresenting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [checkOpen, setCheckOpen] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
   const [notice, setNotice] = useState<{ text: string; undo?: () => void } | null>(initialNotice ? { text: initialNotice } : null)
   const imageField = useRef<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const stage = useRef<HTMLDivElement>(null)
+  const canvasBox = useRef<HTMLDivElement>(null)
   const [canvasW, setCanvasW] = useState(960)
-  // 자유 배치 슬라이드: 선택한 요소 · 글을 고치는 중인 요소
-  const [selectedObj, setSelectedObj] = useState<string | null>(null)
+  // 슬라이드 위 요소: 선택한 요소들 · 글을 고치는 중인 요소
+  const [selectedObjs, setSelectedObjs] = useState<string[]>([])
   const [editingObj, setEditingObj] = useState<string | null>(null)
   const [showGuides, setShowGuides] = useState(readShowGuides)
 
@@ -101,59 +113,138 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
   const deckRef = useRef(deck)
   deckRef.current = deck
 
+  // ── 되돌리기 · 다시 실행 ──────────────────────────────────────
+  const history = useRef<{ undo: Deck[]; redo: Deck[]; key?: string; at: number }>({ undo: [], redo: [], at: 0 })
+  const [, setHistoryTick] = useState(0)
+  useEffect(() => {
+    history.current = { undo: [], redo: [], at: 0 }
+    setHistoryTick((n) => n + 1)
+  }, [deck.id])
+
+  // mergeKey 가 같고 1초 안에 이어진 변화(같은 칸 입력, 같은 요소 끌기)는 되돌리기 한 번에 함께 돌아갑니다
+  const onChange = useCallback(
+    (next: Deck, mergeKey?: string) => {
+      const h = history.current
+      const now = Date.now()
+      if (!(mergeKey && mergeKey === h.key && now - h.at < MERGE_MS)) {
+        h.undo.push(deckRef.current)
+        if (h.undo.length > HISTORY_MAX) h.undo.shift()
+        setHistoryTick((n) => n + 1)
+      }
+      h.key = mergeKey
+      h.at = now
+      h.redo = []
+      deckRef.current = next
+      saveDeck(next)
+    },
+    [saveDeck],
+  )
+
+  const step = useCallback(
+    (dir: 'undo' | 'redo') => {
+      const h = history.current
+      const target = dir === 'undo' ? h.undo.pop() : h.redo.pop()
+      if (!target) return
+      ;(dir === 'undo' ? h.redo : h.undo).push(deckRef.current)
+      h.key = undefined
+      deckRef.current = target
+      saveDeck(target)
+      setEditingObj(null)
+      setSelectedObjs((ids) => ids.filter((id) => target.slides.some((s) => s.objects?.some((o) => o.id === id))))
+      setHistoryTick((n) => n + 1)
+    },
+    [saveDeck],
+  )
+  const undo = useCallback(() => step('undo'), [step])
+  const redo = useCallback(() => step('redo'), [step])
+  const canUndo = history.current.undo.length > 0
+  const canRedo = history.current.redo.length > 0
+
   const setSlides = useCallback(
-    (fn: (slides: Slide[]) => Slide[]) => onChange({ ...deckRef.current, slides: fn(deckRef.current.slides) }),
+    (fn: (slides: Slide[]) => Slide[], mergeKey?: string) => onChange({ ...deckRef.current, slides: fn(deckRef.current.slides) }, mergeKey),
     [onChange],
   )
 
   const updateSlide = useCallback(
-    (id: string, fn: (s: Slide) => Slide) => setSlides((slides) => slides.map((s) => (s.id === id ? fn(s) : s))),
+    (id: string, fn: (s: Slide) => Slide, mergeKey?: string) => setSlides((slides) => slides.map((s) => (s.id === id ? fn(s) : s)), mergeKey),
     [setSlides],
   )
 
   const setField = useCallback(
-    (key: string, value: string) => updateSlide(slide.id, (s) => ({ ...s, content: { ...s.content, [key]: value } })),
+    (key: string, value: string) => updateSlide(slide.id, (s) => ({ ...s, content: { ...s.content, [key]: value } }), `field:${slide.id}:${key}`),
     [slide.id, updateSlide],
   )
 
-  const isFree = slide.layout === 'free'
-  const objects = slide.objects ?? []
-  const selected = isFree ? objects.find((o) => o.id === selectedObj) : undefined
+  const objects = useMemo(() => slide.objects ?? [], [slide.objects])
+  const selected = useMemo(() => objects.filter((o) => selectedObjs.includes(o.id)), [objects, selectedObjs])
 
   const setObjects = useCallback(
-    (fn: (objs: FreeObj[]) => FreeObj[]) => updateSlide(slide.id, (s) => ({ ...s, objects: fn(s.objects ?? []) })),
+    (fn: (objs: FreeObj[]) => FreeObj[], mergeKey?: string) => updateSlide(slide.id, (s) => ({ ...s, objects: fn(s.objects ?? []) }), mergeKey),
     [slide.id, updateSlide],
   )
-  const updateObj = useCallback((o: FreeObj) => setObjects((objs) => objs.map((x) => (x.id === o.id ? o : x))), [setObjects])
-  const addObj = (o: FreeObj) => {
-    setObjects((objs) => [...objs, o])
-    setSelectedObj(o.id)
-  }
-  const removeObj = useCallback(
-    (id: string) => {
-      setObjects((objs) => objs.filter((o) => o.id !== id))
-      setSelectedObj(null)
+  // 끌기·크기 조절·글 수정: 같은 요소들의 연속 변화는 한 단계로
+  const updateObjs = useCallback(
+    (changed: FreeObj[]) => {
+      const map = new Map(changed.map((o) => [o.id, o]))
+      setObjects((objs) => objs.map((x) => map.get(x.id) ?? x), `objs:${slide.id}:${changed.map((o) => o.id).join(',')}`)
+    },
+    [setObjects, slide.id],
+  )
+
+  // 새 요소 넣기: 아이콘은 칠하고, 위치를 정한 뒤(끌어다 놓은 곳 또는 원래 자리) 모두 선택합니다
+  const insert = useCallback(
+    async (objs: FreeObj[], center?: { x: number; y: number }) => {
+      const placed = placeObjects(await resolveIcons(objs), center)
+      setObjects((list) => [...list, ...placed])
+      setSelectedObjs(placed.map((o) => o.id))
+      setEditingObj(null)
     },
     [setObjects],
   )
-  const duplicateObj = useCallback(
-    (o: FreeObj) => {
-      const copy = { ...o, id: uid(), x: o.x + 16, y: o.y + 16 }
-      setObjects((objs) => [...objs, copy])
-      setSelectedObj(copy.id)
-    },
-    [setObjects],
-  )
-  const orderObj = (id: string, dir: 'front' | 'back') =>
+  const addObj = (o: FreeObj) => insert([o])
+
+  const removeSelected = useCallback(() => {
+    const ids = latestSel.current
+    if (!ids.length) return
+    setObjects((objs) => objs.filter((o) => !ids.includes(o.id)))
+    setSelectedObjs([])
+    setEditingObj(null)
+  }, [setObjects])
+  const duplicateSelected = useCallback(() => {
+    const ids = latestSel.current
+    const copies = (deckRef.current.slides.find((s) => s.id === slide.id)?.objects ?? [])
+      .filter((o) => ids.includes(o.id))
+      .map((o) => ({ ...o, id: uid(), x: o.x + 16, y: o.y + 16 }))
+    if (!copies.length) return
+    setObjects((objs) => [...objs, ...copies])
+    setSelectedObjs(copies.map((o) => o.id))
+  }, [setObjects, slide.id])
+  const orderSelected = (dir: 'front' | 'back') =>
     setObjects((objs) => {
-      const o = objs.find((x) => x.id === id)
-      if (!o) return objs
-      const rest = objs.filter((x) => x.id !== id)
-      return dir === 'front' ? [...rest, o] : [o, ...rest]
+      const sel = objs.filter((x) => selectedObjs.includes(x.id))
+      const rest = objs.filter((x) => !selectedObjs.includes(x.id))
+      return dir === 'front' ? [...rest, ...sel] : [...sel, ...rest]
     })
+  // 오른쪽 패널에서 바꾼 값을 선택한 모든 요소에 적용. 아이콘 색은 다시 칠합니다.
+  const patchSelected = (patch: Partial<FreeObj>) => {
+    const ids = selectedObjs
+    setObjects((objs) => objs.map((o) => (ids.includes(o.id) ? { ...o, ...patch } : o)))
+    if (patch.color) {
+      const color = patch.color
+      for (const o of objects.filter((x) => ids.includes(x.id) && x.icon)) {
+        tintIcon(o.icon!, color).then((src) => {
+          const cur = deckRef.current.slides.find((s) => s.id === slide.id)?.objects?.find((x) => x.id === o.id)
+          if (cur && cur.color === color) updateObjs([{ ...cur, src }])
+        })
+      }
+    }
+  }
+
+  const latestSel = useRef(selectedObjs)
+  latestSel.current = selectedObjs
 
   useEffect(() => {
-    setSelectedObj(null)
+    setSelectedObjs([])
     setEditingObj(null)
   }, [slide.id])
 
@@ -165,9 +256,9 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
     }
   }, [showGuides])
 
-  // 복사 · 잘라내기 · 붙여넣기: 선택한 요소, 캡처한 이미지, 다른 곳에서 복사한 글
-  const latest = useRef({ selected, isFree, slideId: slide.id })
-  latest.current = { selected, isFree, slideId: slide.id }
+  // 복사 · 잘라내기 · 붙여넣기: 선택한 요소들, 캡처한 이미지, 다른 곳에서 복사한 글
+  const latest = useRef({ selected, slideId: slide.id })
+  latest.current = { selected, slideId: slide.id }
   useEffect(() => {
     const typing = (t: EventTarget | null) => {
       const el = t as HTMLElement | null
@@ -175,13 +266,14 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
     }
     const onCopy = (e: ClipboardEvent, cut: boolean) => {
       const { selected: sel } = latest.current
-      if (typing(e.target) || !sel) return
+      if (typing(e.target) || !sel.length) return
       const key = uid()
-      objClipboard = { key, objs: [sel], pasted: 0 }
+      objClipboard = { key, objs: sel, pasted: 0 }
       e.clipboardData?.setData('text/plain', `${CLIP_MARK}${key}`)
       e.preventDefault()
-      if (cut) removeObj(sel.id)
-      setNotice({ text: cut ? '잘라냈어요. 원하는 슬라이드에서 Ctrl+V로 붙여넣으세요.' : '복사했어요. 원하는 슬라이드에서 Ctrl+V로 붙여넣으세요.' })
+      if (cut) removeSelected()
+      const what = sel.length > 1 ? `${sel.length}개 요소를` : ''
+      setNotice({ text: `${what} ${cut ? "잘라냈어요" : "복사했어요"}. 원하는 슬라이드에서 Ctrl+V로 붙여넣으세요.`.trim() })
     }
     const onPaste = (e: ClipboardEvent) => {
       if (typing(e.target)) return
@@ -192,16 +284,12 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
       const internal = text.startsWith(CLIP_MARK) && objClipboard && text === `${CLIP_MARK}${objClipboard.key}` ? objClipboard : null
       if (!internal && !image && !text.trim()) return
       e.preventDefault()
-      if (!latest.current.isFree) {
-        setNotice({ text: '요소 붙여넣기는 ‘자유 배치’ 슬라이드에서 돼요. 레이아웃을 자유 배치로 바꾸거나 새 자유 배치 슬라이드를 추가해 주세요.' })
-        return
-      }
       if (internal) {
         internal.pasted += 1
         const shift = 16 * internal.pasted
         const copies = internal.objs.map((o) => ({ ...o, id: uid(), x: o.x + shift, y: o.y + shift }))
         setObjects((objs) => [...objs, ...copies])
-        setSelectedObj(copies[copies.length - 1].id)
+        setSelectedObjs(copies.map((o) => o.id))
       } else if (image) {
         readImage(image).then((src) => {
           const img = new Image()
@@ -224,27 +312,40 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
       window.removeEventListener('paste', onPaste)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [removeObj, setObjects])
+  }, [removeSelected, setObjects])
 
-  // 선택한 요소: Delete 삭제 · 방향키 이동 · Ctrl+D 복제 · Esc 선택 해제
+  // 단축키: Ctrl+Z 되돌리기 · Ctrl+Shift+Z / Ctrl+Y 다시 실행 · Ctrl+A 요소 전체 선택
+  // 선택한 요소: Delete 삭제 · 방향키 이동 · Ctrl+D 복제 · Esc 선택 해제 · Enter 글 수정
   useEffect(() => {
-    if (!selected || editingObj) return
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
+      // 글을 입력하는 중에는 브라우저 기본 동작(글자 단위 되돌리기·전체 선택)을 그대로 씁니다
       if (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return
-      const step = e.shiftKey ? 10 : 1
-      const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }
-      if (e.key === 'Delete' || e.key === 'Backspace') removeObj(selected.id)
-      else if (moves[e.key]) updateObj({ ...selected, x: selected.x + moves[e.key][0], y: selected.y + moves[e.key][1] })
-      else if ((e.metaKey || e.ctrlKey) && e.key === 'd') duplicateObj(selected)
-      else if (e.key === 'Escape') setSelectedObj(null)
-      else if (e.key === 'Enter' && selected.kind === 'shape') setEditingObj(selected.id)
-      else return
+      const mod = e.metaKey || e.ctrlKey
+      const k = e.key.toLowerCase()
+      if (mod && k === 'z') {
+        if (e.shiftKey) redo()
+        else undo()
+      } else if (mod && k === 'y') redo()
+      else if (mod && k === 'a') {
+        setSelectedObjs(objects.map((o) => o.id))
+        setEditingObj(null)
+      } else if (!selected.length || editingObj) return
+      else {
+        const stepPx = e.shiftKey ? 10 : 1
+        const moves: Record<string, [number, number]> = { ArrowLeft: [-stepPx, 0], ArrowRight: [stepPx, 0], ArrowUp: [0, -stepPx], ArrowDown: [0, stepPx] }
+        if (e.key === 'Delete' || e.key === 'Backspace') removeSelected()
+        else if (moves[e.key]) updateObjs(selected.map((o) => ({ ...o, x: o.x + moves[e.key][0], y: o.y + moves[e.key][1] })))
+        else if (mod && k === 'd') duplicateSelected()
+        else if (e.key === 'Escape') setSelectedObjs([])
+        else if (e.key === 'Enter' && selected.length === 1 && selected[0].kind === 'shape') setEditingObj(selected[0].id)
+        else return
+      }
       e.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selected, editingObj, removeObj, updateObj, duplicateObj])
+  }, [objects, selected, editingObj, undo, redo, removeSelected, updateObjs, duplicateSelected])
 
   useLayoutEffect(() => {
     const node = stage.current
@@ -266,6 +367,23 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
   useEffect(() => {
     document.getElementById(`thumb-${slide.id}`)?.scrollIntoView({ block: 'nearest' })
   }, [slide.id])
+
+  // 메뉴·라이브러리에서 끌어다 놓기
+  const payloadObjs = (p: InsertPayload): FreeObj[] => {
+    if (p.type === 'shape') return [newShape(p.geom)]
+    if (p.type === 'line') return [newLine(LINE_KINDS.find((k) => k.id === p.id) ?? LINE_KINDS[0])]
+    if (p.type === 'icon') return [newIcon(p.id)]
+    return BLOCKS.find((b) => b.id === p.id)?.build() ?? []
+  }
+  const onDrop = (e: DragEvent) => {
+    const raw = e.dataTransfer.getData(INSERT_MIME)
+    const box = canvasBox.current?.getBoundingClientRect()
+    if (!raw || !box) return
+    e.preventDefault()
+    const scale = box.width / SLIDE_W
+    insert(payloadObjs(JSON.parse(raw) as InsertPayload), { x: (e.clientX - box.left) / scale, y: (e.clientY - box.top) / scale })
+  }
+  const freeCenter = { x: FREE_AREA.x + FREE_AREA.w / 2, y: FREE_AREA.y + FREE_AREA.h / 2 }
 
   const addSlide = (id: LayoutId) => {
     const s = makeSlide(id)
@@ -290,13 +408,12 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
 
   const remove = (i: number) => {
     if (deck.slides.length === 1) return
-    const before = deckRef.current.slides
     setSlides((slides) => slides.filter((_, j) => j !== i))
     setCurrent(Math.max(0, i - 1))
     setNotice({
       text: `${i + 1}번 슬라이드를 삭제했어요`,
       undo: () => {
-        onChange({ ...deckRef.current, slides: before })
+        undo()
         setCurrent(i)
       },
     })
@@ -345,7 +462,7 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
         </a>
         <input
           value={deck.title}
-          onChange={(e) => onChange({ ...deck, title: e.target.value })}
+          onChange={(e) => onChange({ ...deck, title: e.target.value }, 'title')}
           className="min-w-0 flex-1 rounded-md px-2 py-1 text-[16px] font-bold text-[#000038] outline-none hover:bg-[#F5F7FC] focus:bg-[#F5F7FC] sm:max-w-[360px]"
           aria-label="문서 제목"
         />
@@ -370,8 +487,15 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
         </div>
       </header>
 
-      {/* 슬라이드 도구: 레이아웃·톤만 바꿀 수 있습니다 */}
-      <div className="flex h-12 flex-shrink-0 items-center gap-2 overflow-x-auto border-b border-[#E0E5F0] bg-[#FBFCFE] px-3">
+      {/* 슬라이드 도구: 되돌리기 · 레이아웃 · 요소 넣기 */}
+      <div className="flex h-12 flex-shrink-0 items-center gap-1.5 overflow-x-auto border-b border-[#E0E5F0] bg-[#FBFCFE] px-3">
+        <button type="button" className="deck-btn deck-btn-ghost px-2" disabled={!canUndo} onClick={undo} title="되돌리기 (Ctrl+Z)" aria-label="되돌리기">
+          <Undo2 size={16} />
+        </button>
+        <button type="button" className="deck-btn deck-btn-ghost px-2" disabled={!canRedo} onClick={redo} title="다시 실행 (Ctrl+Shift+Z)" aria-label="다시 실행">
+          <Redo2 size={16} />
+        </button>
+        <div className="mx-1 h-6 w-px flex-shrink-0 bg-[#E0E5F0]" />
         <button type="button" className="deck-btn" onClick={() => setPicker('change')}>
           <LayoutTemplate size={16} /> 레이아웃: {layout.name}
         </button>
@@ -383,45 +507,47 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
         >
           {showGuides ? <EyeOff size={15} /> : <Eye size={15} />} {showGuides ? '편집선 숨기기' : '편집선 보기'}
         </button>
-        <div className="mx-1 h-6 w-px bg-[#E0E5F0]" />
-        <button type="button" className="deck-btn deck-btn-ghost" onClick={() => duplicate(index)}>
+        <button type="button" className="deck-btn deck-btn-ghost" onClick={() => duplicate(index)} title="이 슬라이드 복제">
           <Copy size={15} /> 복제
         </button>
-        <button type="button" className="deck-btn deck-btn-ghost" disabled={deck.slides.length === 1} onClick={() => remove(index)}>
+        <button type="button" className="deck-btn deck-btn-ghost" disabled={deck.slides.length === 1} onClick={() => remove(index)} title="이 슬라이드 삭제">
           <Trash2 size={15} /> 삭제
         </button>
-        {isFree && (
-          <>
-            <div className="mx-1 h-6 w-px bg-[#E0E5F0]" />
-            <button type="button" className="deck-btn deck-btn-ghost" onClick={() => addObj(newText())}>
-              <Type size={15} /> 텍스트
-            </button>
-            <button type="button" className="deck-btn deck-btn-ghost" onClick={() => addObj(newBox())}>
-              <Square size={15} /> 박스
-            </button>
-            <button type="button" className="deck-btn deck-btn-ghost" onClick={() => pickImage('__free__')}>
-              <ImagePlus size={15} /> 이미지
-            </button>
-            <button
-              type="button"
-              className="deck-btn"
-              disabled={!objects.length}
-              title="이 슬라이드의 모든 글자 크기·색·배경을 가이드 값으로 맞춥니다"
-              onClick={() => {
-                const before = objects
-                setObjects((objs) => objs.map(snapToGuide))
-                setNotice({ text: '이 슬라이드를 가이드 서식(글자 크기·색·배경)에 맞췄어요', undo: () => setObjects(() => before) })
-              }}
-            >
-              <WandSparkles size={15} /> 가이드 서식 맞추기
-            </button>
-          </>
+        <div className="mx-1 h-6 w-px flex-shrink-0 bg-[#E0E5F0]" />
+        <button type="button" className="deck-btn deck-btn-ghost" onClick={() => addObj(newText())}>
+          <Type size={15} /> 텍스트
+        </button>
+        <ShapeMenu onPick={(g) => addObj(newShape(g))} />
+        <LineMenu onPick={(k) => addObj(newLine(k))} />
+        <button type="button" className="deck-btn deck-btn-ghost" onClick={() => pickImage('__free__')}>
+          <ImagePlus size={15} /> 이미지
+        </button>
+        <button
+          type="button"
+          className={`deck-btn ${libraryOpen ? 'border-[#0000A5] bg-[#EEF1FB] text-[#0000A5]' : ''}`}
+          onClick={() => setLibraryOpen((v) => !v)}
+          title="샘플덱의 아이콘 · 구성 블록 · 도형을 골라 넣습니다"
+        >
+          <LibraryBig size={15} /> 요소 라이브러리
+        </button>
+        {objects.length > 0 && (
+          <button
+            type="button"
+            className="deck-btn deck-btn-ghost"
+            title="이 슬라이드에 올린 요소의 글자 크기·색·배경을 가이드 값으로 맞춥니다"
+            onClick={() => {
+              setObjects((objs) => objs.map(snapToGuide))
+              setNotice({ text: '이 슬라이드를 가이드 서식(글자 크기·색·배경)에 맞췄어요', undo })
+            }}
+          >
+            <WandSparkles size={15} /> 가이드 서식 맞추기
+          </button>
         )}
       </div>
 
       <div className="flex min-h-0 flex-1">
-        {/* 썸네일 */}
-        <aside className="flex w-[200px] flex-shrink-0 flex-col border-r border-[#E0E5F0] bg-white">
+        {/* 썸네일 (요소 라이브러리를 열면 그 자리에 라이브러리) */}
+        <aside className={`w-[200px] flex-shrink-0 flex-col border-r border-[#E0E5F0] bg-white ${libraryOpen ? 'hidden' : 'flex'}`}>
           <div className="p-3">
             <button type="button" className="deck-btn w-full justify-center" onClick={() => setPicker('add')}>
               <Plus size={16} /> 새 슬라이드
@@ -464,9 +590,29 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
           </ol>
         </aside>
 
-        {/* 편집 캔버스 */}
-        <main ref={stage} className="flex min-w-0 flex-1 items-center justify-center overflow-auto bg-[#EEF1F7]">
-          <div className="shadow-[0_8px_30px_rgba(0,0,56,0.12)]">
+        {libraryOpen && (
+          <LibraryPanel
+            onClose={() => setLibraryOpen(false)}
+            onShape={(g) => addObj(newShape(g))}
+            onLine={(k) => addObj(newLine(k))}
+            onIcon={(id) => insert([newIcon(id)], freeCenter)}
+            onBlock={(b) => insert(b.build())}
+          />
+        )}
+
+        {/* 편집 캔버스 — 라이브러리·도형 메뉴에서 끌어다 놓을 수 있습니다 */}
+        <main
+          ref={stage}
+          className="flex min-w-0 flex-1 items-center justify-center overflow-auto bg-[#EEF1F7]"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes(INSERT_MIME)) {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'copy'
+            }
+          }}
+          onDrop={onDrop}
+        >
+          <div ref={canvasBox} className="shadow-[0_8px_30px_rgba(0,0,56,0.12)]">
             <SlideCanvas
               slide={slide}
               index={index}
@@ -476,14 +622,17 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
               onFieldChange={setField}
               onImagePick={pickImage}
               onImageClear={(key) => setField(key, '')}
-              selectedObj={selectedObj}
+              selectedObjs={selectedObjs}
               editingObj={editingObj}
-              onSelectObj={(id) => {
-                setSelectedObj(id)
+              onSelectObj={(id, additive) => {
                 if (id !== editingObj) setEditingObj(null)
+                if (!id) setSelectedObjs([])
+                else if (additive) setSelectedObjs((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
+                else setSelectedObjs([id])
               }}
+              onSelectObjs={setSelectedObjs}
               onEditObj={setEditingObj}
-              onObjChange={updateObj}
+              onObjChange={updateObjs}
               showGuides={showGuides}
             />
           </div>
@@ -491,13 +640,14 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
 
         {/* 오른쪽 패널: 가이드 체크 + 발표자 노트 */}
         <aside className="hidden w-[280px] flex-shrink-0 flex-col overflow-y-auto border-l border-[#E0E5F0] bg-white lg:flex">
-          {selected && (
+          {selected.length > 0 && (
             <ObjectPanel
-              obj={selected}
-              onChange={updateObj}
-              onRemove={() => removeObj(selected.id)}
-              onDuplicate={() => duplicateObj(selected)}
-              onOrder={(dir) => orderObj(selected.id, dir)}
+              objs={selected}
+              onPatch={patchSelected}
+              onRemove={removeSelected}
+              onDuplicate={duplicateSelected}
+              onOrder={orderSelected}
+              onSnap={() => setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? snapToGuide(o) : o)))}
             />
           )}
           <section className="border-b border-[#E0E5F0] p-4">
@@ -547,7 +697,7 @@ export default function StudioPage({ deck, saveState, onChange, initialNotice }:
             <h3 className="deck-label mb-2">발표자 노트</h3>
             <textarea
               value={slide.notes}
-              onChange={(e) => updateSlide(slide.id, (s) => ({ ...s, notes: e.target.value }))}
+              onChange={(e) => updateSlide(slide.id, (s) => ({ ...s, notes: e.target.value }), `notes:${slide.id}`)}
               placeholder="발표할 때 말할 내용을 적어두세요. PPTX 노트로 함께 내보내져요."
               className="min-h-[140px] flex-1 resize-none rounded-lg border border-[#E0E5F0] p-3 text-[13px] leading-relaxed outline-none focus:border-[#4D6BFF]"
             />
