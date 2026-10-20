@@ -22,3 +22,196 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+/* ── Deck Studio (/deck) ─────────────────────────────── */
+@layer components {
+  .deck-root {
+    -webkit-user-select: text;
+    user-select: text;
+    background: #f3f5fa;
+    color: #1a1a2e;
+    font-size: 14px;
+  }
+
+  .deck-list > div {
+    position: relative;
+    padding-left: 1.2em;
+  }
+  .deck-list > div:not(:last-child) {
+    margin-bottom: var(--para-space, 0);
+  }
+  .deck-list > div::before {
+    content: '•';
+    position: absolute;
+    left: 0.15em;
+  }
+  .deck-num {
+    counter-reset: deck-n;
+  }
+  .deck-num > div {
+    counter-increment: deck-n;
+    padding-left: 1.6em;
+  }
+  .deck-num > div::before {
+    content: counter(deck-n) '.';
+    left: 0;
+  }
+
+  .deck-field .deck-editable {
+    outline: 2px dashed transparent;
+    outline-offset: 6px;
+    border-radius: 2px;
+    cursor: text;
+    transition: outline-color 0.15s;
+  }
+  .deck-field:hover .deck-editable {
+    outline-color: rgba(77, 107, 255, 0.28);
+  }
+  .deck-field .deck-editable:focus {
+    outline: 2px solid #4d6bff;
+  }
+  .deck-field.is-overflow .deck-editable {
+    outline: 2px solid #e84b55;
+  }
+  .deck-placeholder {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .deck-overflow-badge {
+    position: absolute;
+    right: -6px;
+    bottom: -34px;
+    background: #e84b55;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .deck-image {
+    overflow: hidden;
+  }
+  .deck-image-empty {
+    border: 3px dashed rgba(77, 107, 255, 0.35);
+    cursor: pointer;
+  }
+  .deck-image-empty:hover {
+    border-color: #4d6bff;
+  }
+  .deck-image-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 56, 0.8);
+    color: #fff;
+    font-size: 20px;
+    padding: 8px 16px;
+    border-radius: 8px;
+  }
+
+  .deck-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid #e0e5f0;
+    background: #fff;
+    color: #1a1a2e;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .deck-btn:hover {
+    background: #f5f7fc;
+    border-color: #cfd6ea;
+  }
+  .deck-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .deck-btn-primary {
+    background: #0000a5;
+    border-color: #0000a5;
+    color: #fff;
+  }
+  .deck-btn-primary:hover {
+    background: #000080;
+    border-color: #000080;
+  }
+  .deck-btn-ghost {
+    border-color: transparent;
+    background: transparent;
+  }
+  .deck-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #7a8099;
+    text-transform: uppercase;
+  }
+}
+
+@layer components {
+  .deck-obj {
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+  }
+  .deck-obj:not(.is-selected):hover {
+    outline-color: rgba(77, 107, 255, 0.45);
+  }
+  .deck-obj.is-selected {
+    outline-color: #4d6bff;
+  }
+  .deck-handle {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border: 2px solid #4d6bff;
+    border-radius: 3px;
+    z-index: 5;
+  }
+  .deck-handle-nw {
+    left: -8px;
+    top: -8px;
+    cursor: nwse-resize;
+  }
+  .deck-handle-se {
+    right: -8px;
+    bottom: -8px;
+    cursor: nwse-resize;
+  }
+  .deck-handle-ne {
+    right: -8px;
+    top: -8px;
+    cursor: nesw-resize;
+  }
+  .deck-handle-sw {
+    left: -8px;
+    bottom: -8px;
+    cursor: nesw-resize;
+  }
+}
+
+/* 편집선 숨기기: 점선·빈 칸 안내를 끄고 결과처럼 보기 (선택한 요소·입력 중인 칸 표시는 유지) */
+@layer components {
+  .deck-guides-off .deck-field:not(.is-overflow) .deck-editable:not(:focus) {
+    outline-color: transparent !important;
+  }
+  .deck-guides-off .deck-placeholder {
+    visibility: hidden;
+  }
+  .deck-guides-off .deck-image-empty {
+    border-color: transparent;
+  }
+  .deck-guides-off .deck-obj:not(.is-selected):hover {
+    outline-color: transparent;
+  }
+}
