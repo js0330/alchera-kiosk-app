@@ -140,7 +140,12 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
 
         {/* 샘플 덱 */}
         <section className="mt-14">
-          <h2 className="text-[20px] font-bold text-[#000038]">알체라 샘플 덱</h2>
+          <div className="flex items-end justify-between gap-3">
+            <h2 className="text-[20px] font-bold text-[#000038]">알체라 샘플 덱</h2>
+            <a href="#sales" className="text-[13px] font-semibold text-[#0000A5] hover:underline">
+              세일즈덱 모아보기 →
+            </a>
+          </div>
           <p className="mt-1 text-[13px] text-[#7A8099]">알체라 세일즈덱 원본 그대로예요. 배경·도형·글·이미지 모두 편집할 수 있어서, 복사해서 필요한 장을 고쳐 쓰거나 다른 문서로 복사해 붙여넣을 수 있어요.</p>
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             {SAMPLES.map((s) => (
@@ -157,6 +162,9 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
                   <button type="button" className="text-[#0000A5] hover:underline disabled:opacity-50" disabled={opening === s.id} onClick={() => openSample(s)}>
                     {opening === s.id ? '불러오는 중…' : '복사해서 쓰기 →'}
                   </button>
+                  <a href={`#sales/${s.id}`} className="text-[#7A8099] hover:text-[#000038]">
+                    전체 장 보기
+                  </a>
                   <a href={s.source} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#7A8099] hover:text-[#000038]">
                     원본 <ExternalLink size={12} />
                   </a>

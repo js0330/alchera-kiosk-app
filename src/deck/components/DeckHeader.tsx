@@ -1,9 +1,10 @@
 import { BRAND } from '../guide'
 
-export type DeckRoute = 'templates' | 'studio' | 'guide'
+export type DeckRoute = 'templates' | 'sales' | 'studio' | 'guide'
 
 const TABS: { id: DeckRoute; label: string }[] = [
   { id: 'templates', label: '템플릿' },
+  { id: 'sales', label: '세일즈덱' },
   { id: 'studio', label: '스튜디오' },
   { id: 'guide', label: '가이드' },
 ]

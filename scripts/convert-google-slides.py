@@ -371,7 +371,8 @@ for i, s in enumerate(DATA['slides']):
         convert(e, ID, objs, i + 1, skipped)
     # 값이 None 인 키는 뺍니다
     objs = [{k: v for k, v in o.items() if v is not None} for o in objs]
-    slides_out.append({'background': bg, 'objects': objs})
+    # sourceId: 원본 구글 슬라이드의 슬라이드 id (보기 화면에서 '원본 이 장 열기')
+    slides_out.append({'sourceId': s['objectId'], 'background': bg, 'objects': objs})
     all_skipped += skipped
 
 json.dump({'slides': slides_out}, open(f'{OUT}/{NAME}.json', 'w'), ensure_ascii=False, separators=(',', ':'))

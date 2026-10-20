@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, GalleryHorizontal, LayoutGrid, X } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { SLIDE_H, SLIDE_W } from '../guide'
 import { sectionFor } from '../layouts'
 import type { Deck } from '../types'
@@ -10,11 +10,15 @@ interface PreviewDialogProps {
   deck: Deck
   start: number
   onClose: (index: number) => void
+  // 머리글 제목과 지금 보는 장에 맞춘 버튼들 (세일즈덱 보기에서 사용)
+  title?: string
+  hint?: string
+  actions?: (index: number) => ReactNode
 }
 
 // 미리보기: 편집 표시(점선·안내 문구·선택 상자) 없이 완성된 모습으로 봅니다.
 // 한 장씩 크게 보거나, 전체를 한눈에 보며 흐름을 확인합니다. 슬라이드를 고르면 그 장으로 돌아갑니다.
-export default function PreviewDialog({ deck, start, onClose }: PreviewDialogProps) {
+export default function PreviewDialog({ deck, start, onClose, title = '미리보기', hint = '편집 표시 없이 완성된 모습 · ← → 로 넘기기 · Esc 닫기', actions }: PreviewDialogProps) {
   const [index, setIndex] = useState(start)
   const [grid, setGrid] = useState(false)
   const stage = useRef<HTMLDivElement>(null)
@@ -52,9 +56,10 @@ export default function PreviewDialog({ deck, start, onClose }: PreviewDialogPro
   return (
     <div className="fixed inset-0 z-[55] flex flex-col bg-[#0B0D1F] text-white">
       <div className="flex h-14 flex-shrink-0 items-center gap-3 px-5">
-        <h2 className="text-[15px] font-bold">미리보기</h2>
-        <span className="text-[12px] text-white/50">편집 표시 없이 완성된 모습 · ← → 로 넘기기 · Esc 닫기</span>
-        <div className="ml-auto flex items-center gap-1 rounded-lg bg-white/10 p-0.5">
+        <h2 className="truncate text-[15px] font-bold">{title}</h2>
+        <span className="hidden text-[12px] text-white/50 lg:inline">{hint}</span>
+        <div className="ml-auto flex items-center gap-2">{actions?.(index)}</div>
+        <div className="flex items-center gap-1 rounded-lg bg-white/10 p-0.5">
           <button
             type="button"
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-semibold ${!grid ? 'bg-white text-[#000038]' : 'text-white/70 hover:text-white'}`}
