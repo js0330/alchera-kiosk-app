@@ -1,6 +1,7 @@
 import type { Tone } from './guide'
 
 export type LayoutId =
+  | 'original'
   | 'cover'
   | 'cover-1'
   | 'line-box'
@@ -36,6 +37,8 @@ export interface Slide {
   notes: string
   // 자유 배치(원본 유지) 슬라이드의 도형·텍스트·이미지
   objects?: FreeObj[]
+  // 원본 슬라이드의 배경 (색 또는 그림). 없으면 레이아웃 톤의 배경
+  background?: { color?: string; image?: string }
 }
 
 // 자유 배치 요소. 좌표는 1280×720px, 글자 크기는 pt.

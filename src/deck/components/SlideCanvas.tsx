@@ -182,7 +182,13 @@ function SlideCanvas({
           height: SLIDE_H,
           transform: `scale(${scale})`,
           transformOrigin: '0 0',
-          background: palette.bgImage ? `${palette.bg} url(${palette.bgImage}) center / cover no-repeat` : palette.bg,
+          background: slide.background
+            ? slide.background.image
+              ? `${slide.background.color ?? '#FFFFFF'} url(${slide.background.image}) center / 100% 100% no-repeat`
+              : slide.background.color
+            : palette.bgImage
+              ? `${palette.bg} url(${palette.bgImage}) center / cover no-repeat`
+              : palette.bg,
           fontFamily: BRAND.font.web,
         }}
       >
