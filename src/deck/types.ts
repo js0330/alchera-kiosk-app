@@ -57,6 +57,8 @@ export interface FreeObj {
   opacity?: number
   // 가이드 패널 효과: 라인형 위쪽 파란 선(accent) · 타이틀형 본문 옅은 그림자(soft)
   shadow?: 'accent' | 'soft'
+  // 잠금: 클릭·끌기·선택이 되지 않는 요소 (가이드 박스를 고정할 때)
+  locked?: boolean
   // shape 안의 글 (줄바꿈 + **굵게**)
   text?: string
   size?: number

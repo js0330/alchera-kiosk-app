@@ -174,7 +174,7 @@ function SlideCanvas({
           marqueeStart.current = null
           setMarquee(null)
           if (!r || r.w + r.h < 6) return
-          onSelectObjs?.(objects.filter((o) => o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y + r.h && o.y + o.h > r.y).map((o) => o.id))
+          onSelectObjs?.(objects.filter((o) => !o.locked && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y + r.h && o.y + o.h > r.y).map((o) => o.id))
         }}
         style={{
           position: 'absolute',

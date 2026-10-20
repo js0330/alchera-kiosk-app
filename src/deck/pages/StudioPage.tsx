@@ -8,12 +8,14 @@ import {
   LayoutTemplate,
   LibraryBig,
   LoaderCircle,
+  LockOpen,
   Eye,
   EyeOff,
   ImagePlus,
   Play,
   Plus,
   Redo2,
+  ScanEye,
   Trash2,
   Type,
   Undo2,
@@ -25,6 +27,7 @@ import LayoutPicker from '../components/LayoutPicker'
 import LibraryPanel from '../components/LibraryPanel'
 import ObjectPanel from '../components/ObjectPanel'
 import PresentMode from '../components/PresentMode'
+import PreviewDialog from '../components/PreviewDialog'
 import SlideCanvas from '../components/SlideCanvas'
 import { SLIDE_H, SLIDE_W } from '../guide'
 import { LINE_KINDS, clampToArea, fitIntoArea, newImage, newLine, newShape, newText, snapToGuide } from '../freeObjects'
@@ -89,6 +92,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   const [current, setCurrent] = useState(0)
   const [picker, setPicker] = useState<'add' | 'change' | null>(null)
   const [presenting, setPresenting] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [checkOpen, setCheckOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
@@ -181,7 +185,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   const objects = useMemo(() => slide.objects ?? [], [slide.objects])
   // 라인형 1단처럼 요소가 박스 안에만 놓이는 레이아웃
   const area = layout.objectArea
-  const selected = useMemo(() => objects.filter((o) => selectedObjs.includes(o.id)), [objects, selectedObjs])
+  const selected = useMemo(() => objects.filter((o) => selectedObjs.includes(o.id) && !o.locked), [objects, selectedObjs])
 
   const setObjects = useCallback(
     (fn: (objs: FreeObj[]) => FreeObj[], mergeKey?: string) => updateSlide(slide.id, (s) => ({ ...s, objects: fn(s.objects ?? []) }), mergeKey),
@@ -204,7 +208,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       const placed = area ? fitIntoArea(moved, area) : moved
       // 가이드 박스는 다른 요소 뒤에 깔립니다
       setObjects((list) => (back ? [...placed, ...list] : [...list, ...placed]))
-      setSelectedObjs(placed.map((o) => o.id))
+      setSelectedObjs(placed.filter((o) => !o.locked).map((o) => o.id))
       setEditingObj(null)
       return placed
     },
@@ -372,6 +376,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   // 단축키: Ctrl+Z 되돌리기 · Ctrl+Shift+Z / Ctrl+Y 다시 실행 · Ctrl+A 요소 전체 선택
   // 선택한 요소: Delete 삭제 · 방향키 이동 · Ctrl+D 복제 · Esc 선택 해제 · Enter 글 수정
   useEffect(() => {
+    // 미리보기·발표 중에는 편집 단축키를 쓰지 않습니다 (방향키는 슬라이드 넘기기)
+    if (previewing || presenting) return
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
       // 글을 입력하는 중에는 브라우저 기본 동작(글자 단위 되돌리기·전체 선택)을 그대로 씁니다
@@ -383,7 +389,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         else undo()
       } else if (mod && k === 'y') redo()
       else if (mod && k === 'a') {
-        setSelectedObjs(objects.map((o) => o.id))
+        setSelectedObjs(objects.filter((o) => !o.locked).map((o) => o.id))
         setEditingObj(null)
       } else if (!selected.length || editingObj) return
       else {
@@ -400,7 +406,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [objects, selected, editingObj, undo, redo, removeSelected, updateObjs, duplicateSelected])
+  }, [objects, selected, editingObj, undo, redo, removeSelected, updateObjs, duplicateSelected, previewing, presenting])
 
   useLayoutEffect(() => {
     const node = stage.current
@@ -534,6 +540,9 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
           <button type="button" className="deck-btn hidden md:inline-flex" onClick={exportJson} title="팀원에게 공유할 수 있는 편집용 파일">
             <FileJson size={16} /> 편집 파일
           </button>
+          <button type="button" className="deck-btn" onClick={() => setPreviewing(true)} title="편집 표시 없이 완성된 모습으로 보기">
+            <ScanEye size={16} /> 미리보기
+          </button>
           <button type="button" className="deck-btn" onClick={() => setPresenting(true)}>
             <Play size={16} /> 발표
           </button>
@@ -591,6 +600,20 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         >
           <LibraryBig size={15} /> 요소 라이브러리
         </button>
+        {objects.some((o) => o.locked) && (
+          <button
+            type="button"
+            className="deck-btn deck-btn-ghost"
+            title="이 슬라이드에서 잠근 요소를 모두 다시 움직일 수 있게 합니다"
+            onClick={() => {
+              const ids = objects.filter((o) => o.locked).map((o) => o.id)
+              setObjects((objs) => objs.map((o) => (o.locked ? { ...o, locked: undefined } : o)))
+              setSelectedObjs(ids)
+            }}
+          >
+            <LockOpen size={15} /> 잠금 해제 ({objects.filter((o) => o.locked).length})
+          </button>
+        )}
         {objects.length > 0 && (
           <button
             type="button"
@@ -658,7 +681,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             onLine={(k) => addObj(newLine(k))}
             onIcon={(id) => insert([newIcon(id)], freeCenter)}
             onBlock={(b) => insert(b.build())}
-            onBox={(b) => insert(b.build(), undefined, true)}
+            onBox={(b, lock) => insert(lock ? b.build().map((o) => ({ ...o, locked: true })) : b.build(), undefined, true)}
           />
         )}
 
@@ -710,6 +733,13 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
               onDuplicate={duplicateSelected}
               onOrder={orderSelected}
               onSnap={() => setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? snapToGuide(o) : o)))}
+              onLock={() => {
+                const n = selectedObjs.length
+                setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? { ...o, locked: true } : o)))
+                setSelectedObjs([])
+                setEditingObj(null)
+                setNotice({ text: `${n}개 요소를 잠갔어요. 위 도구줄의 [잠금 해제]로 다시 풀 수 있어요.`, undo })
+              }}
             />
           )}
           <section className="border-b border-[#E0E5F0] p-4">
@@ -860,6 +890,17 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             </button>
           )}
         </div>
+      )}
+
+      {previewing && (
+        <PreviewDialog
+          deck={deck}
+          start={index}
+          onClose={(i) => {
+            setPreviewing(false)
+            setCurrent(i)
+          }}
+        />
       )}
 
       {presenting && (
