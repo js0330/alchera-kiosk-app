@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpToLine, Bold, Copy, TextAlignCenter, TextAlignEnd, TextAlignStart, Trash2, WandSparkles } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpToLine, Bold, Copy, Lock, TextAlignCenter, TextAlignEnd, TextAlignStart, Trash2, WandSparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { BRAND } from '../guide'
 import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, hasRadius, maxRadius } from '../freeObjects'
@@ -12,6 +12,7 @@ interface ObjectPanelProps {
   onDuplicate: () => void
   onOrder: (dir: 'front' | 'back') => void
   onSnap: () => void
+  onLock: () => void
 }
 
 const COLOR_NAMES: Record<string, string> = {
@@ -137,7 +138,7 @@ function kindName(o: FreeObj) {
 
 // 선택한 요소(하나 또는 여러 개)의 속성. 고를 수 있는 값은 가이드 값(크기·색)으로만 제한합니다.
 // 여러 개를 고르면 바꾼 값이 모두에게 한꺼번에 적용됩니다.
-export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOrder, onSnap }: ObjectPanelProps) {
+export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOrder, onSnap, onLock }: ObjectPanelProps) {
   const shapes = objs.filter((o) => o.kind === 'shape')
   const lines = objs.filter((o) => o.kind === 'line')
   const icons = objs.filter((o) => o.kind === 'image' && o.icon)
@@ -294,6 +295,14 @@ export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOr
         </button>
         <button type="button" className="deck-btn h-8 justify-center px-2 text-[12px] text-[#C2333D]" onClick={onRemove}>
           <Trash2 size={14} /> 삭제
+        </button>
+        <button
+          type="button"
+          className="deck-btn col-span-2 h-8 justify-center px-2 text-[12px]"
+          onClick={onLock}
+          title="잠근 요소는 클릭·끌기·선택이 되지 않아요. 가이드 박스를 고정해 두고 안에서 작업할 때 쓰세요."
+        >
+          <Lock size={14} /> 잠그기 (위치 고정)
         </button>
         {(shapes.length > 0 || lines.length > 0) && (
           <button type="button" className="deck-btn col-span-2 h-8 justify-center px-2 text-[12px]" onClick={onSnap}>

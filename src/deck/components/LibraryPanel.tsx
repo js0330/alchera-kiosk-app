@@ -17,7 +17,7 @@ interface LibraryPanelProps {
   onLine: (kind: LineKind) => void
   onIcon: (id: string) => void
   onBlock: (block: BlockDef) => void
-  onBox: (box: BlockDef) => void
+  onBox: (box: BlockDef, lock: boolean) => void
 }
 
 type Tab = 'boxes' | 'blocks' | 'icons' | 'shapes'
@@ -63,6 +63,7 @@ const BoxPreview = memo(function BoxPreview({ block }: { block: BlockDef }) {
 // 웹플로우의 "추가" 패널처럼: 샘플덱에서 가져온 구성 블록 · 아이콘 · 도형을 클릭하거나 슬라이드로 끌어다 놓습니다.
 export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock, onBox }: LibraryPanelProps) {
   const [tab, setTab] = useState<Tab>('boxes')
+  const [lockBoxes, setLockBoxes] = useState(false)
   const tabs: [Tab, string][] = [
     ['boxes', '가이드 박스'],
     ['blocks', '블록'],
@@ -95,14 +96,18 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock
       <div className="flex-1 overflow-y-auto p-4 pt-3">
         {tab === 'boxes' && (
           <>
-            <p className="mb-3 text-[11px] leading-relaxed text-[#7A8099]">레이아웃의 틀만 같은 크기·위치로 들어가요. 안의 글·이미지는 자유롭게 배치하고, 박스를 더블클릭하면 바로 글을 쓸 수 있어요.</p>
+            <p className="mb-2 text-[11px] leading-relaxed text-[#7A8099]">레이아웃의 틀만 같은 크기·위치로 들어가요. 안의 글·이미지는 자유롭게 배치하고, 박스를 더블클릭하면 바로 글을 쓸 수 있어요.</p>
+            <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-lg bg-[#F5F7FC] px-3 py-2 text-[12px] text-[#333A4D]">
+              <input type="checkbox" checked={lockBoxes} onChange={(e) => setLockBoxes(e.target.checked)} className="accent-[#0000A5]" />
+              넣으면서 바로 잠그기 <span className="text-[11px] text-[#9CA3AF]">(실수로 안 움직이게)</span>
+            </label>
             <ul className="space-y-3">
               {GUIDE_BOXES.map((b) => (
                 <li key={b.id}>
                   <button
                     type="button"
                     className="w-full rounded-lg border border-[#E0E5F0] text-left transition hover:border-[#4D6BFF] hover:shadow-[0_4px_14px_rgba(0,0,165,0.08)]"
-                    onClick={() => onBox(b)}
+                    onClick={() => onBox(b, lockBoxes)}
                     {...dragProps({ type: 'box', id: b.id })}
                   >
                     <BoxPreview block={b} />

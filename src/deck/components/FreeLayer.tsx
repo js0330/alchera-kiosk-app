@@ -304,7 +304,9 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
   return (
     <>
       {objects.map((o) => {
-        const selected = editable && selectedIds.includes(o.id)
+        // 잠긴 요소는 클릭이 그대로 뒤로 통과합니다 (빈 곳 클릭·범위 선택이 그 위에서 됨)
+        const locked = editable && !!o.locked
+        const selected = editable && !locked && selectedIds.includes(o.id)
         const editing = editable && editingId === o.id
         const isLine = o.kind === 'line'
         const ends = isLine ? lineEnds(o) : null
@@ -312,8 +314,8 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
           <div
             key={o.id}
             data-obj={o.id}
-            style={{ ...boxStyle(o), cursor: editable && !editing ? 'move' : undefined, pointerEvents: isLine ? 'none' : undefined }}
-            className={editable ? `deck-obj${isLine ? ' is-line' : ''}${selected ? ' is-selected' : ''}` : undefined}
+            style={{ ...boxStyle(o), cursor: editable && !editing && !locked ? 'move' : undefined, pointerEvents: isLine || locked ? 'none' : undefined }}
+            className={editable ? `deck-obj${isLine ? ' is-line' : ''}${selected ? ' is-selected' : ''}${locked ? ' is-locked' : ''}` : undefined}
             onPointerDown={(e) => start(e, o, 'move')}
             onDoubleClick={() => editable && o.kind === 'shape' && onEdit?.(o.id)}
           >
@@ -325,7 +327,7 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
                 <EditableText el={objTextEl(o)} value={o.text ?? ''} onChange={(v) => onChange?.([{ ...o, text: v }])} autoFocus onDone={() => onEdit?.(null)} />
               </div>
             ) : (
-              <div style={{ width: '100%', height: '100%', pointerEvents: isLine ? 'none' : undefined }}>
+              <div style={{ width: '100%', height: '100%', pointerEvents: isLine ? 'none' : undefined }} className={locked && isLine ? 'deck-locked-line' : undefined}>
                 <ObjView o={o} />
               </div>
             )}

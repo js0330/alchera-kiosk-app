@@ -77,7 +77,8 @@ function chrome(ctx: BuildCtx): SlideEl[] {
     ...(ctx.c.sub?.trim() ? [{ type: 'rect', x: 50, y: 112.4, w: 4, h: 18.1, fill: C.blue } as SlideEl] : []),
     field(ctx, 'sub', 66, 111, 1076, 22, { size: 11, color: C.blue, lineHeight: 1.1 }),
     logo(ctx.p, 1142.6, 49, 87.7),
-    { type: 'text', text: String(ctx.index + 1), x: 1150, y: 686, w: 80, h: 18, size: 8, color: C.pageNum, align: 'right' },
+    // 페이지 번호: 본문 패널(아래 끝 692px)과 겹치지 않게 7pt 로 줄여 패널 아래 여백에 둡니다
+    { type: 'text', text: String(ctx.index + 1), x: 1150, y: 698, w: 80, h: 15, size: 7, color: C.pageNum, align: 'right', lineHeight: 1.2 },
   ]
 }
 
