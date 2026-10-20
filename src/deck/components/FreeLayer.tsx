@@ -125,7 +125,8 @@ function TextView({ o }: { o: FreeObj }) {
         lineHeight: o.lineHeight ?? 1.3,
         whiteSpace: 'pre-wrap',
         wordBreak: 'keep-all',
-        overflowWrap: 'anywhere',
+        // 구글 슬라이드처럼 단어(숫자 "01" 등)를 중간에서 자르지 않습니다
+        overflowWrap: 'normal',
       }}
     >
       {o.text!.split('\n').map((line, i) => (

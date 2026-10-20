@@ -188,6 +188,17 @@ export const LAYOUTS: LayoutDef[] = [
     ],
   },
   {
+    id: 'original',
+    name: '원본 슬라이드',
+    description: '알체라 세일즈덱 원본 그대로 — 가이드 상단 없이 원본의 배경·도형·글·이미지',
+    category: '자유 배치',
+    tone: 'light',
+    hidden: true,
+    fields: [],
+    sample: {},
+    build: () => [],
+  },
+  {
     id: 'cover-1',
     name: '표지 (제목 1줄)',
     description: '타이틀 36pt 한 줄 + 서브타이틀 14pt',

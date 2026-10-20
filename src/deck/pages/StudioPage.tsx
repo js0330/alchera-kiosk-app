@@ -460,7 +460,14 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   const changeLayout = (id: LayoutId) => {
     // 박스 안에만 놓이는 레이아웃으로 바꾸면 이미 있는 요소도 박스 안으로
     const nextArea = LAYOUT_MAP[id].objectArea
-    updateSlide(slide.id, (s) => ({ ...s, layout: id, tone: LAYOUT_MAP[id].tone, objects: nextArea && s.objects ? fitIntoArea(s.objects, nextArea) : s.objects }))
+    updateSlide(slide.id, (s) => ({
+      ...s,
+      layout: id,
+      tone: LAYOUT_MAP[id].tone,
+      objects: nextArea && s.objects ? fitIntoArea(s.objects, nextArea) : s.objects,
+      // 원본 슬라이드의 배경은 다른 레이아웃으로 바꾸면 뺍니다
+      background: id === 'original' ? s.background : undefined,
+    }))
     setPicker(null)
   }
 

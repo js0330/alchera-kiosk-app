@@ -177,7 +177,15 @@ export async function exportDeckToPptx(deck: Deck) {
   for (const [index, slide] of deck.slides.entries()) {
     const s = pptx.addSlide()
     const palette = TONES[slideTone(slide)]
-    s.background = palette.bgImage ? { data: coverBg } : { color: hex(palette.bg) }
+    // 원본 슬라이드는 원본 배경(그림·색)을 그대로
+    const bg = slide.background
+    s.background = bg?.image
+      ? { data: bg.image.startsWith('data:') ? bg.image : await urlToDataUrl(bg.image) }
+      : bg?.color
+        ? { color: hex(bg.color) }
+        : palette.bgImage
+          ? { data: coverBg }
+          : { color: hex(palette.bg) }
     if (slide.notes.trim()) s.addNotes(slide.notes)
 
     for (const el of buildSlide(slide, index, sectionFor(deck.slides, index))) {
