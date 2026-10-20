@@ -1,7 +1,7 @@
 import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react'
 import { memo, useRef, useState, type CSSProperties } from 'react'
 import { BRAND, SLIDE_H, SLIDE_W, TONES, ptToPx } from '../guide'
-import { buildSlide, slideTone } from '../layouts'
+import { LAYOUT_MAP, buildSlide, slideTone } from '../layouts'
 import type { FreeObj, ImageEl, ShapeEl, Slide, SlideEl, TextEl } from '../types'
 import { listClass, parseRich, textStyle } from '../textStyle'
 import EditableText from './EditableText'
@@ -140,7 +140,8 @@ function SlideCanvas({
   const scale = width / SLIDE_W
   const palette = TONES[slideTone(slide)]
   const objects = slide.objects ?? []
-  const hasLayer = slide.layout === 'free' || objects.length > 0
+  const area = LAYOUT_MAP[slide.layout].objectArea
+  const hasLayer = slide.layout === 'free' || !!area || objects.length > 0
   // 빈 곳을 끌어서 여러 요소를 한 번에 선택 (슬라이드 좌표)
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const marqueeStart = useRef<{ x: number; y: number; rect: DOMRect } | null>(null)
@@ -226,6 +227,17 @@ function SlideCanvas({
             }
           }
         })}
+        {/* 라인형 1단: 요소가 놓이는 박스 안쪽 영역 (편집 화면에서만 점선 · 비어 있으면 안내) */}
+        {area && editable && (
+          <div className="deck-area-guide" style={{ position: 'absolute', left: area.x, top: area.y, width: area.w, height: area.h }}>
+            {!objects.length && showPlaceholders && (
+              <div className="deck-placeholder" style={{ inset: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: BRAND.colors.gray, opacity: 0.6 }}>
+                <span style={{ fontSize: 22, fontWeight: 700 }}>텍스트 · 이미지 · 블록을 넣어 주세요</span>
+                <span style={{ fontSize: 16 }}>위 도구줄이나 요소 라이브러리에서 고르면 이 박스 안에 들어가요</span>
+              </div>
+            )}
+          </div>
+        )}
         {hasLayer && (
           <FreeLayer
             objects={objects}
@@ -236,6 +248,7 @@ function SlideCanvas({
             onSelect={onSelectObj}
             onEdit={onEditObj}
             onChange={onObjChange}
+            bounds={area}
           />
         )}
         {marquee && <div className="deck-marquee" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}

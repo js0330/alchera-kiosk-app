@@ -22,6 +22,10 @@ export interface LayoutDef {
   fields: FieldDef[]
   sample: Record<string, string>
   build: (ctx: BuildCtx) => SlideEl[]
+  // 화면(레이아웃 라이브러리·새 슬라이드)에 보이지 않는 예전 레이아웃. 기존 문서·샘플 덱은 그대로 열립니다.
+  hidden?: boolean
+  // 이 레이아웃에 올린 요소는 이 영역 밖으로 나가지 않습니다 (라인형 1단: 패널 안쪽 여백)
+  objectArea?: { x: number; y: number; w: number; h: number }
 }
 
 const C = BRAND.colors
@@ -112,6 +116,14 @@ export const HEADER_PANELS: Record<'one' | 'two' | 'three', readonly (readonly [
 }
 export const HEADER_BAR = { y: 160.3, h: 53.4 }
 export const HEADER_BODY = { y: 188, h: 504 }
+// 라인형 1단 박스 안쪽 (사방 여백 24px) — 요소가 이 안에만 놓입니다
+const BOX_PAD = 24
+export const LINE_BOX_AREA = {
+  x: LINE_PANELS.one[0][0] + BOX_PAD,
+  y: LINE_PANELS.one[0][1] + BOX_PAD,
+  w: LINE_PANELS.one[0][2] - BOX_PAD * 2,
+  h: LINE_PANELS.one[0][3] - BOX_PAD * 2,
+}
 export const linePanelRadius = (w: number, h: number) => Math.min(13, Math.min(w, h) * 0.03)
 
 // 라인형 패널: 흰 바탕 + 회색 테두리 + 위쪽 파란 선
@@ -158,7 +170,7 @@ export const FREE_AREA = { x: 50, y: 150, w: 1179.5, h: 542 } as const
 export const LAYOUTS: LayoutDef[] = [
   {
     id: 'cover',
-    name: '표지',
+    name: '표지 (제목 2줄)',
     description: '타이틀 36pt 두 줄 + 서브타이틀 14pt',
     category: '표지·구성',
     tone: 'cover',
@@ -169,6 +181,25 @@ export const LAYOUTS: LayoutDef[] = [
     sample: { title: 'ALCHERA Face Trust\n출입통제 솔루션', subtitle: '공공 · 공공 · 대기업 현장에서 검증된 Face AI 기반 출입통제 서비스' },
     build: (ctx) => [
       field(ctx, 'title', 76.8, 191, 1115, 155, { size: 36, bold: true, color: C.white, lineHeight: 1.2 }),
+      { type: 'rect', x: 76.8, y: 367.2, w: 75.6, h: 4.8, fill: C.white },
+      field(ctx, 'subtitle', 76.8, 417.5, 1000, 72, { size: 14, color: C.white, lineHeight: 1.4 }),
+      logo(ctx.p, 1073.3, 628.3, 133.7),
+    ],
+  },
+  {
+    id: 'cover-1',
+    name: '표지 (제목 1줄)',
+    description: '타이틀 36pt 한 줄 + 서브타이틀 14pt',
+    category: '표지·구성',
+    tone: 'cover',
+    fields: [
+      { key: 'title', label: '표지 타이틀', kind: 'text', placeholder: '발표 제목 (한 줄)', max: 18 },
+      { key: 'subtitle', label: '서브타이틀', kind: 'multiline', placeholder: '서브타이틀 — 대상·목적', max: 80 },
+    ],
+    sample: { title: 'ALCHERA Face Trust', subtitle: '공공 · 금융 · 대기업 현장에서 검증된 Face AI 기반 출입통제 서비스' },
+    // 두 줄 표지와 같은 자리에 흰 바·서브타이틀을 두고, 제목은 아래 줄에 맞춰 바에 가깝게
+    build: (ctx) => [
+      field(ctx, 'title', 76.8, 252, 1115, 94, { size: 36, bold: true, color: C.white, lineHeight: 1.2 }),
       { type: 'rect', x: 76.8, y: 367.2, w: 75.6, h: 4.8, fill: C.white },
       field(ctx, 'subtitle', 76.8, 417.5, 1000, 72, { size: 14, color: C.white, lineHeight: 1.4 }),
       logo(ctx.p, 1073.3, 628.3, 133.7),
@@ -210,9 +241,10 @@ export const LAYOUTS: LayoutDef[] = [
   },
   {
     id: 'line-1',
-    name: '라인형 1단',
+    name: '라인형 1단 (이전 칸 구성)',
     description: '텍스트 + 큰 이미지 (높이 7.6cm)',
     category: '라인형',
+    hidden: true,
     tone: 'light',
     fields: [...titleFields, f.title('cTitle'), f.sub('cSub'), f.body('body'), f.note('note'), f.image('image'), f.caption('caption')],
     sample: {
@@ -236,10 +268,25 @@ export const LAYOUTS: LayoutDef[] = [
     ],
   },
   {
+    id: 'line-box',
+    name: '라인형 1단',
+    description: '가이드 박스 하나 + 사방 여백. 안은 글·이미지·블록을 자유롭게 (박스 밖으로 나가지 않음)',
+    category: '라인형',
+    tone: 'light',
+    fields: [...titleFields],
+    sample: {
+      title: '현장 데이터를 AI 자산으로, AI를 현장의 성과로 전환하는 알체라',
+      sub: '데이터 설계부터 전용 AI 엔진까지, 현장 문제 해결의 모든 단계를 책임집니다',
+    },
+    objectArea: LINE_BOX_AREA,
+    build: (ctx) => [...chrome(ctx), ...LINE_PANELS.one.map((p) => linePanel(...p))],
+  },
+  {
     id: 'line-text',
     name: '라인형 1단 · 텍스트',
     description: '이미지 없이 글로만 채우는 넓은 패널',
     category: '라인형',
+    hidden: true,
     tone: 'light',
     fields: [...titleFields, f.title('cTitle'), f.sub('cSub'), f.body('body', '본문', 500), f.note('note')],
     sample: {
@@ -264,6 +311,7 @@ export const LAYOUTS: LayoutDef[] = [
     name: '라인형 2단',
     description: '왼쪽 설명 · 오른쪽 설명 + 이미지 (4.5cm)',
     category: '라인형',
+    hidden: true,
     tone: 'light',
     fields: [
       ...titleFields,
@@ -308,6 +356,7 @@ export const LAYOUTS: LayoutDef[] = [
     name: '라인형 2단 · 텍스트',
     description: '두 가지를 글로 비교 (이미지 없음)',
     category: '라인형',
+    hidden: true,
     tone: 'light',
     fields: [
       ...titleFields,
@@ -349,6 +398,7 @@ export const LAYOUTS: LayoutDef[] = [
     name: '라인형 3단',
     description: '세 가지 항목을 나란히',
     category: '라인형',
+    hidden: true,
     tone: 'light',
     fields: [
       ...titleFields,
@@ -391,6 +441,7 @@ export const LAYOUTS: LayoutDef[] = [
     name: '라인형 4분할',
     description: '2×2 카드로 네 가지 항목',
     category: '라인형',
+    hidden: true,
     tone: 'light',
     fields: [
       ...titleFields,
@@ -435,6 +486,7 @@ export const LAYOUTS: LayoutDef[] = [
     name: '타이틀형 1단',
     description: '파란 헤더 + 텍스트 + 큰 이미지',
     category: '타이틀형',
+    hidden: true,
     tone: 'light',
     fields: [...titleFields, f.head('head'), f.sub('cSub'), f.body('body'), f.note('note'), f.image('image'), f.caption('caption')],
     sample: {
@@ -461,6 +513,7 @@ export const LAYOUTS: LayoutDef[] = [
     name: '타이틀형 2단',
     description: '헤더 2개: 설명 · 설명 + 이미지',
     category: '타이틀형',
+    hidden: true,
     tone: 'light',
     fields: [
       ...titleFields,
@@ -503,6 +556,7 @@ export const LAYOUTS: LayoutDef[] = [
     name: '타이틀형 3단',
     description: '헤더 3개로 항목 비교',
     category: '타이틀형',
+    hidden: true,
     tone: 'light',
     fields: [
       ...titleFields,
@@ -577,6 +631,9 @@ export const LAYOUTS: LayoutDef[] = [
 for (const l of LAYOUTS) if (l.fields.some((fd) => fd.key === 'crumb')) l.sample.crumb ??= '1. 목차 - 키 네임'
 
 export const LAYOUT_MAP = Object.fromEntries(LAYOUTS.map((l) => [l.id, l])) as Record<LayoutId, LayoutDef>
+
+// 화면(레이아웃 라이브러리)에 보여 줄 레이아웃과 순서 — 칸이 고정된 예전 레이아웃은 숨김
+export const VISIBLE_LAYOUTS = (['cover-1', 'cover', 'contents', 'section', 'line-box', 'free', 'closing'] as const).map((id) => LAYOUT_MAP[id])
 
 export const LAYOUT_CATEGORIES: LayoutCategory[] = ['표지·구성', '라인형', '타이틀형', '자유 배치']
 

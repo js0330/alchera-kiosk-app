@@ -120,6 +120,51 @@ export function newImage(src: string, naturalW: number, naturalH: number): FreeO
   return { id: uid(), kind: 'image', x: FREE_AREA.x + 60, y: FREE_AREA.y + 50, w: (h * naturalW) / naturalH, h, src }
 }
 
+// ── 요소가 머무는 영역 (라인형 1단 박스 안쪽) ─────────────────────
+export interface Area {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+const r1 = (n: number) => Math.round(n * 10) / 10
+
+// 요소 하나가 영역 밖으로 나가지 않게: 너무 크면 줄이고, 밖이면 안으로 옮깁니다
+export function clampToArea(o: FreeObj, a: Area): FreeObj {
+  const w = Math.min(o.w, a.w)
+  const h = Math.min(o.h, a.h)
+  const x = Math.min(Math.max(o.x, a.x), a.x + a.w - w)
+  const y = Math.min(Math.max(o.y, a.y), a.y + a.h - h)
+  return x === o.x && y === o.y && w === o.w && h === o.h ? o : { ...o, x: r1(x), y: r1(y), w: r1(w), h: r1(h) }
+}
+
+// 요소 묶음(블록·붙여넣기)을 영역 안에 맞춥니다: 넘치면 비율대로 줄이고 안으로 옮깁니다 (글자 크기는 그대로)
+export function fitIntoArea(objs: FreeObj[], a: Area): FreeObj[] {
+  if (!objs.length) return objs
+  const minX = Math.min(...objs.map((o) => o.x))
+  const minY = Math.min(...objs.map((o) => o.y))
+  const maxX = Math.max(...objs.map((o) => o.x + o.w))
+  const maxY = Math.max(...objs.map((o) => o.y + o.h))
+  const k = Math.min(1, a.w / (maxX - minX || 1), a.h / (maxY - minY || 1))
+  const w = (maxX - minX) * k
+  const h = (maxY - minY) * k
+  const left = Math.min(Math.max(minX, a.x), a.x + a.w - w)
+  const top = Math.min(Math.max(minY, a.y), a.y + a.h - h)
+  return objs.map((o) =>
+    clampToArea(
+      {
+        ...o,
+        x: r1(left + (o.x - minX) * k),
+        y: r1(top + (o.y - minY) * k),
+        w: r1(o.w * k),
+        h: r1(o.h * k),
+        radius: o.radius !== undefined ? r1(o.radius * k) : undefined,
+      },
+      a,
+    ),
+  )
+}
+
 // 둥근 모서리: 도형·이미지 모두 짧은 변의 절반까지
 export const maxRadius = (o: FreeObj) => Math.min(o.w, o.h) / 2
 // 모서리 둥글기를 조절할 수 있는 요소 (둥근 사각형 · 이미지)

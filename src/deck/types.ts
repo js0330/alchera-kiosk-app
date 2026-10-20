@@ -2,6 +2,8 @@ import type { Tone } from './guide'
 
 export type LayoutId =
   | 'cover'
+  | 'cover-1'
+  | 'line-box'
   | 'contents'
   | 'section'
   | 'line-1'
