@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { BRAND, ptToPx } from '../guide'
 import { parseRich } from '../textStyle'
-import { hasRadius, maxRadius, objTextEl } from '../freeObjects'
+import { hasRadius, maxRadius, objTextEl, type Area } from '../freeObjects'
 import { pointsAttr, shapePoints, textInsets } from '../shapes'
 import type { FreeObj } from '../types'
 import EditableText from './EditableText'
@@ -16,6 +16,8 @@ interface FreeLayerProps {
   onSelect?: (id: string | null, additive?: boolean) => void
   onEdit?: (id: string | null) => void
   onChange?: (objs: FreeObj[]) => void
+  // 요소가 이 영역 밖으로 끌려 나가지 않게 (라인형 1단 박스 안쪽)
+  bounds?: Area
 }
 
 type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'p1' | 'p2' | 'radius'
@@ -191,7 +193,7 @@ function ObjView({ o }: { o: FreeObj }) {
 
 // 자유 배치 요소 레이어. 편집 모드에서는 클릭으로 선택(Shift·Ctrl+클릭으로 여러 개), 끌어서 이동,
 // 모서리로 크기 조절, 선은 양 끝점을 끌어서 방향·길이 조절, 더블클릭으로 글 수정.
-export default function FreeLayer({ objects, scale, editable, selectedIds = [], editingId, onSelect, onEdit, onChange }: FreeLayerProps) {
+export default function FreeLayer({ objects, scale, editable, selectedIds = [], editingId, onSelect, onEdit, onChange, bounds }: FreeLayerProps) {
   const drag = useRef<{ ids: string[]; mode: 'move' | Handle; sx: number; sy: number; starts: FreeObj[] } | null>(null)
 
   useEffect(() => {
@@ -199,9 +201,18 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
     const move = (e: PointerEvent) => {
       const d = drag.current
       if (!d) return
-      const dx = (e.clientX - d.sx) / scale
-      const dy = (e.clientY - d.sy) / scale
+      let dx = (e.clientX - d.sx) / scale
+      let dy = (e.clientY - d.sy) / scale
       if (d.mode === 'move') {
+        // 묶음 전체가 영역 안에 머물도록 이동량을 제한
+        if (bounds) {
+          const minX = Math.min(...d.starts.map((s) => s.x))
+          const minY = Math.min(...d.starts.map((s) => s.y))
+          const maxX = Math.max(...d.starts.map((s) => s.x + s.w))
+          const maxY = Math.max(...d.starts.map((s) => s.y + s.h))
+          dx = Math.min(Math.max(dx, bounds.x - minX), bounds.x + bounds.w - maxX)
+          dy = Math.min(Math.max(dy, bounds.y - minY), bounds.y + bounds.h - maxY)
+        }
         onChange?.(d.starts.map((s) => ({ ...s, x: r1(s.x + dx), y: r1(s.y + dy) })))
         return
       }
@@ -217,6 +228,10 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
         const moving = d.mode === 'p1' ? ends.p1 : ends.p2
         let nx = moving.x + dx
         let ny = moving.y + dy
+        if (bounds) {
+          nx = Math.min(Math.max(nx, bounds.x), bounds.x + bounds.w)
+          ny = Math.min(Math.max(ny, bounds.y), bounds.y + bounds.h)
+        }
         // Shift: 가로·세로·45° 로 맞춤
         if (e.shiftKey) {
           const ang = Math.round(Math.atan2(ny - fixed.y, nx - fixed.x) / (Math.PI / 4)) * (Math.PI / 4)
@@ -247,6 +262,19 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
         if (d.mode.includes('w')) x = s.x + s.w - w
         if (d.mode.includes('n')) y = s.y + s.h - h
       }
+      // 크기 조절도 영역 안까지만
+      if (bounds) {
+        if (x < bounds.x) {
+          w -= bounds.x - x
+          x = bounds.x
+        }
+        if (y < bounds.y) {
+          h -= bounds.y - y
+          y = bounds.y
+        }
+        w = Math.min(w, bounds.x + bounds.w - x)
+        h = Math.min(h, bounds.y + bounds.h - y)
+      }
       onChange?.([{ ...s, x: r1(x), y: r1(y), w: r1(w), h: r1(h) }])
     }
     const up = () => (drag.current = null)
@@ -256,7 +284,7 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
     }
-  }, [editable, scale, onChange])
+  }, [editable, scale, onChange, bounds])
 
   const start = (e: ReactPointerEvent, o: FreeObj, mode: 'move' | Handle) => {
     if (!editable || editingId === o.id) return

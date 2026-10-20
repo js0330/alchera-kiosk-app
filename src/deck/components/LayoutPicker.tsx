@@ -1,6 +1,6 @@
-import { ChevronDown, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { LAYOUTS, LAYOUT_MAP, type LayoutCategory } from '../layouts'
+import { X } from 'lucide-react'
+import { useEffect } from 'react'
+import { LAYOUTS, LAYOUT_MAP } from '../layouts'
 import type { LayoutId } from '../types'
 import { DEMO_OBJECTS } from '../freeObjects'
 import { makeSlide } from '../kits'
@@ -22,22 +22,13 @@ interface LayoutPickerProps {
   onClose: () => void
 }
 
-// 본문은 '자유 배치' + 요소 라이브러리의 가이드 박스로 만드는 것을 기본으로 하고,
-// 칸이 고정된 라인형·타이틀형 레이아웃은 접어 둡니다 (지금 그 레이아웃이면 펼친 채로).
-export default function LayoutPicker({ title, current, onPick, onClose }: LayoutPickerProps) {
-  const fixed = (c: LayoutCategory) => c === '라인형' || c === '타이틀형'
-  const [showFixed, setShowFixed] = useState(() => !!current && fixed(LAYOUT_MAP[current].category))
-  const sections: [LayoutCategory, string][] = [
-    ['자유 배치', '본문 — 타이틀 가이드 + 요소 라이브러리로 자유롭게'],
-    ['표지·구성', '표지 · 목차 · 간지 · 마무리'],
-    ...(showFixed
-      ? ([
-          ['라인형', '칸이 고정된 레이아웃 · 라인형'],
-          ['타이틀형', '칸이 고정된 레이아웃 · 타이틀형'],
-        ] as [LayoutCategory, string][])
-      : []),
-  ]
+// 화면에 보여 주는 레이아웃만: 본문(라인형 1단 · 자유 배치)과 표지·목차·간지·마무리
+const SECTIONS: [string, LayoutId[]][] = [
+  ['본문', ['line-box', 'free']],
+  ['표지 · 목차 · 간지 · 마무리', ['cover-1', 'cover', 'contents', 'section', 'closing']],
+]
 
+export default function LayoutPicker({ title, current, onPick, onClose }: LayoutPickerProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -60,11 +51,14 @@ export default function LayoutPicker({ title, current, onPick, onClose }: Layout
           </button>
         </div>
         <div className="overflow-y-auto px-6 pb-6">
-          {sections.map(([cat, label]) => (
-            <section key={cat} className="mt-5">
+          {current && LAYOUT_MAP[current].hidden && (
+            <p className="mt-4 rounded-lg bg-[#F5F7FC] px-3 py-2 text-[12px] text-[#5A6380]">지금 슬라이드는 예전 레이아웃(‘{LAYOUT_MAP[current].name}’)이에요. 아래에서 고르면 바뀌어요.</p>
+          )}
+          {SECTIONS.map(([label, ids]) => (
+            <section key={label} className="mt-5">
               <h3 className="deck-label mb-3">{label}</h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                {LAYOUTS.filter((l) => l.category === cat).map((l) => (
+                {ids.map((id) => LAYOUT_MAP[id]).map((l) => (
                   <button
                     key={l.id}
                     type="button"
@@ -83,14 +77,6 @@ export default function LayoutPicker({ title, current, onPick, onClose }: Layout
               </div>
             </section>
           ))}
-          <button
-            type="button"
-            className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#C9D0E4] py-3 text-[13px] font-semibold text-[#5A6380] hover:border-[#4D6BFF] hover:text-[#0000A5]"
-            onClick={() => setShowFixed((v) => !v)}
-          >
-            칸이 고정된 레이아웃 {showFixed ? '접기' : '보기'} (라인형 · 타이틀형)
-            <ChevronDown size={15} className={showFixed ? 'rotate-180' : ''} />
-          </button>
         </div>
       </div>
     </div>

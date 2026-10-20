@@ -27,7 +27,7 @@ import ObjectPanel from '../components/ObjectPanel'
 import PresentMode from '../components/PresentMode'
 import SlideCanvas from '../components/SlideCanvas'
 import { SLIDE_H, SLIDE_W } from '../guide'
-import { LINE_KINDS, newImage, newLine, newShape, newText, snapToGuide } from '../freeObjects'
+import { LINE_KINDS, clampToArea, fitIntoArea, newImage, newLine, newShape, newText, snapToGuide } from '../freeObjects'
 import { INSERT_MIME, type InsertPayload } from '../insert'
 import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
 import { makeSlide, uid } from '../kits'
@@ -179,6 +179,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   )
 
   const objects = useMemo(() => slide.objects ?? [], [slide.objects])
+  // 라인형 1단처럼 요소가 박스 안에만 놓이는 레이아웃
+  const area = layout.objectArea
   const selected = useMemo(() => objects.filter((o) => selectedObjs.includes(o.id)), [objects, selectedObjs])
 
   const setObjects = useCallback(
@@ -188,23 +190,25 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   // 끌기·크기 조절·글 수정: 같은 요소들의 연속 변화는 한 단계로
   const updateObjs = useCallback(
     (changed: FreeObj[]) => {
-      const map = new Map(changed.map((o) => [o.id, o]))
+      const map = new Map(changed.map((o) => [o.id, area ? clampToArea(o, area) : o]))
       setObjects((objs) => objs.map((x) => map.get(x.id) ?? x), `objs:${slide.id}:${changed.map((o) => o.id).join(',')}`)
     },
-    [setObjects, slide.id],
+    [setObjects, slide.id, area],
   )
 
   // 새 요소 넣기: 아이콘은 칠하고, 위치를 정한 뒤(끌어다 놓은 곳 또는 원래 자리) 모두 선택합니다
   const insert = useCallback(
     async (objs: FreeObj[], center?: { x: number; y: number }, back = false) => {
-      const placed = placeObjects(await resolveIcons(objs), center)
+      const moved = placeObjects(await resolveIcons(objs), center)
+      // 박스 안에만 놓이는 레이아웃이면 묶음째 박스 안으로 맞춤
+      const placed = area ? fitIntoArea(moved, area) : moved
       // 가이드 박스는 다른 요소 뒤에 깔립니다
       setObjects((list) => (back ? [...placed, ...list] : [...list, ...placed]))
       setSelectedObjs(placed.map((o) => o.id))
       setEditingObj(null)
       return placed
     },
-    [setObjects],
+    [setObjects, area],
   )
   const addObj = (o: FreeObj) => insert([o])
 
@@ -247,6 +251,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
 
   const latestSel = useRef(selectedObjs)
   latestSel.current = selectedObjs
+  const latestArea = useRef(area)
+  latestArea.current = area
   const latestObjIds = useRef<string[]>([])
   latestObjIds.current = objects.map((o) => o.id)
 
@@ -316,7 +322,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       if (internal) {
         internal.pasted += 1
         const shift = 16 * internal.pasted
-        const copies = internal.objs.map((o) => ({ ...o, id: uid(), x: o.x + shift, y: o.y + shift }))
+        const shifted = internal.objs.map((o) => ({ ...o, id: uid(), x: o.x + shift, y: o.y + shift }))
+        const copies = latestArea.current ? fitIntoArea(shifted, latestArea.current) : shifted
         setObjects((objs) => [...objs, ...copies])
         setSelectedObjs(copies.map((o) => o.id))
       } else if (image) {
@@ -445,7 +452,9 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   }
 
   const changeLayout = (id: LayoutId) => {
-    updateSlide(slide.id, (s) => ({ ...s, layout: id, tone: LAYOUT_MAP[id].tone }))
+    // 박스 안에만 놓이는 레이아웃으로 바꾸면 이미 있는 요소도 박스 안으로
+    const nextArea = LAYOUT_MAP[id].objectArea
+    updateSlide(slide.id, (s) => ({ ...s, layout: id, tone: LAYOUT_MAP[id].tone, objects: nextArea && s.objects ? fitIntoArea(s.objects, nextArea) : s.objects }))
     setPicker(null)
   }
 

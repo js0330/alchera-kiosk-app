@@ -6,7 +6,7 @@ import { LayoutThumb } from '../components/LayoutPicker'
 import SlideCanvas from '../components/SlideCanvas'
 import { KITS, createDeckFromKit, createDeckFromLayout, uid, type Kit } from '../kits'
 import { SAMPLES } from '../samples'
-import { LAYOUT_CATEGORIES, LAYOUTS, type LayoutCategory } from '../layouts'
+import { VISIBLE_LAYOUTS } from '../layouts'
 import { BRAND } from '../guide'
 import type { Deck } from '../types'
 
@@ -42,7 +42,6 @@ const formatDate = (t: number) =>
   new Date(t).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: TemplatesPageProps) {
-  const [category, setCategory] = useState<LayoutCategory | '전체'>('전체')
   const [importing, setImporting] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const recent = [...decks].sort((a, b) => b.updatedAt - a.updatedAt)
@@ -81,7 +80,7 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
         <section className="mt-12">
           <h2 className="text-[20px] font-bold text-[#000038]">어떤 자료를 만드세요?</h2>
           <p className="mt-1 text-[13px] text-[#7A8099]">상황에 맞는 슬라이드 흐름이 미리 짜여 있어요. 칸마다 무엇을 쓸지 안내가 들어 있습니다.</p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {KITS.map((kit) => (
               <button
                 key={kit.id}
@@ -179,25 +178,11 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-[20px] font-bold text-[#000038]">레이아웃 라이브러리</h2>
-              <p className="mt-1 text-[13px] text-[#7A8099]">알체라 PPT 가이드의 {LAYOUTS.length}가지 레이아웃. 눌러서 바로 시작할 수 있어요.</p>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {(['전체', ...LAYOUT_CATEGORIES] as const).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCategory(c)}
-                  className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
-                    category === c ? 'bg-[#000038] text-white' : 'bg-white text-[#666] ring-1 ring-[#E0E5F0] hover:text-[#000038]'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
+              <p className="mt-1 text-[13px] text-[#7A8099]">표지·목차·간지·본문·마무리 {VISIBLE_LAYOUTS.length}가지. 본문 안의 칸은 요소 라이브러리의 가이드 박스·블록으로 채워요.</p>
             </div>
           </div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {LAYOUTS.filter((l) => category === '전체' || l.category === category).map((l) => (
+            {VISIBLE_LAYOUTS.map((l) => (
               <button
                 key={l.id}
                 type="button"

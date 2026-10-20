@@ -17,57 +17,18 @@ export interface Kit {
 
 const contact = { title: '감사합니다.', contact: BRAND.contact }
 
-// 시작 키트: 실제 알체라 소개서들(Face Trust · 공기질 AI · 피지컬 AI)의 흐름을 바탕으로 짠 슬라이드 묶음.
-// 내용은 비워두고 placeholder 로 무엇을 쓸지 안내합니다.
+// 시작 키트: 표지 → 목차 → 본문(라인형 1단 박스) → 마무리. 표지 제목 줄 수에 따라 두 가지.
+// 본문 박스 안은 요소 라이브러리(가이드 박스·블록·아이콘)와 텍스트·이미지로 자유롭게 채웁니다.
+const solution = (cover: LayoutId): KitSlide[] => [
+  { layout: cover, notes: '고객사 이름과 미팅 목적을 먼저 말합니다.' },
+  { layout: 'contents', content: { title: 'CONTENTS', items: '회사 소개\n문제 제기\n제품 소개\n작동 원리\n도입 효과' } },
+  { layout: 'line-box' },
+  { layout: 'closing', content: contact },
+]
+
 export const KITS: Kit[] = [
-  {
-    id: 'solution',
-    name: '솔루션 소개서',
-    description: '고객사 제안용. 회사 소개 → 문제 → 제품 → 작동 원리 → 성과',
-    slides: [
-      { layout: 'cover', notes: '고객사 이름과 미팅 목적을 먼저 말합니다.' },
-      { layout: 'contents', content: { title: 'CONTENTS', items: '회사 소개\n문제 제기\n제품 소개\n작동 원리\n도입 효과' } },
-      { layout: 'line-1' },
-      { layout: 'section', content: { title: '문제 제기' } },
-      { layout: 'line-2' },
-      { layout: 'section', content: { title: '제품 소개' } },
-      { layout: 'header-1' },
-      { layout: 'line-3' },
-      { layout: 'section', content: { title: '작동 원리' } },
-      { layout: 'header-2' },
-      { layout: 'line-grid', notes: '수치에는 출처와 기준일을 안내문으로 붙입니다.' },
-      { layout: 'closing', content: contact },
-    ],
-  },
-  {
-    id: 'company',
-    name: '회사 소개서',
-    description: '파트너·투자자용. 회사 · 사업 영역 · 레퍼런스',
-    slides: [
-      { layout: 'cover' },
-      { layout: 'contents', content: { title: 'CONTENTS', items: '회사 소개\n사업 영역\n주요 레퍼런스' } },
-      { layout: 'section', content: { title: '회사 소개' } },
-      { layout: 'line-1' },
-      { layout: 'section', content: { title: '사업 영역' } },
-      { layout: 'header-3' },
-      { layout: 'section', content: { title: '주요 레퍼런스' } },
-      { layout: 'line-grid' },
-      { layout: 'closing', content: contact },
-    ],
-  },
-  {
-    id: 'report',
-    name: '프로젝트 보고',
-    description: '내부 보고·리뷰. 요약 → 진행 현황 → 이슈 → 다음 단계',
-    slides: [
-      { layout: 'cover' },
-      { layout: 'line-1', content: { title: '요약' } },
-      { layout: 'line-grid', content: { title: '진행 현황' } },
-      { layout: 'header-2', content: { title: '이슈와 대응', lHead: '이슈', rHead: '대응' } },
-      { layout: 'header-3', content: { title: '다음 단계' } },
-      { layout: 'closing', content: contact },
-    ],
-  },
+  { id: 'solution-1', name: '솔루션 소개서 (제목 1줄)', description: '표지 제목이 한 줄일 때. 표지 → 목차 → 본문(라인형 1단) → 마무리', slides: solution('cover-1') },
+  { id: 'solution-2', name: '솔루션 소개서 (제목 2줄)', description: '표지 제목이 두 줄일 때. 표지 → 목차 → 본문(라인형 1단) → 마무리', slides: solution('cover') },
   {
     id: 'blank',
     name: '빈 문서',

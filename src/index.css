@@ -222,6 +222,15 @@
     border-radius: 50%;
     cursor: crosshair;
   }
+  /* 라인형 1단: 요소가 놓이는 박스 안쪽 영역 */
+  .deck-area-guide {
+    outline: 1.5px dashed rgba(77, 107, 255, 0.35);
+    outline-offset: 0;
+    pointer-events: none;
+  }
+  .deck-guides-off .deck-area-guide {
+    outline-color: transparent;
+  }
   /* 빈 곳을 끌어서 여러 요소 선택 */
   .deck-marquee {
     position: absolute;
