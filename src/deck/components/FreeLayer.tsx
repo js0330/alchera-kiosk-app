@@ -152,7 +152,8 @@ function ObjView({ o }: { o: FreeObj }) {
     flexDirection: 'column',
     justifyContent: o.valign === 'middle' ? 'center' : o.valign === 'bottom' ? 'flex-end' : 'flex-start',
     boxSizing: 'border-box',
-    overflow: 'hidden',
+    // PowerPoint 처럼 상자보다 긴 글은 잘라내지 않고 넘쳐 보이게 (잘린 글자가 생기지 않도록)
+    overflow: 'visible',
   }
   if (pts) {
     return (
