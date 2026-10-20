@@ -1,4 +1,4 @@
-import { BRAND } from './guide'
+import { BRAND, ptToPx } from './guide'
 import { FREE_AREA } from './layouts'
 import { uid } from './kits'
 import type { FreeObj, Geom } from './types'
@@ -98,8 +98,9 @@ interface TextOpts {
   valign?: 'top' | 'middle' | 'bottom'
 }
 
-// 채우기 없는 글 상자
+// 채우기 없는 글 상자. 높이는 최소한 글 줄 수 × 글자 크기 × 줄간격(1.3)이 되게 맞춰 글이 잘리지 않게 합니다.
 function text(x: number, y: number, w: number, h: number, value: string, o: TextOpts = {}): FreeObj {
+  const need = Math.ceil(value.split('\n').length * ptToPx(o.size ?? 10) * 1.3) + 1
   return {
     id: uid(),
     kind: 'shape',
@@ -107,7 +108,7 @@ function text(x: number, y: number, w: number, h: number, value: string, o: Text
     x,
     y,
     w,
-    h,
+    h: Math.max(h, need),
     text: value,
     size: o.size ?? 10,
     bold: o.bold,
@@ -195,8 +196,8 @@ export const BLOCKS: BlockDef[] = [
         const x = X + i * 200
         return [
           shape(x + 76, Y, 28, 28, { geom: 'ellipse', fill: C.blue, text: String(i + 1), size: 10, bold: true, color: C.white, pad: NO_PAD }),
-          text(x, Y + 38, 180, 18, ['접근', '얼굴 촬영', 'Liveness', '게이트 오픈'][i], { bold: true, align: 'center' }),
-          text(x, Y + 58, 180, 30, '단계 설명을 한 줄로', { size: 8, color: C.gray, align: 'center' }),
+          text(x, Y + 38, 180, 24, ['접근', '얼굴 촬영', 'Liveness', '게이트 오픈'][i], { bold: true, align: 'center' }),
+          text(x, Y + 64, 180, 20, '단계 설명을 한 줄로', { size: 8, color: C.gray, align: 'center' }),
           ...(i < 3 ? [line(x + 120, Y + 14, x + 260, Y + 14, { color: C.line })] : []),
         ]
       }),
@@ -212,8 +213,8 @@ export const BLOCKS: BlockDef[] = [
         return [
           shape(x + 105, Y, 70, 70, { geom: 'ellipse', fill: C.imageFill }),
           icon(id, x + 122, Y + 17, 36),
-          text(x, Y + 84, 280, 20, ['요구사항 분석', '작업·수집 설계', '수집 운영', '검수·납품'][i], { bold: true, align: 'center' }),
-          text(x + 20, Y + 106, 240, 32, '이 단계에서 하는 일을\n두 줄 이내로 적어 주세요', { size: 8, color: C.gray, align: 'center' }),
+          text(x, Y + 82, 280, 24, ['요구사항 분석', '작업·수집 설계', '수집 운영', '검수·납품'][i], { bold: true, align: 'center' }),
+          text(x + 20, Y + 108, 240, 38, '이 단계에서 하는 일을\n두 줄 이내로 적어 주세요', { size: 8, color: C.gray, align: 'center' }),
           ...(i < 3 ? [line(x + 200, Y + 35, x + 370, Y + 35, { color: C.crumb, end: true })] : []),
         ]
       }),
@@ -227,10 +228,10 @@ export const BLOCKS: BlockDef[] = [
       [0, 1, 2].flatMap((i) => {
         const x = X + i * 300
         return [
-          card(x, Y, 280, 132),
-          text(x + 20, Y + 18, 240, 32, ['2020년', '5.1억+', '380+명'][i], { size: 16, bold: true, color: C.blue, align: 'center' }),
-          text(x + 20, Y + 58, 240, 18, ['KOSDAQ 상장', '전 세계 AI 사용자', 'AI 전문 인력'][i], { bold: true, align: 'center' }),
-          text(x + 20, Y + 82, 240, 34, '숫자를 뒷받침하는 설명', { size: 8, color: C.gray, align: 'center' }),
+          card(x, Y, 280, 136),
+          text(x + 20, Y + 16, 240, 38, ['2020년', '5.1억+', '380+명'][i], { size: 16, bold: true, color: C.blue, align: 'center' }),
+          text(x + 20, Y + 56, 240, 24, ['KOSDAQ 상장', '전 세계 AI 사용자', 'AI 전문 인력'][i], { bold: true, align: 'center' }),
+          text(x + 20, Y + 84, 240, 38, '숫자를 뒷받침하는 설명', { size: 8, color: C.gray, align: 'center' }),
         ]
       }),
   },
@@ -244,10 +245,10 @@ export const BLOCKS: BlockDef[] = [
         const x = X + i * 390
         return [
           card(x, Y, 370, 220),
-          text(x + 24, Y + 22, 200, 34, `0${i + 1}`, { size: 16, bold: true, color: C.blue }),
-          text(x + 24, Y + 64, 320, 54, ['무엇을 더\n모아야 하나?', '이 데이터를\n믿어도 되나?', '로봇이 정말\n잘하는가?'][i], { size: 12, bold: true }),
-          text(x + 24, Y + 124, 320, 20, '질문을 한 줄로 풀어 주세요', { size: 8, color: C.gray }),
-          pill(x + 24, Y + 170, 200, ['수집 비용 누적', '품질 검증의 어려움', '결과 비교의 어려움'][i]),
+          text(x + 24, Y + 20, 200, 38, `0${i + 1}`, { size: 16, bold: true, color: C.blue }),
+          text(x + 24, Y + 62, 320, 56, ['무엇을 더\n모아야 하나?', '이 데이터를\n믿어도 되나?', '로봇이 정말\n잘하는가?'][i], { size: 12, bold: true }),
+          text(x + 24, Y + 132, 320, 20, '질문을 한 줄로 풀어 주세요', { size: 8, color: C.gray }),
+          pill(x + 24, Y + 174, 200, ['수집 비용 누적', '품질 검증의 어려움', '결과 비교의 어려움'][i]),
         ]
       }),
   },
@@ -279,10 +280,10 @@ export const BLOCKS: BlockDef[] = [
       ...[0, 1, 2, 3].flatMap((i) => {
         const cx = X + 140 + i * 300
         return [
-          text(cx - 60, Y, 120, 16, `STEP 0${i + 1}`, { size: 8, bold: true, color: C.blue, align: 'center' }),
+          text(cx - 60, Y + 4, 120, 20, `STEP 0${i + 1}`, { size: 8, bold: true, color: C.blue, align: 'center' }),
           shape(cx - 9, Y + 31, 18, 18, { geom: 'ellipse', fill: i === 2 ? C.blue : C.white, line: C.blue, pad: NO_PAD }),
-          text(cx - 110, Y + 62, 220, 18, ['오염 발생', '인원 접수', '현장 확인', '사후 조치'][i], { bold: true, align: 'center' }),
-          text(cx - 110, Y + 84, 220, 32, '이 단계의 상황을\n짧게 적어 주세요', { size: 8, color: C.gray, align: 'center' }),
+          text(cx - 110, Y + 60, 220, 24, ['오염 발생', '인원 접수', '현장 확인', '사후 조치'][i], { bold: true, align: 'center' }),
+          text(cx - 110, Y + 86, 220, 38, '이 단계의 상황을\n짧게 적어 주세요', { size: 8, color: C.gray, align: 'center' }),
         ]
       }),
     ],
@@ -310,8 +311,8 @@ export const BLOCKS: BlockDef[] = [
     build: () => {
       const rows = [0, 1, 2]
       return [
-        text(X, Y, 260, 16, 'INPUT', { size: 8, bold: true, color: C.blue, align: 'center' }),
-        text(X + 860, Y, 260, 16, 'OUTPUT', { size: 8, bold: true, color: C.blue, align: 'center' }),
+        text(X, Y + 2, 260, 20, 'INPUT', { size: 8, bold: true, color: C.blue, align: 'center' }),
+        text(X + 860, Y + 2, 260, 20, 'OUTPUT', { size: 8, bold: true, color: C.blue, align: 'center' }),
         ...rows.flatMap((i) => [
           shape(X, Y + 28 + i * 74, 260, 58, { geom: 'roundRect', fill: C.white, line: C.line, radius: 10, text: `**입력 ${i + 1}**\n설명`, align: 'left', pad: [16, 6, 16, 6] }),
           shape(X + 860, Y + 28 + i * 74, 260, 58, { geom: 'roundRect', fill: C.white, line: C.line, radius: 10, text: `**결과 ${i + 1}**\n설명`, align: 'left', pad: [16, 6, 16, 6] }),
@@ -330,7 +331,7 @@ export const BLOCKS: BlockDef[] = [
     build: () =>
       [0, 1, 2].flatMap((i) => [
         icon('checkbox', X, Y + i * 44, 24),
-        text(X + 36, Y + 3 + i * 44, 600, 20, ['**핵심 내용 1** — 짧은 설명', '**핵심 내용 2** — 짧은 설명', '**핵심 내용 3** — 짧은 설명'][i]),
+        text(X + 36, Y + i * 44, 600, 24, ['**핵심 내용 1** — 짧은 설명', '**핵심 내용 2** — 짧은 설명', '**핵심 내용 3** — 짧은 설명'][i]),
       ]),
   },
   {
