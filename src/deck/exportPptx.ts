@@ -160,6 +160,11 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
 // 편집 화면과 같은 요소 목록(buildSlide)을 그대로 PPTX 도형·텍스트 상자로 옮깁니다.
 // 결과물은 PowerPoint에서 바로 수정 가능한 네이티브 텍스트 상자입니다.
 export async function exportDeckToPptx(deck: Deck) {
+  downloadBlob(await buildDeckPptx(deck), `${safeFileName(deck.title)}.pptx`)
+}
+
+// PPTX 파일(Blob)을 만듭니다 — 다운로드·구글 슬라이드로 보내기가 함께 씁니다
+export async function buildDeckPptx(deck: Deck): Promise<Blob> {
   const { default: Pptx } = await import('pptxgenjs')
   const pptx = new Pptx()
   pptx.defineLayout({ name: 'ALCHERA', width: SLIDE_IN.w, height: SLIDE_IN.h })
@@ -248,6 +253,5 @@ export async function exportDeckToPptx(deck: Deck) {
     for (const o of slide.objects ?? []) await addFreeObject(pptx, s, o)
   }
 
-  const blob = (await pptx.write({ outputType: 'blob' })) as Blob
-  downloadBlob(blob, `${safeFileName(deck.title)}.pptx`)
+  return (await pptx.write({ outputType: 'blob' })) as Blob
 }

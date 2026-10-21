@@ -11,7 +11,14 @@ import type { Deck, LayoutId, Slide } from './types'
 // 다른 사람이 만든 PPTX·텍스트를 불러와 가이드 레이아웃에 맞춰 다시 짭니다.
 // 내용(글·이미지)만 가져오고, 글꼴·색·위치는 모두 가이드 레이아웃이 정합니다. 브라우저 안에서만 처리합니다.
 
-export class ImportError extends Error {}
+// code 'not-shared': 로그인해야 열리는 구글 슬라이드 (회사 계정으로 가져오기를 제안)
+export class ImportError extends Error {
+  code?: 'not-shared'
+  constructor(message: string, code?: 'not-shared') {
+    super(message)
+    this.code = code
+  }
+}
 
 // ── 공통: 내용 블록 → 가이드 레이아웃 ─────────────────────────────
 
@@ -635,21 +642,21 @@ export async function importGoogleSlides(url: string, mode: PptxMode = 'keep'): 
     res = await fetch(`https://docs.google.com/presentation/d/${id}/export/pptx`)
   } catch {
     // 로그인이 필요한 파일은 구글이 로그인 화면으로 돌려보내 브라우저가 응답을 막습니다 (대부분 공유 설정 문제)
-    throw new ImportError(navigator.onLine ? NOT_SHARED : '인터넷에 연결되어 있지 않아요. 연결을 확인하고 다시 시도해 주세요.')
+    if (!navigator.onLine) throw new ImportError('인터넷에 연결되어 있지 않아요. 연결을 확인하고 다시 시도해 주세요.')
+    throw new ImportError(NOT_SHARED, 'not-shared')
   }
   const type = res.headers.get('content-type') ?? ''
   if (res.status === 404) throw new ImportError('슬라이드를 찾지 못했어요. 주소를 다시 확인해 주세요.')
   if (res.status === 429) throw new ImportError('구글이 잠시 요청을 막았어요. 1~2분 뒤 다시 시도해 주세요.')
   // 401·403: 로그인해야 열리는 파일 (‘알체라’ 공유 · 제한됨 · 다운로드 막힘)
-  if (!res.ok || !type.includes('presentationml')) throw new ImportError(NOT_SHARED)
+  if (!res.ok || !type.includes('presentationml')) throw new ImportError(NOT_SHARED, 'not-shared')
   const disposition = res.headers.get('content-disposition') ?? ''
   const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
   const name = (encoded ? decodeURIComponent(encoded) : (disposition.match(/filename="([^"]+)"/)?.[1] ?? 'Google Slides')).replace(/\.pptx$/i, '')
   return importPptx(await res.arrayBuffer(), name, mode)
 }
 
-const NOT_SHARED =
-  '회사 계정으로만 열리는 파일이에요. 구글 슬라이드 [공유]에서 ‘링크가 있는 모든 사용자’로 바꾸거나, 파일 › 다운로드 › PowerPoint(.pptx)로 받아 ‘파일’ 탭에 올려 주세요.'
+const NOT_SHARED = '회사 계정으로만 열리는 파일이에요. 아래 ‘회사 계정으로 가져오기’를 눌러 주세요.'
 
 // ── 진입점 ──────────────────────────────────────────────────────
 

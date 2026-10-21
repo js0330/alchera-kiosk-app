@@ -1,6 +1,7 @@
 import { FileText, Info, LoaderCircle, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { ImportError, importFile, importGoogleSlides, importText, type PptxMode } from '../importers'
+import { GoogleError, SCOPE_READ, downloadSlidesAsPptx, getGoogleToken, loadGoogle } from '../google'
+import { ImportError, importFile, importGoogleSlides, importPptx, importText, parseGoogleSlidesId, type PptxMode } from '../importers'
 import type { Deck } from '../types'
 
 const TEXT_EXAMPLE = `# 보이지 않는 위험을 먼저 예측하는 AI
@@ -41,6 +42,8 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
   const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // 로그인해야 열리는 구글 슬라이드면 '회사 계정으로 가져오기'를 보여 줍니다
+  const [needLogin, setNeedLogin] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [text, setText] = useState('')
   const [mode, setMode] = useState<PptxMode>('keep')
@@ -55,11 +58,16 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
   const run = async (job: () => Promise<Deck> | Deck, source: string) => {
     setBusy(true)
     setError('')
+    setNeedLogin(false)
     try {
       onImported(await job(), source)
     } catch (e) {
       console.error(e)
-      setError(e instanceof ImportError ? e.message : '파일을 읽는 중 문제가 생겼어요. 다른 파일로 다시 시도해 주세요.')
+      setError(e instanceof ImportError || e instanceof GoogleError ? e.message : '파일을 읽는 중 문제가 생겼어요. 다른 파일로 다시 시도해 주세요.')
+      if (e instanceof ImportError && e.code === 'not-shared') {
+        setNeedLogin(true)
+        loadGoogle().catch(() => undefined)
+      }
     } finally {
       setBusy(false)
     }
@@ -70,6 +78,16 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
   }
 
   const importLink = () => run(() => importGoogleSlides(url, mode), 'Google Slides')
+  // 회사 계정으로 로그인해서 받기 (누른 그 자리에서 로그인 창을 엽니다)
+  const importWithLogin = () => {
+    const id = parseGoogleSlidesId(url)
+    if (!id) return
+    const token = getGoogleToken(SCOPE_READ)
+    run(async () => {
+      const { data, name } = await downloadSlidesAsPptx(id, await token)
+      return importPptx(data, name, mode)
+    }, 'Google Slides')
+  }
 
   // PPTX · 구글 슬라이드 본문을 가져오는 방식 (두 탭이 함께 씁니다)
   const modeChooser = (
@@ -125,6 +143,7 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
               onClick={() => {
                 setTab(id)
                 setError('')
+                setNeedLogin(false)
               }}
               className={`-mb-px border-b-2 px-3 pb-2.5 text-[13px] font-semibold ${tab === id ? 'border-[#0000A5] text-[#0000A5]' : 'border-transparent text-[#666] hover:text-[#000038]'}`}
             >
@@ -151,10 +170,10 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
                 </button>
               </div>
               <p className="relative mt-3 flex items-center gap-1 text-[12px] text-[#7A8099]">
-                공유가 ‘링크가 있는 모든 사용자’인 파일만 가져올 수 있어요
+                ‘링크가 있는 모든 사용자’는 바로, ‘알체라’ 공유는 회사 계정으로 가져와요
                 <Tip
                   below
-                  text={'구글 슬라이드 [공유] → 일반 액세스를 ‘링크가 있는 모든 사용자’로 바꿔 주세요. 가져온 뒤 다시 돌려도 돼요.\n‘알체라’(회사 사람만)로 공유된 파일은 파일 › 다운로드 › PowerPoint(.pptx)로 받아 ‘파일’ 탭에 올려 주세요.'}
+                  text={'구글 슬라이드 [공유] → 일반 액세스를 ‘링크가 있는 모든 사용자’로 바꿔 주세요. 가져온 뒤 다시 돌려도 돼요.\n‘알체라’(회사 사람만)로 공유된 파일은 가져오기를 누른 뒤 ‘회사 계정으로 가져오기’로 받을 수 있어요.'}
                 />
               </p>
             </>
@@ -246,9 +265,14 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
             </>
           )}
           {error && (
-            <p role="alert" className="mt-4 rounded-lg bg-[#FDECEE] px-3 py-2 text-[13px] font-semibold text-[#C2333D]">
-              {error}
-            </p>
+            <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 rounded-lg bg-[#FDECEE] px-3 py-2 text-[13px] font-semibold text-[#C2333D]">
+              <span className="min-w-0 flex-1">{error}</span>
+              {needLogin && tab === 'link' && (
+                <button type="button" className="deck-btn deck-btn-primary h-8" disabled={busy} onClick={importWithLogin}>
+                  회사 계정으로 가져오기
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
