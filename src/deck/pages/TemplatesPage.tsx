@@ -126,17 +126,20 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
               ALCHERA PPT TEMPLATE · VER.260507
             </p>
             <h1 className="mt-5 break-keep text-[30px] font-bold leading-[1.25] tracking-[-0.02em] text-[#1A1D3D] sm:text-[38px]">
-              내용만 쓰세요.
+              만든 초안을
               <br />
-              디자인은 가이드가 맞춥니다.
+              알체라 가이드에 맞춥니다.
             </h1>
-            <p className="mt-4 text-[13px] text-[#5A6080]">가이드 레이아웃 · 요소 라이브러리 · PPTX 다운로드</p>
+            <p className="mt-4 max-w-[460px] break-keep text-[14px] leading-relaxed text-[#3A3F5C]">
+              구글 슬라이드·PPT 초안을 불러오면 키 네임·타이틀·서브와 본문 내용을 가이드 자리에 맞춰 넣어요. 다듬은 뒤 PPTX나 구글 슬라이드로 내보내세요.
+            </p>
+            <p className="mt-3 break-keep text-[12px] text-[#5A6080]">초안 불러오기 · 가이드 레이아웃 · 요소 라이브러리 · PPTX / 구글 슬라이드 내보내기</p>
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
-              <button type="button" className="deck-btn deck-btn-primary h-10 rounded-lg px-5" onClick={() => onOpen(createDeckFromKit(KITS[0]))}>
-                솔루션 소개서로 시작 <ArrowRight size={15} />
+              <button type="button" className="deck-btn deck-btn-primary h-10 rounded-lg px-5" onClick={() => setImporting(true)}>
+                초안 불러와서 가이드에 맞추기 <ArrowRight size={15} />
               </button>
-              <button type="button" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#2A2F8F] hover:underline" onClick={() => setImporting(true)}>
-                PPT · 구글 슬라이드 불러오기 <ArrowRight size={14} />
+              <button type="button" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#2A2F8F] hover:underline" onClick={() => onOpen(createDeckFromKit(KITS[0]))}>
+                솔루션 소개서로 새로 시작 <ArrowRight size={14} />
               </button>
             </div>
           </div>
