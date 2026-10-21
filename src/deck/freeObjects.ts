@@ -8,6 +8,9 @@ const C = BRAND.colors
 
 // 자유 배치에서 고를 수 있는 값은 가이드 안의 값으로만 제한합니다.
 export const GUIDE_TEXT_SIZES = [16, 12, 10, 9, 8] as const
+// 큰 강조 숫자(블록 '핵심 수치')는 가이드 간지·마무리 타이틀 크기 27pt 를 씁니다. 고르는 버튼엔 없지만 가이드 값으로 인정합니다.
+export const GUIDE_EMPHASIS_SIZE = 27
+export const isGuideSize = (pt: number) => pt === GUIDE_EMPHASIS_SIZE || (GUIDE_TEXT_SIZES as readonly number[]).includes(pt)
 export const GUIDE_TEXT_COLORS = [C.navy, C.blue, C.gray, C.crumb, C.white] as const
 export const GUIDE_FILLS = [C.white, C.imageFill, C.line, C.navy, C.blue] as const
 export const GUIDE_LINES = [C.line, C.crumb, C.gray, C.blue, C.navy, C.white] as const
@@ -201,7 +204,7 @@ const dist = (a: string, b: string) => {
   return (r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2
 }
 export const nearest = <T extends string>(hex: string, palette: readonly T[]): T => palette.reduce((best, c) => (dist(hex, c) < dist(hex, best) ? c : best), palette[0])
-const nearestSize = (pt: number) => GUIDE_TEXT_SIZES.reduce((best, s) => (Math.abs(s - pt) < Math.abs(best - pt) ? s : best), GUIDE_TEXT_SIZES[0] as number)
+const nearestSize = (pt: number) => isGuideSize(pt) ? pt : GUIDE_TEXT_SIZES.reduce((best, s) => (Math.abs(s - pt) < Math.abs(best - pt) ? s : best), GUIDE_TEXT_SIZES[0] as number)
 
 const lightness = (hex: string) => {
   const [r, g, b] = hexToRgb(hex).map((v) => v / 255)

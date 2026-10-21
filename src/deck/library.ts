@@ -1,5 +1,6 @@
 import { BRAND, ptToPx } from './guide'
 import { FREE_AREA, HEADER_BAR, HEADER_BODY, HEADER_PANELS, LINE_PANELS, linePanelRadius } from './layouts'
+import { GUIDE_EMPHASIS_SIZE } from './freeObjects'
 import { uid } from './kits'
 import type { FreeObj, Geom } from './types'
 
@@ -447,11 +448,12 @@ export const BLOCKS: BlockDef[] = [
       return [0, 1, 2].flatMap((i) => {
         const x = X + i * (w + 20)
         return [
-          shape(x, Y, w, 200, { geom: 'roundRect', fill: C.imageFill, radius: 12 }),
+          shape(x, Y, w, 220, { geom: 'roundRect', fill: C.imageFill, radius: 12 }),
           text(x + 24, Y + 22, w - 48, 18, `핵심 지표 0${i + 1}`, { size: 9, bold: true }),
-          text(x + 24, Y + 54, w - 48, 40, '00%', { size: 16, bold: true, color: C.blue }),
-          text(x + 24, Y + 108, w - 48, 36, '수치의 의미와 비교 기준을\n적어 주세요', { size: 9, color: C.gray }),
-          text(x + 24, Y + 166, w - 48, 16, '측정 기준 · 기간 명시', { size: 8, color: C.crumb }),
+          // 큰 숫자: 가이드 간지 타이틀 크기(27pt)
+          text(x + 24, Y + 50, w - 48, 60, '00%', { size: GUIDE_EMPHASIS_SIZE, bold: true, color: C.blue }),
+          text(x + 24, Y + 124, w - 48, 36, '수치의 의미와 비교 기준을\n적어 주세요', { size: 9, color: C.gray }),
+          text(x + 24, Y + 186, w - 48, 16, '측정 기준 · 기간 명시', { size: 8, color: C.crumb }),
         ]
       })
     },
