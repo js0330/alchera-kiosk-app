@@ -2,6 +2,7 @@ import type JSZip from 'jszip'
 import { BRAND } from './guide'
 import { uid } from './kits'
 import { FREE_AREA } from './layouts'
+import type { Area } from './freeObjects'
 import { EMU_ATTR, all, boxFromXfrm, boxOf, ident, kid, kids, normPh, type Box, type Xform } from './pptxXml'
 import { SHAPES } from './shapes'
 import type { FreeObj, Geom, LineDash, LineEnd } from './types'
@@ -431,8 +432,9 @@ async function prepareImage(src: string, crop?: [number, number, number, number]
 
 const hexOf = (c: Color | null | undefined) => (c ? c.hex : undefined)
 
-// 제목·서브·장식(배경·로고·페이지 번호)을 뺀 나머지를 FREE_AREA 안에 비율 유지로 옮깁니다.
-export async function itemsToObjects(items: RawItem[], slideW: number, slideH: number): Promise<FreeObj[]> {
+// 제목·서브·장식(배경·로고·페이지 번호)을 뺀 나머지를 영역 안에 비율 유지로 옮깁니다.
+// 기본은 자유 배치 본문 영역(FREE_AREA, 위 10px 띄움). 라인형 1단이면 가이드 박스 안쪽(inside)에 꼭 맞춥니다.
+export async function itemsToObjects(items: RawItem[], slideW: number, slideH: number, inside?: Area): Promise<FreeObj[]> {
   const area = slideW * slideH
   const keep = items.filter((it) => {
     const a = it.w * it.h
@@ -449,9 +451,10 @@ export async function itemsToObjects(items: RawItem[], slideW: number, slideH: n
   const bw = Math.max(1, maxX - minX)
   const bh = Math.max(1, maxY - minY)
   const base = 1280 / slideW
-  const k = Math.min(FREE_AREA.w / bw, FREE_AREA.h / bh, base)
-  const ox = FREE_AREA.x + (FREE_AREA.w - bw * k) / 2
-  const oy = FREE_AREA.y + 10
+  const a = inside ?? { x: FREE_AREA.x, y: FREE_AREA.y + 10, w: FREE_AREA.w, h: FREE_AREA.h - 10 }
+  const k = Math.min(a.w / bw, a.h / bh, base)
+  const ox = a.x + (a.w - bw * k) / 2
+  const oy = a.y
   const ptScale = k * 7143.75 // 원본 pt → 캔버스 기준 pt
   const r1 = (n: number) => Math.round(n * 10) / 10
 
