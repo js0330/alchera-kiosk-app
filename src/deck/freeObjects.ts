@@ -178,6 +178,21 @@ export function fitIntoArea(objs: FreeObj[], a: Area): FreeObj[] {
   )
 }
 
+// 여러 요소를 한 점(anchor)을 기준으로 같은 비율로 키우거나 줄입니다. 글자·안쪽 여백·선 두께·둥글기도 함께.
+export function scaleObjects(objs: FreeObj[], k: number, anchor: { x: number; y: number }): FreeObj[] {
+  return objs.map((o) => ({
+    ...o,
+    x: r1(anchor.x + (o.x - anchor.x) * k),
+    y: r1(anchor.y + (o.y - anchor.y) * k),
+    w: r1(o.w * k),
+    h: r1(o.h * k),
+    size: o.size !== undefined ? r1(o.size * k) : undefined,
+    pad: o.pad ? (o.pad.map((v) => r1(v * k)) as FreeObj['pad']) : undefined,
+    lineWidth: o.lineWidth !== undefined ? r1(Math.max(0.25, o.lineWidth * k)) : undefined,
+    radius: o.radius !== undefined ? r1(o.radius * k) : undefined,
+  }))
+}
+
 // 둥근 모서리: 도형·이미지 모두 짧은 변의 절반까지
 export const maxRadius = (o: FreeObj) => Math.min(o.w, o.h) / 2
 // 모서리 둥글기를 조절할 수 있는 요소 (둥근 사각형 · 이미지)

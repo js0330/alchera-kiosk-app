@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { BRAND, ptToPx } from '../guide'
 import { parseRich } from '../textStyle'
-import { hasRadius, maxRadius, objTextEl, type Area } from '../freeObjects'
+import { hasRadius, maxRadius, objTextEl, scaleObjects, type Area } from '../freeObjects'
 import { pointsAttr, shapePoints, textInsets } from '../shapes'
 import type { FreeObj } from '../types'
 import EditableText from './EditableText'
@@ -20,9 +20,16 @@ interface FreeLayerProps {
   bounds?: Area
 }
 
-type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'p1' | 'p2' | 'radius'
-const HANDLES: Handle[] = ['nw', 'ne', 'sw', 'se']
+type Corner = 'nw' | 'ne' | 'sw' | 'se'
+type Handle = Corner | 'p1' | 'p2' | 'radius' | `group-${Corner}`
+const HANDLES: Corner[] = ['nw', 'ne', 'sw', 'se']
 const MIN = 12
+
+const boxOfObjs = (list: FreeObj[]) => {
+  const x = Math.min(...list.map((o) => o.x))
+  const y = Math.min(...list.map((o) => o.y))
+  return { x, y, w: Math.max(1, Math.max(...list.map((o) => o.x + o.w)) - x), h: Math.max(1, Math.max(...list.map((o) => o.y + o.h)) - y) }
+}
 // 선은 얇아서 잡기 어려우므로 주변 여백까지 잡히게 합니다
 const LINE_PAD = 8
 
@@ -217,6 +224,23 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
         onChange?.(d.starts.map((s) => ({ ...s, x: r1(s.x + dx), y: r1(s.y + dy) })))
         return
       }
+      // 여러 개 선택: 묶음 모서리를 끌면 반대쪽 모서리를 기준으로 같은 비율로 크기 조절 (글자 크기도 함께)
+      if (d.mode.startsWith('group-')) {
+        const c = d.mode.slice(6)
+        const b = boxOfObjs(d.starts)
+        const ax = c.includes('w') ? b.x + b.w : b.x
+        const ay = c.includes('n') ? b.y + b.h : b.y
+        const kx = (b.w + (c.includes('w') ? -dx : dx)) / b.w
+        const ky = (b.h + (c.includes('n') ? -dy : dy)) / b.h
+        let k = Math.max(0.1, (kx + ky) / 2)
+        // 영역(박스) 밖으로 나가지 않게
+        if (bounds) {
+          const room = (lo: number, hi: number, a: number, from: number, size: number) => (from >= a ? (hi - a) / size : (a - lo) / size)
+          k = Math.min(k, room(bounds.x, bounds.x + bounds.w, ax, b.x, b.w), room(bounds.y, bounds.y + bounds.h, ay, b.y, b.h))
+        }
+        onChange?.(scaleObjects(d.starts, k, { x: ax, y: ay }))
+        return
+      }
       const s = d.starts[0]
       if (d.mode === 'radius') {
         const start = Math.min(s.radius ?? (s.kind === 'image' ? 0 : 12), maxRadius(s))
@@ -295,12 +319,15 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
       onSelect?.(o.id, true)
       return
     }
-    const ids = mode === 'move' && selectedIds.includes(o.id) ? selectedIds : [o.id]
-    if (!selectedIds.includes(o.id) || mode !== 'move') onSelect?.(o.id)
+    const ids = (mode === 'move' || mode.startsWith('group-')) && selectedIds.includes(o.id) ? selectedIds : [o.id]
+    if (!selectedIds.includes(o.id) || (mode !== 'move' && !mode.startsWith('group-'))) onSelect?.(o.id)
     drag.current = { ids, mode, sx: e.clientX, sy: e.clientY, starts: objects.filter((x) => ids.includes(x.id)) }
   }
 
   const single = selectedIds.length === 1
+  // 여러 개를 골랐을 때 묶음 테두리 + 모서리 손잡이
+  const groupObjs = editable && selectedIds.length > 1 ? objects.filter((o) => selectedIds.includes(o.id) && !o.locked) : []
+  const group = groupObjs.length > 1 ? boxOfObjs(groupObjs) : null
 
   return (
     <>
@@ -362,6 +389,27 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
           </div>
         )
       })}
+      {group && !editingId && (
+        <div className="deck-group-frame" style={{ position: 'absolute', left: group.x, top: group.y, width: group.w, height: group.h, pointerEvents: 'none' }}>
+          {HANDLES.map((hd) => (
+            <span
+              key={hd}
+              className={`deck-handle deck-handle-${hd}`}
+              title="끌어서 같은 비율로 크기 조절"
+              // 위치는 직접 지정 (묶음 테두리 모서리)
+              style={{
+                left: hd.includes('w') ? -8 : group.w - 6,
+                top: hd.includes('n') ? -8 : group.h - 6,
+                right: 'auto',
+                bottom: 'auto',
+                transform: `scale(${1 / scale})`,
+                pointerEvents: 'auto',
+              }}
+              onPointerDown={(e) => start(e, groupObjs[0], `group-${hd}`)}
+            />
+          ))}
+        </div>
+      )}
     </>
   )
 }

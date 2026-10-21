@@ -178,6 +178,12 @@
     border-radius: 3px;
     z-index: 5;
   }
+  /* 여러 개 선택했을 때 묶음 테두리 (모서리를 끌면 같은 비율로 크기 조절) */
+  .deck-group-frame {
+    outline: 1.5px dashed #4d6bff;
+    outline-offset: 3px;
+    z-index: 6;
+  }
   .deck-handle-nw {
     left: -8px;
     top: -8px;
