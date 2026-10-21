@@ -13,6 +13,7 @@ import {
   EyeOff,
   ImagePlus,
   Play,
+  Presentation,
   Plus,
   Redo2,
   ScanEye,
@@ -34,6 +35,7 @@ import { LINE_KINDS, clampToArea, fitIntoArea, newImage, newLine, newShape, newT
 import { INSERT_MIME, type InsertPayload } from '../insert'
 import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
 import { fitTextToBoxes } from '../textFit'
+import { GoogleError, SCOPE_FILE, getGoogleToken, loadGoogle, uploadAsGoogleSlides } from '../google'
 import { makeSlide, uid } from '../kits'
 import { FREE_AREA, LAYOUT_MAP, LINE_BOX_AREA, checkSlide, sectionFor } from '../layouts'
 import { BLOCKS, GUIDE_BOXES, newIcon, numberCircle, placeObjects, resolveIcons, tintIcon } from '../library'
@@ -95,10 +97,11 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   const [presenting, setPresenting] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [checkOpen, setCheckOpen] = useState(false)
+  const [checkOpen, setCheckOpen] = useState<false | 'pptx' | 'google'>(false)
+  const [sending, setSending] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
-  const [notice, setNotice] = useState<{ text: string; undo?: () => void; action?: { label: string; run: () => void } } | null>(
+  const [notice, setNotice] = useState<{ text: string; undo?: () => void; action?: { label: string; run: () => void }; ms?: number } | null>(
     initialNotice ? { text: initialNotice } : null,
   )
   const imageField = useRef<string | null>(null)
@@ -424,7 +427,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
 
   useEffect(() => {
     if (!notice) return
-    const t = setTimeout(() => setNotice(null), 6000)
+    const t = setTimeout(() => setNotice(null), notice.ms ?? 6000)
     return () => clearTimeout(t)
   }, [notice])
 
@@ -527,6 +530,28 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     }
   }
 
+  // 구글 슬라이드로 보내기: 회사 계정으로 로그인 → PPTX 를 만들어 내 드라이브에 구글 슬라이드로 올림.
+  // 로그인 창은 누른 그 자리에서 열어야 막히지 않으므로 토큰 요청을 먼저 시작합니다.
+  const sendToGoogle = () => {
+    setCheckOpen(false)
+    const token = getGoogleToken(SCOPE_FILE)
+    token.catch(() => undefined) // 실패는 아래에서 한 번에 안내
+    setSending(true)
+    ;(async () => {
+      try {
+        const { buildDeckPptx } = await import('../exportPptx')
+        const [blob, t] = await Promise.all([buildDeckPptx(deck), token])
+        const link = await uploadAsGoogleSlides(blob, deck.title || '제목 없는 문서', t)
+        setNotice({ text: '내 구글 드라이브에 구글 슬라이드로 만들었어요.', action: { label: '구글 슬라이드 열기', run: () => window.open(link, '_blank', 'noopener') }, ms: 30000 })
+      } catch (e) {
+        console.error(e)
+        setNotice({ text: e instanceof GoogleError ? e.message : '구글 슬라이드로 보내지 못했어요. 잠시 후 다시 시도해 주세요.', ms: 10000 })
+      } finally {
+        setSending(false)
+      }
+    })()
+  }
+
   const exportJson = () => {
     downloadBlob(new Blob([JSON.stringify(deck, null, 2)], { type: 'application/json' }), `${safeFileName(deck.title)}.deck.json`)
   }
@@ -559,9 +584,19 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
           </button>
           <button
             type="button"
+            className="deck-btn"
+            disabled={sending}
+            onMouseEnter={() => loadGoogle().catch(() => undefined)}
+            onClick={() => (allIssues.length ? setCheckOpen('google') : sendToGoogle())}
+            title="회사 구글 계정으로 로그인해서 내 구글 드라이브에 구글 슬라이드로 만듭니다"
+          >
+            {sending ? <LoaderCircle size={16} className="animate-spin" /> : <Presentation size={16} />} 구글 슬라이드로
+          </button>
+          <button
+            type="button"
             className="deck-btn deck-btn-primary"
             disabled={exporting}
-            onClick={() => (allIssues.length ? setCheckOpen(true) : runExport())}
+            onClick={() => (allIssues.length ? setCheckOpen('pptx') : runExport())}
           >
             {exporting ? <LoaderCircle size={16} className="animate-spin" /> : <Download size={16} />} PPTX 다운로드
           </button>
@@ -841,7 +876,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       {checkOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000038]/40 p-6" onClick={() => setCheckOpen(false)}>
           <div className="w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-[17px] font-bold text-[#000038]">다운로드 전에 확인해 주세요</h2>
+            <h2 className="text-[17px] font-bold text-[#000038]">{checkOpen === 'google' ? '보내기' : '다운로드'} 전에 확인해 주세요</h2>
             <p className="mt-1 text-[13px] text-[#7A8099]">빈 칸은 PPTX에서 빠지고, 긴 글은 영역을 넘칠 수 있어요.</p>
             <ul className="mt-4 max-h-[280px] space-y-2 overflow-y-auto">
               {allIssues.map(({ i, issues: list }) => (
@@ -868,8 +903,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
               <button type="button" className="deck-btn" onClick={() => setCheckOpen(false)}>
                 돌아가서 고치기
               </button>
-              <button type="button" className="deck-btn deck-btn-primary" onClick={runExport}>
-                그대로 다운로드
+              <button type="button" className="deck-btn deck-btn-primary" onClick={checkOpen === 'google' ? sendToGoogle : runExport}>
+                {checkOpen === 'google' ? '그대로 보내기' : '그대로 다운로드'}
               </button>
             </div>
           </div>
