@@ -1,5 +1,6 @@
 import { BRAND, ptToPx } from './guide'
 import { FREE_AREA, HEADER_BAR, HEADER_BODY, HEADER_PANELS, LINE_PANELS, linePanelRadius } from './layouts'
+import { GUIDE_EMPHASIS_SIZE } from './freeObjects'
 import { uid } from './kits'
 import type { FreeObj, Geom } from './types'
 
@@ -184,6 +185,10 @@ export interface BlockDef {
 
 const X = FREE_AREA.x
 const Y = FREE_AREA.y + 20
+const W = FREE_AREA.w
+
+// 블록 아래쪽 한 줄 메시지 (네이비 바)
+const bar = (y: number, label: string) => shape(X, y, W, 40, { geom: 'roundRect', fill: C.navy, radius: 6, text: label, size: 9, bold: true, color: C.white })
 
 export const BLOCKS: BlockDef[] = [
   {
@@ -368,6 +373,136 @@ export const BLOCKS: BlockDef[] = [
     description: '파란·네이비 둥근 라벨',
     source: 'Face Trust · Use Case 라벨',
     build: () => [pill(X, Y, 120, 'Use Case'), pill(X + 130, Y, 120, 'AI Solution', C.navy), pill(X + 260, Y, 120, '도입 효과', C.gray)],
+  },
+  // ── 사내 템플릿(이전에 쓰던 GPT 템플릿 샘플)에서 옮긴 구성 ──
+  {
+    id: 'service-cards',
+    label: '3단 카드',
+    description: '서비스·핵심 역량 + 아래 한 줄 메시지',
+    source: '사내 템플릿 · 3단 카드',
+    build: () => {
+      const w = (W - 40) / 3
+      return [
+        ...[0, 1, 2].flatMap((i) => {
+          const x = X + i * (w + 20)
+          return [
+            card(x, Y, w, 210),
+            text(x + 24, Y + 22, w - 48, 18, ['자체 구축이 필요하다면', '데이터가 필요하다면', '검증이 필요하다면'][i], { size: 8, bold: true, color: C.blue }),
+            text(x + 24, Y + 46, w - 48, 24, ['Turnkey 구축', '데이터 공급', '품질 검증'][i], { size: 12, bold: true }),
+            text(x + 24, Y + 84, w - 48, 38, '서비스 내용을 두 줄 이내로\n적어 주세요', { size: 9, color: C.gray }),
+            icon('checkbox', x + 24, Y + 166, 16),
+            text(x + 48, Y + 166, w - 72, 18, ['Output: 운영 환경', 'Output: 검증된 데이터', 'Output: 품질 리포트'][i], { size: 8, bold: true }),
+          ]
+        }),
+        bar(Y + 230, '전체 서비스를 한 문장으로 정리하세요'),
+      ]
+    },
+  },
+  {
+    id: 'compare-panels',
+    label: '좌우 비교',
+    description: '현재 방식 ↔ 개선 방향 (머리띠 + 요약 줄)',
+    source: '사내 템플릿 · 좌우 비교',
+    build: () => {
+      const w = (W - 20) / 2
+      return [0, 1].flatMap((i) => {
+        const x = X + i * (w + 20)
+        return [
+          shape(x, Y, w, 40, { geom: 'round2SameRect', fill: i ? C.blue : C.navy, radius: 8, text: i ? '개선 방향' : '현재 방식', size: 10, bold: true, color: C.white, align: 'left', pad: [20, 0, 20, 0] }),
+          shape(x, Y + 40, w, 250, { fill: C.imageFill }),
+          text(x + 24, Y + 64, w - 48, 24, i ? '핵심 개선 내용을 입력하세요' : '현재 상황을 입력하세요', { size: 10, bold: true }),
+          text(x + 24, Y + 98, w - 48, 80, '• 첫 번째 내용을 입력하세요\n• 두 번째 내용을 입력하세요\n• 세 번째 내용을 입력하세요', { size: 9 }),
+          shape(x + 24, Y + 236, w - 48, 32, { geom: 'roundRect', fill: C.white, radius: 6, text: i ? '기대 효과를 한 줄로 정리하세요' : '핵심 과제를 한 줄로 정리하세요', size: 8, color: C.gray, align: 'left', pad: [14, 0, 14, 0] }),
+        ]
+      })
+    },
+  },
+  {
+    id: 'four-steps',
+    label: '4단계 흐름',
+    description: '01~04 진행 과정 + 아래 핵심 메시지',
+    source: '사내 템플릿 · 4단계 흐름',
+    build: () => {
+      const cw = W / 4
+      return [
+        ...[0, 1, 2, 3].flatMap((i) => {
+          const cx = X + cw * i + cw / 2
+          return [
+            ...(i < 3 ? [line(cx + 34, Y + 22, cx + cw - 34, Y + 22, { color: C.line, width: 1.5 })] : []),
+            shape(cx - 22, Y, 44, 44, { geom: 'ellipse', fill: i ? C.imageFill : C.blue, text: `0${i + 1}`, size: 9, bold: true, color: i ? C.blue : C.white, pad: NO_PAD }),
+            text(cx - cw / 2 + 12, Y + 60, cw - 24, 20, ['데이터 수집', '데이터 가공', '품질 검증', '모델 활용'][i], { size: 10, bold: true, align: 'center' }),
+            text(cx - cw / 2 + 12, Y + 86, cw - 24, 36, '단계별 핵심 내용을\n적어 주세요', { size: 8, color: C.gray, align: 'center' }),
+          ]
+        }),
+        bar(Y + 150, '전체 프로세스의 핵심 메시지를 입력하세요'),
+      ]
+    },
+  },
+  {
+    id: 'kpi-cards',
+    label: '핵심 수치',
+    description: '지표 이름 + 큰 숫자 + 기준 (연한 카드)',
+    source: '사내 템플릿 · 핵심 수치',
+    build: () => {
+      const w = (W - 40) / 3
+      return [0, 1, 2].flatMap((i) => {
+        const x = X + i * (w + 20)
+        return [
+          shape(x, Y, w, 220, { geom: 'roundRect', fill: C.imageFill, radius: 12 }),
+          text(x + 24, Y + 22, w - 48, 18, `핵심 지표 0${i + 1}`, { size: 9, bold: true }),
+          // 큰 숫자: 가이드 간지 타이틀 크기(27pt)
+          text(x + 24, Y + 50, w - 48, 60, '00%', { size: GUIDE_EMPHASIS_SIZE, bold: true, color: C.blue }),
+          text(x + 24, Y + 124, w - 48, 36, '수치의 의미와 비교 기준을\n적어 주세요', { size: 9, color: C.gray }),
+          text(x + 24, Y + 186, w - 48, 16, '측정 기준 · 기간 명시', { size: 8, color: C.crumb }),
+        ]
+      })
+    },
+  },
+  {
+    id: 'image-text',
+    label: '이미지와 설명',
+    description: '왼쪽 이미지 자리 + 오른쪽 소개 문구',
+    source: '사내 템플릿 · 이미지와 설명',
+    build: () => {
+      const iw = W / 2 - 10
+      const x = X + iw + 40
+      const w = W - iw - 40
+      return [
+        shape(X, Y, iw, 320, { geom: 'roundRect', fill: C.imageFill, radius: 12, text: '이미지 자리 — 그림을 넣고 이 상자는 지워 주세요', size: 9, color: C.gray }),
+        text(x, Y + 12, w, 18, 'SOLUTION / CASE', { size: 8, bold: true, color: C.blue }),
+        text(x, Y + 38, w, 34, '핵심 소개 문구를 입력하세요', { size: 12, bold: true }),
+        text(x, Y + 90, w, 60, '제품이나 사례의 특징을\n두세 줄로 설명하세요', { size: 9, color: C.gray }),
+        shape(x, Y + 276, w, 44, { geom: 'roundRect', fill: C.navy, radius: 6, text: '가장 중요한 메시지를 입력하세요', size: 9, bold: true, color: C.white }),
+      ]
+    },
+  },
+  {
+    id: 'architecture',
+    label: '구성도',
+    description: '입력 3개 → 핵심 처리 → 결과 2개',
+    source: '사내 템플릿 · 구성도',
+    build: () => {
+      const bw = 240
+      const core = { x: X + W / 2 - 130, y: Y + 80, w: 260, h: 110 }
+      const outX = X + W - bw
+      return [
+        ...[0, 1, 2].flatMap((i) => {
+          const y = Y + i * 96
+          return [
+            line(X + bw + 10, y + 32, core.x - 10, core.y + core.h / 2, { color: C.crumb }),
+            shape(X, y, bw, 64, { geom: 'roundRect', fill: C.imageFill, radius: 8, text: `입력 데이터 ${'ABC'[i]}`, size: 9, bold: true }),
+          ]
+        }),
+        ...[0, 1].flatMap((i) => {
+          const y = Y + 48 + i * 112
+          return [
+            line(core.x + core.w + 10, core.y + core.h / 2, outX - 10, y + 32, { color: C.crumb }),
+            shape(outX, y, bw, 64, { geom: 'roundRect', fill: C.white, line: C.blue, radius: 8, text: `결과 / 활용 ${'AB'[i]}`, size: 9, bold: true, color: C.blue }),
+          ]
+        }),
+        shape(core.x, core.y, core.w, core.h, { geom: 'roundRect', fill: C.navy, radius: 10, text: '**핵심 처리 단계**\n분석 · 가공 · 검증', size: 10, color: C.white }),
+      ]
+    },
   },
 ]
 

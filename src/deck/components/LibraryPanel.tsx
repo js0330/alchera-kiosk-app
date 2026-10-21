@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { Info, X } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import { BRAND } from '../guide'
 import { dragProps } from '../insert'
@@ -39,6 +39,21 @@ const BoxPreview = memo(function BoxPreview({ block }: { block: BlockDef }) {
     </div>
   )
 })
+
+// 항목 이름 + ⓘ: 설명은 ⓘ 에 마우스를 올렸을 때만 보여 줍니다 (목록을 단순하게)
+function ItemTitle({ label, tip }: { label: string; tip: string }) {
+  return (
+    <div className="relative flex items-center gap-1 border-t border-[#EEF1F7] px-3 py-2">
+      <p className="text-[12px] font-bold text-[#000038]">{label}</p>
+      <span className="group/tip flex p-0.5" aria-label={tip} onClick={(e) => e.stopPropagation()}>
+        <Info size={13} className="text-[#B4BAC9] transition group-hover/tip:text-[#0000A5]" />
+        <span className="pointer-events-none absolute bottom-full left-2 right-2 z-20 mb-1 whitespace-pre-line rounded-md bg-[#000038] px-2.5 py-1.5 text-[11px] leading-snug text-white opacity-0 shadow-lg transition group-hover/tip:opacity-100">
+          {tip}
+        </span>
+      </span>
+    </div>
+  )
+}
 
 // 웹플로우의 "추가" 패널처럼: 샘플덱에서 가져온 구성 블록 · 아이콘 · 도형을 클릭하거나 슬라이드로 끌어다 놓습니다.
 export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock, onBox }: LibraryPanelProps) {
@@ -91,10 +106,7 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock
                     {...dragProps({ type: 'box', id: b.id })}
                   >
                     <BoxPreview block={b} />
-                    <div className="border-t border-[#EEF1F7] px-3 py-2">
-                      <p className="text-[12px] font-bold text-[#000038]">{b.label}</p>
-                      <p className="text-[11px] leading-snug text-[#7A8099]">{b.description}</p>
-                    </div>
+                    <ItemTitle label={b.label} tip={b.description} />
                   </button>
                 </li>
               ))}
@@ -112,11 +124,7 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock
                   {...dragProps({ type: 'block', id: b.id })}
                 >
                   <BlockPreview block={b} />
-                  <div className="border-t border-[#EEF1F7] px-3 py-2">
-                    <p className="text-[12px] font-bold text-[#000038]">{b.label}</p>
-                    <p className="text-[11px] leading-snug text-[#7A8099]">{b.description}</p>
-                    <p className="mt-0.5 text-[10px] text-[#9CA3AF]">샘플: {b.source}</p>
-                  </div>
+                  <ItemTitle label={b.label} tip={`${b.description}\n샘플: ${b.source}`} />
                 </button>
               </li>
             ))}

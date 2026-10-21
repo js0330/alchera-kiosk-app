@@ -1,7 +1,7 @@
 import { ArrowDownToLine, ArrowUpToLine, Bold, Copy, Lock, TextAlignCenter, TextAlignEnd, TextAlignStart, Trash2, WandSparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { BRAND } from '../guide'
-import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, hasRadius, maxRadius } from '../freeObjects'
+import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, hasRadius, isGuideSize, maxRadius } from '../freeObjects'
 import { SHAPES } from '../shapes'
 import type { FreeObj, Geom, LineDash, LineEnd } from '../types'
 
@@ -144,7 +144,7 @@ export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOr
   const icons = objs.filter((o) => o.kind === 'image' && o.icon)
   const s0 = shapes[0]
   const l0 = lines[0]
-  const offGuideSize = s0?.text && !GUIDE_TEXT_SIZES.includes((s0.size ?? 10) as (typeof GUIDE_TEXT_SIZES)[number])
+  const offGuideSize = s0?.text && !isGuideSize(s0.size ?? 10)
   const title = objs.length === 1 ? kindName(objs[0]) : `${objs.length}개 선택`
 
   return (
