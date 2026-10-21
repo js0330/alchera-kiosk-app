@@ -1,4 +1,4 @@
-import { ArrowRight, Copy, Trash2, Upload } from 'lucide-react'
+import { ArrowRight, Check, Copy, Sparkle, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import FitWidth from '../components/FitWidth'
 import ImportDialog from '../components/ImportDialog'
@@ -7,8 +7,8 @@ import SlideCanvas from '../components/SlideCanvas'
 import { KITS, createDeckFromKit, createDeckFromLayout, uid, type Kit } from '../kits'
 import { SAMPLES } from '../samples'
 import SampleCard from '../components/SampleCard'
+import DeckCard from '../components/DeckCard'
 import { VISIBLE_LAYOUTS } from '../layouts'
-import { BRAND } from '../guide'
 import type { Deck } from '../types'
 
 interface TemplatesPageProps {
@@ -23,7 +23,7 @@ function KitPreview({ kit }: { kit: Kit }) {
   const deck = createDeckFromKit(kit)
   const shown = deck.slides.slice(0, 3)
   return (
-    <div className="relative h-[136px]">
+    <div className="relative h-[136px] w-[226px]">
       {shown
         .map((s, i) => (
           <div
@@ -39,6 +39,76 @@ function KitPreview({ kit }: { kit: Kit }) {
   )
 }
 
+// 섹션 머리: 제목 + 개수 + 오른쪽 링크
+function SectionHead({ title, count, link }: { title: string; count?: number; link?: { href: string; label: string } }) {
+  return (
+    <div className="flex items-end justify-between gap-3">
+      <h2 className="flex items-baseline gap-2 text-[19px] font-bold tracking-[-0.01em] text-[#000038]">
+        {title}
+        {count !== undefined && <span className="text-[13px] font-medium text-[#8A90A6]">{String(count).padStart(2, '0')}</span>}
+      </h2>
+      {link && (
+        <a href={link.href} className="inline-flex items-center gap-1 text-[12px] text-[#5A6080] hover:text-[#0000A5]">
+          {link.label} <ArrowRight size={13} />
+        </a>
+      )}
+    </div>
+  )
+}
+
+// Hero 오른쪽 그림: 격자 · 원 · 기울어진 슬라이드 · 떠 있는 확인 카드 (넓은 화면에서만)
+function HeroArt() {
+  return (
+    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] lg:block" aria-hidden>
+      <div
+        className="absolute inset-0 opacity-60"
+        style={{
+          backgroundImage: 'linear-gradient(#D9DEF5 1px, transparent 1px), linear-gradient(90deg, #D9DEF5 1px, transparent 1px)',
+          backgroundSize: '28px 28px',
+          maskImage: 'linear-gradient(90deg, transparent, #000 35%)',
+          WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 35%)',
+        }}
+      />
+      <div className="absolute left-[22%] top-1/2 h-[300px] w-[300px] -translate-y-1/2 rounded-full border border-[#C3CAF0]" />
+      <div className="absolute left-[30%] top-1/2 h-[220px] w-[220px] -translate-y-1/2 rounded-full border border-[#D3D8F4]" />
+      {/* 슬라이드 */}
+      <div className="absolute left-[8%] top-[18%] w-[300px] -rotate-[5deg] rounded-xl border border-[#D5DAF2] bg-white p-4 shadow-[0_18px_40px_rgba(26,29,61,0.10)]">
+        <div className="flex gap-1">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="h-1 w-1 rounded-full bg-[#A9B1DA]" />
+          ))}
+        </div>
+        <div className="mt-4 flex gap-4">
+          <div className="w-[70px] space-y-2 pt-1">
+            {[44, 34, 48, 38].map((w, i) => (
+              <span key={i} className="block h-1.5 rounded-full bg-[#D5DAF2]" style={{ width: w }} />
+            ))}
+          </div>
+          <div className="flex-1">
+            <span className="block h-2 w-[120px] rounded-full bg-[#5A6BC0]" />
+            <span className="mt-2 block h-1.5 w-[86px] rounded-full bg-[#D5DAF2]" />
+            <div className="mt-4 flex gap-2.5">
+              <div className="flex h-[66px] w-[66px] items-center justify-center rounded-md bg-[#A3AEF2]">
+                <span className="h-6 w-6 rotate-45 border-2 border-[#5A6BC0]" />
+              </div>
+              <div className="h-[66px] w-[66px] rounded-md bg-[#EEF0FB]" />
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* 확인 카드 */}
+      <div className="absolute right-[9%] top-[44%] flex rotate-[4deg] items-center gap-3 rounded-xl border border-[#D5DAF2] bg-white px-4 py-3 shadow-[0_12px_30px_rgba(26,29,61,0.10)]">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EEF0FB] text-[#3A4BB0]">
+          <Check size={14} strokeWidth={2.5} />
+        </span>
+        <span className="text-[13px] font-semibold text-[#1A1D3D]">On guide, every slide.</span>
+      </div>
+      <Sparkle size={26} strokeWidth={1.4} className="absolute right-[8%] top-[14%] text-[#5A6BC0]" />
+      <p className="absolute bottom-6 right-8 text-[10px] font-medium tracking-[0.22em] text-[#8A90B8]">YOUR CONTENT, ON GUIDE</p>
+    </div>
+  )
+}
+
 const formatDate = (t: number) =>
   new Date(t).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -49,69 +119,61 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
 
   return (
     <div className="pb-20">
-      {/* Hero */}
-      <section className="text-white" style={{ background: `#000038 url(${BRAND.coverBg}) right center / cover no-repeat` }}>
-        <div className="relative mx-auto max-w-[1200px] overflow-hidden px-4 py-14 sm:px-6">
-          <p className="text-[12px] font-bold tracking-[0.12em] text-[#7B8CFF]">ALCHERA PPT TEMPLATE · ver.260507</p>
-          <h1 className="mt-3 text-[30px] font-bold leading-tight sm:text-[38px]">
-            내용만 쓰세요.
-            <br />
-            디자인은 가이드가 맞춥니다.
-          </h1>
-          <p className="mt-4 max-w-[520px] text-[15px] leading-relaxed text-[#D3D7EE]">
-            알체라 PPT 가이드의 레이아웃을 고르고 칸에 글만 채우세요. 글꼴·크기·색·위치는 가이드 그대로 들어가고, 다운로드한 PPTX는 다시 손볼 필요가 없어요.
-          </p>
-          <div className="mt-7 flex flex-wrap gap-2">
-            <button type="button" className="deck-btn deck-btn-primary h-10 px-5" onClick={() => setImporting(true)}>
-              <Upload size={16} /> PPT · 텍스트 불러와서 가이드에 맞추기
-            </button>
-            <button
-              type="button"
-              className="deck-btn h-10 border-white/20 bg-white/10 px-5 text-white hover:bg-white/20"
-              onClick={() => onOpen(createDeckFromKit(KITS[0]))}
-            >
-              솔루션 소개서로 새로 시작 <ArrowRight size={16} />
-            </button>
+      <div className="mx-auto max-w-[1200px] px-4 pt-8 sm:px-6">
+        {/* Hero: 연한 라벤더 카드 + 오른쪽 슬라이드 일러스트 */}
+        <section className="relative overflow-hidden rounded-3xl border border-[#DDE2F6] bg-gradient-to-br from-[#EEF0FC] to-[#E6E9FA]">
+          <div className="relative z-10 px-7 py-12 sm:px-12 sm:py-14 lg:max-w-[560px]">
+            <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.16em] text-[#3A3F7A]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#3A3F7A]" />
+              ALCHERA PPT TEMPLATE · VER.260507
+            </p>
+            <h1 className="mt-5 break-keep text-[30px] font-bold leading-[1.25] tracking-[-0.02em] text-[#1A1D3D] sm:text-[38px]">
+              내용만 쓰세요.
+              <br />
+              디자인은 가이드가 맞춥니다.
+            </h1>
+            <p className="mt-4 text-[13px] text-[#5A6080]">가이드 레이아웃 · 요소 라이브러리 · PPTX 다운로드</p>
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+              <button type="button" className="deck-btn deck-btn-primary h-10 rounded-lg px-5" onClick={() => onOpen(createDeckFromKit(KITS[0]))}>
+                솔루션 소개서로 시작 <ArrowRight size={15} />
+              </button>
+              <button type="button" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#2A2F8F] hover:underline" onClick={() => setImporting(true)}>
+                PPT · 텍스트 불러와서 가이드에 맞추기 <ArrowRight size={14} />
+              </button>
+            </div>
           </div>
-        </div>
-      </section>
+          <HeroArt />
+        </section>
+      </div>
 
       <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
         {/* 시작 키트 */}
-        <section className="mt-12">
-          <h2 className="text-[20px] font-bold text-[#000038]">어떤 자료를 만드세요?</h2>
-          <p className="mt-1 text-[13px] text-[#7A8099]">상황에 맞는 슬라이드 흐름이 미리 짜여 있어요. 칸마다 무엇을 쓸지 안내가 들어 있습니다.</p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {KITS.map((kit) => (
-              <button
+        <section className="mt-14">
+          <SectionHead title="어떤 자료를 만드세요?" count={KITS.length} />
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {KITS.map((kit, i) => (
+              <DeckCard
                 key={kit.id}
-                type="button"
                 onClick={() => onOpen(createDeckFromKit(kit))}
-                className="group rounded-2xl border border-[#E0E5F0] bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-[#4D6BFF] hover:shadow-lg"
-              >
-                <KitPreview kit={kit} />
-                <div className="mt-4 flex items-center justify-between">
-                  <h3 className="text-[15px] font-bold text-[#000038]">{kit.name}</h3>
-                  <span className="rounded-full bg-[#F2F4FB] px-2 py-0.5 text-[11px] font-semibold text-[#0000A5]">{kit.slides.length}장</span>
-                </div>
-                <p className="mt-1 text-[12px] leading-relaxed text-[#7A8099]">{kit.description}</p>
-              </button>
+                index={`KIT / ${String(i + 1).padStart(2, '0')}`}
+                kicker={kit.id === 'blank' ? 'Free start' : 'Solution deck'}
+                tag={`${kit.slides.length}장`}
+                title={kit.name}
+                // 설명 '표지 제목이 한 줄일 때. 표지 → 목차 → …' 의 앞은 설명, 뒤의 흐름은 아래 줄로
+                desc={kit.description.split('. ')[0]}
+                footer={kit.description.split('. ')[1] ?? '새 문서로 시작'}
+                preview={<KitPreview kit={kit} />}
+              />
             ))}
           </div>
         </section>
 
         {/* 샘플 덱 */}
         <section className="mt-14">
-          <div className="flex items-end justify-between gap-3">
-            <h2 className="text-[20px] font-bold text-[#000038]">알체라 샘플 덱</h2>
-            <a href="#sales" className="text-[13px] font-semibold text-[#0000A5] hover:underline">
-              세일즈덱 모아보기 →
-            </a>
-          </div>
-          <p className="mt-1 text-[13px] text-[#7A8099]">알체라 세일즈덱이에요. 누르면 구글 슬라이드 원본이 열려요. 필요한 요소는 구글 슬라이드에서 복사해 스튜디오에 붙여넣을 수 있어요.</p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SAMPLES.map((s) => (
-              <SampleCard key={s.id} sample={s} />
+          <SectionHead title="알체라 세일즈덱" count={SAMPLES.length} link={{ href: '#sales', label: '전체 보기' }} />
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {SAMPLES.map((s, i) => (
+              <SampleCard key={s.id} sample={s} index={i} />
             ))}
           </div>
         </section>
@@ -119,11 +181,11 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
         {/* 내 문서 */}
         {recent.length > 0 && (
           <section className="mt-14">
-            <h2 className="text-[20px] font-bold text-[#000038]">내 문서</h2>
-            <p className="mt-1 text-[13px] text-[#7A8099]">이 브라우저에 저장돼요. 팀원과 나누려면 스튜디오의 ‘편집 파일’로 내보내세요.</p>
+            <SectionHead title="내 문서" count={recent.length} />
+            <p className="mt-1 text-[12px] text-[#8A90A6]">이 브라우저에 저장돼요. 팀원과 나누려면 스튜디오의 ‘편집 파일’로 내보내세요.</p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {recent.map((d) => (
-                <div key={d.id} className="group overflow-hidden rounded-2xl border border-[#E0E5F0] bg-white transition hover:shadow-lg">
+                <div key={d.id} className="group overflow-hidden rounded-2xl border border-[#E6EAF3] bg-white transition hover:shadow-[0_8px_24px_rgba(0,0,56,0.06)]">
                   <button type="button" className="block w-full bg-[#EEF1F7] p-3" onClick={() => onOpen(d)}>
                     <div className="overflow-hidden rounded-md shadow-sm">
                       <FitWidth>{(w) => <SlideCanvas slide={d.slides[0]} index={0} width={w} />}</FitWidth>
@@ -164,19 +226,15 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
 
         {/* 레이아웃 라이브러리 */}
         <section className="mt-14">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-[20px] font-bold text-[#000038]">레이아웃 라이브러리</h2>
-              <p className="mt-1 text-[13px] text-[#7A8099]">표지·목차·간지·본문·마무리 {VISIBLE_LAYOUTS.length}가지. 본문 안의 칸은 요소 라이브러리의 가이드 박스·블록으로 채워요.</p>
-            </div>
-          </div>
+          <SectionHead title="레이아웃 라이브러리" count={VISIBLE_LAYOUTS.length} />
+          <p className="mt-1 text-[12px] text-[#8A90A6]">본문 안의 칸은 요소 라이브러리의 가이드 박스·블록으로 채워요.</p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {VISIBLE_LAYOUTS.map((l) => (
               <button
                 key={l.id}
                 type="button"
                 onClick={() => onOpen(createDeckFromLayout(l.id))}
-                className="group rounded-2xl border border-[#E0E5F0] bg-white p-3 text-left transition hover:border-[#4D6BFF] hover:shadow-lg"
+                className="group rounded-2xl border border-[#E6EAF3] bg-white p-3 text-left transition hover:border-[#C9D1F5] hover:shadow-[0_8px_24px_rgba(0,0,56,0.06)]"
               >
                 <div className="overflow-hidden rounded-lg ring-1 ring-[#E0E5F0]">
                   <FitWidth>{(w) => <LayoutThumb id={l.id} width={w} />}</FitWidth>
