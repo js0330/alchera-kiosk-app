@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { itemsToObjects, readSlideItems, readTheme } from './importKeep'
-import { EMU_ATTR, all, boxFromXfrm, boxOf, ident, kid, kids, normPh, type Box, type Xform } from './pptxXml'
+import { EMU_ATTR, all, boxFromXfrm, boxOf, ident, kid, kids, normPh, visibleChildren, type Box, type Xform } from './pptxXml'
 import { BRAND } from './guide'
 import { makeSlide, uid } from './kits'
 import { LINE_BOX_AREA } from './layouts'
@@ -280,7 +280,7 @@ function readParas(txBody: Element): Para[] {
     .filter((p) => p.plain)
 }
 
-async function readSlideShapes(zip: JSZip, path: string) {
+async function readSlideShapes(zip: JSZip, path: string, W: number, H: number) {
   const parse = (s: string) => new DOMParser().parseFromString(s, 'application/xml')
   const xml = parse(await zip.file(path)!.async('string'))
   const relsPath = path.replace(/slides\/(slide\d+\.xml)$/, 'slides/_rels/$1.rels')
@@ -323,8 +323,8 @@ async function readSlideShapes(zip: JSZip, path: string) {
     return (idx ? phBoxes.get(`idx:${idx}`) : undefined) ?? phBoxes.get(`type:${normPh(ph.getAttribute('type'))}`)
   }
 
-  const walk = async (tree: Element, t: Xform) => {
-    for (const el of Array.from(tree.children)) {
+  const walk = async (tree: Element, t: Xform, list: Element[] = Array.from(tree.children)) => {
+    for (const el of list) {
       if (el.tagName === 'p:sp') {
         const box = boxOf(kid(el, 'p:spPr'), t)
         const ph = kid(kid(kid(el, 'p:nvSpPr'), 'p:nvPr'), 'p:ph')
@@ -384,7 +384,7 @@ async function readSlideShapes(zip: JSZip, path: string) {
     }
   }
   const tree = all(xml, 'p:spTree')[0]
-  if (tree) await walk(tree, ident)
+  if (tree) await walk(tree, ident, visibleChildren(tree, W, H))
 
   let notes = ''
   const notesRel = Object.values(rels).find((r) => r.type.endsWith('/notesSlide'))
@@ -562,7 +562,7 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
   const norm = (x: string) => x.replace(/[\s.·]/g, '')
   for (const [i, path] of paths.entries()) {
     if (!zip.file(path)) continue
-    const { texts, pics, notes, rels, inherited } = await readSlideShapes(zip, path)
+    const { texts, pics, notes, rels, inherited } = await readSlideShapes(zip, path, W, H)
     const s = interpret(texts, pics, W, H)
     if (s.images[0]) s.images = [await shrinkImage(s.images[0])].filter(Boolean)
     const last = i === paths.length - 1
@@ -579,7 +579,7 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
       // 본문: 키 네임·타이틀·서브는 가이드 상단 칸에 넣고, 그 위쪽 머리 영역을 뺀 나머지 내용은 그대로 옮깁니다.
       //  keep    → 자유 배치 (가이드 박스 선 없이, 그 자리 안쪽에 원래 배치대로)
       //  rebuild → 라인형 1단 (가이드 박스 선 + 그 안쪽)
-      const items = await readSlideItems(zip, path, rels, theme, inherited)
+      const items = await readSlideItems(zip, path, rels, theme, inherited, W, H)
       const titleItem = items.find((it) => it.ph === 'title') ?? items.find((it) => it.text && s.title && it.text.plain.replace(/\s+/g, ' ') === s.title)
       // 서브는 채우기·테두리 없는 글 상자일 때만 (도식 안의 박스를 서브로 오인하지 않도록)
       const subItem = s.sub ? items.find((it) => it !== titleItem && it.text && !it.fill && !it.line && it.text.plain.replace(/\s+/g, ' ') === s.sub) : undefined
@@ -602,9 +602,18 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
     }
 
     if (layout === 'cover') {
-      deckTitle ||= s.title
-      const subtitle = [s.sub, ...s.blocks.flatMap((b) => [b.title, b.sub, ...b.lines])].filter(Boolean).map((x) => x!.replace(/\*\*/g, '')).join('\n')
-      slides.push(makeSlide('cover', { title: clip(s.title || fileTitle, 36), subtitle: clip(subtitle, 80) }, notes))
+      // 표지 제목: 제목 자리표시자가 없으면 가장 큰 글자를 제목으로, 그 바로 아래 글을 서브로 씁니다
+      const coverTexts = texts.filter((x) => !(x.ph === 'sldNum' || x.ph === 'dt' || x.ph === 'ftr') && x.paras.some((pp) => pp.plain.trim()))
+      const sizeOf = (x: TextShape) => Math.max(0, ...x.paras.map((pp) => pp.size))
+      const big = texts.find((x) => x.ph === 'title' || x.ph === 'ctrTitle') ?? [...coverTexts].sort((a, b) => sizeOf(b) - sizeOf(a))[0]
+      const linesOf = (x: TextShape) => x.paras.map((pp) => pp.plain.trim()).filter(Boolean)
+      const title = big ? linesOf(big).join(' ') : s.title
+      const below = big ? coverTexts.filter((x) => x !== big && x.y >= big.y + big.h * 0.5).sort((a, b) => a.y - b.y)[0] : undefined
+      const subtitle = below
+        ? linesOf(below).join(' ')
+        : [s.sub, ...s.blocks.flatMap((b) => [b.title, b.sub, ...b.lines])].filter(Boolean).map((x) => x!.replace(/\*\*/g, '')).join('\n')
+      deckTitle ||= title
+      slides.push(makeSlide('cover', { title: clip(title || fileTitle, 36), subtitle: clip(subtitle, 80) }, notes))
     } else if (layout === 'contents') {
       const items =
         outline?.kind === 'contents' ? outline.items : s.blocks.flatMap((b) => [b.title, b.sub, ...b.lines]).filter(Boolean).map((x) => stripNumber(x!.replace(/\*\*/g, '')))

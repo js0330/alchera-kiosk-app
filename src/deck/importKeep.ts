@@ -3,7 +3,7 @@ import { BRAND } from './guide'
 import { uid } from './kits'
 import { FREE_AREA } from './layouts'
 import type { Area } from './freeObjects'
-import { EMU_ATTR, all, boxFromXfrm, boxOf, ident, kid, kids, normPh, type Box, type Xform } from './pptxXml'
+import { EMU_ATTR, all, boxFromXfrm, boxOf, ident, kid, kids, normPh, visibleChildren, type Box, type Xform } from './pptxXml'
 import { SHAPES } from './shapes'
 import type { FreeObj, Geom, LineDash, LineEnd } from './types'
 
@@ -266,6 +266,8 @@ export async function readSlideItems(
   rels: Record<string, { target: string; type: string }>,
   theme: ThemeColors,
   inherited: (ph: Element) => Box | undefined,
+  W: number,
+  H: number,
 ): Promise<RawItem[]> {
   const xml = parse(await zip.file(path)!.async('string'))
   const items: RawItem[] = []
@@ -287,8 +289,8 @@ export async function readSlideItems(
     return c.some((x) => x !== 0) ? c : undefined
   }
 
-  const walk = async (tree: Element, t: Xform) => {
-    for (const el of Array.from(tree.children)) {
+  const walk = async (tree: Element, t: Xform, list: Element[] = Array.from(tree.children)) => {
+    for (const el of list) {
       const tag = el.tagName
       if (tag === 'p:sp' || tag === 'p:cxnSp') {
         const spPr = kid(el, 'p:spPr')
@@ -392,7 +394,7 @@ export async function readSlideItems(
     }
   }
   const tree = all(xml, 'p:spTree')[0]
-  if (tree) await walk(tree, ident)
+  if (tree) await walk(tree, ident, visibleChildren(tree, W, H))
   return items
 }
 
@@ -440,7 +442,8 @@ export async function itemsToObjects(items: RawItem[], slideW: number, slideH: n
     const a = it.w * it.h
     if (it.kind !== 'line' && a > area * 0.9 && !it.text) return false // 배경
     if (it.kind === 'image' && a < area * 0.03 && (it.y < slideH * 0.16 || it.y > slideH * 0.86)) return false // 로고
-    if (it.text && /^\d{1,3}$/.test(it.text.plain) && it.y > slideH * 0.85) return false // 페이지 번호
+    if (it.text && /^\d{1,3}(\s*\/\s*\d{1,3})?$/.test(it.text.plain.trim()) && it.y > slideH * 0.85) return false // 페이지 번호 (3 · 03 / 16)
+    if (it.text && /^alchera\b/i.test(it.text.plain.trim()) && it.text.plain.length < 60 && it.y > slideH * 0.88) return false // 원본 아래 꼬리말 (가이드 로고가 대신)
     return true
   })
   if (!keep.length) return []
