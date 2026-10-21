@@ -35,7 +35,7 @@ import { INSERT_MIME, type InsertPayload } from '../insert'
 import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
 import { makeSlide, uid } from '../kits'
 import { FREE_AREA, LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
-import { BLOCKS, GUIDE_BOXES, newIcon, placeObjects, resolveIcons, tintIcon } from '../library'
+import { BLOCKS, GUIDE_BOXES, newIcon, numberCircle, placeObjects, resolveIcons, tintIcon } from '../library'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, FreeObj, LayoutId, Slide } from '../types'
 
@@ -434,6 +434,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     if (p.type === 'shape') return [newShape(p.geom)]
     if (p.type === 'line') return [newLine(LINE_KINDS.find((k) => k.id === p.id) ?? LINE_KINDS[0])]
     if (p.type === 'icon') return [newIcon(p.id)]
+    if (p.type === 'number') return numberCircle(p.n, p.style)
     if (p.type === 'box') return GUIDE_BOXES.find((b) => b.id === p.id)?.build() ?? []
     return BLOCKS.find((b) => b.id === p.id)?.build() ?? []
   }
@@ -687,6 +688,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             onShape={(g) => addObj(newShape(g))}
             onLine={(k) => addObj(newLine(k))}
             onIcon={(id) => insert([newIcon(id)], freeCenter)}
+            onNumber={(n, style) => insert(numberCircle(n, style), freeCenter)}
             onBlock={(b) => insert(b.build())}
             onBox={(b, lock) => insert(lock ? b.build().map((o) => ({ ...o, locked: true })) : b.build(), undefined, true)}
             layoutIsFree={slide.layout === 'free'}

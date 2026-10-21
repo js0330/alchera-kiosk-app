@@ -1,7 +1,7 @@
 import { ArrowDownToLine, ArrowUpToLine, Bold, Copy, Lock, TextAlignCenter, TextAlignEnd, TextAlignStart, Trash2, WandSparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { BRAND } from '../guide'
-import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, hasRadius, isGuideSize, maxRadius } from '../freeObjects'
+import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINE_HEIGHTS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, hasRadius, isGuideSize, maxRadius } from '../freeObjects'
 import { SHAPES } from '../shapes'
 import type { FreeObj, Geom, LineDash, LineEnd } from '../types'
 
@@ -186,6 +186,13 @@ export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOr
             ))}
           </Row>
           {offGuideSize && <p className="text-right text-[11px] text-[#F1A11D]">지금 {s0.size}pt — 가이드 크기가 아니에요</p>}
+          <Row label="줄 간격">
+            {GUIDE_LINE_HEIGHTS.map((h) => (
+              <button key={h} type="button" className={chip((s0.lineHeight ?? 1.3) === h)} onClick={() => onPatch({ lineHeight: h })}>
+                {h}
+              </button>
+            ))}
+          </Row>
           <Row label="글자 색">
             {GUIDE_TEXT_COLORS.map((c) => (
               <Swatch key={c} color={c} active={s0.color === c} onClick={() => onPatch({ color: c })} />
