@@ -4,6 +4,7 @@ import { EMU_ATTR, all, boxFromXfrm, boxOf, ident, kid, kids, normPh, type Box, 
 import { BRAND } from './guide'
 import { makeSlide, uid } from './kits'
 import { LINE_BOX_AREA } from './layouts'
+import { fitTextToBoxes } from './textFit'
 import { isDeck } from './store'
 import type { Deck, LayoutId, Slide } from './types'
 
@@ -542,7 +543,8 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
       // 타이틀 위쪽 머리 영역(상단 목차·장식 띠)은 가이드 상단이 대신하므로 뺍니다
       const body = items.filter((it) => it !== titleItem && it !== subItem && !(titleItem && it.kind !== 'image' && it.y + it.h <= headerBottom + H * 0.01 && it.h < H * 0.12 && !it.fill))
       const boxed = mode === 'rebuild'
-      const objects = await itemsToObjects(body, W, H, boxed ? LINE_BOX_AREA : undefined)
+      // 원본 글꼴보다 넓게 그려져 상자를 넘치는 글은 상자에 맞게 줄입니다
+      const objects = await fitTextToBoxes(await itemsToObjects(body, W, H, boxed ? LINE_BOX_AREA : undefined))
       if (objects.length || boxed) {
         const slide = makeSlide(boxed ? 'line-box' : 'free', { crumb: clip(s.crumb, 40), title: clip(s.title, 60), sub: clip(s.sub, 90) }, notes)
         slides.push({ ...slide, objects })

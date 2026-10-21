@@ -143,7 +143,7 @@ export function clampToArea(o: FreeObj, a: Area): FreeObj {
   return x === o.x && y === o.y && w === o.w && h === o.h ? o : { ...o, x: r1(x), y: r1(y), w: r1(w), h: r1(h) }
 }
 
-// 요소 묶음(블록·붙여넣기)을 영역 안에 맞춥니다: 넘치면 비율대로 줄이고 안으로 옮깁니다 (글자 크기는 그대로)
+// 요소 묶음(블록·붙여넣기)을 영역 안에 맞춥니다: 넘치면 글자 크기까지 비율대로 줄이고 안으로 옮깁니다
 export function fitIntoArea(objs: FreeObj[], a: Area): FreeObj[] {
   if (!objs.length) return objs
   const minX = Math.min(...objs.map((o) => o.x))
@@ -164,6 +164,14 @@ export function fitIntoArea(objs: FreeObj[], a: Area): FreeObj[] {
         w: r1(o.w * k),
         h: r1(o.h * k),
         radius: o.radius !== undefined ? r1(o.radius * k) : undefined,
+        // 줄인 만큼 글자·안쪽 여백·선 두께도 함께 줄여 원본 비율을 지킵니다
+        ...(k < 1
+          ? {
+              size: o.size !== undefined ? r1(o.size * k) : undefined,
+              pad: o.pad ? (o.pad.map((v) => r1(v * k)) as FreeObj['pad']) : undefined,
+              lineWidth: o.lineWidth !== undefined ? r1(Math.max(0.25, o.lineWidth * k)) : undefined,
+            }
+          : {}),
       },
       a,
     ),
