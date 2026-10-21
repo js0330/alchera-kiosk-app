@@ -3,6 +3,7 @@ import { itemsToObjects, readSlideItems, readTheme } from './importKeep'
 import { EMU_ATTR, all, boxFromXfrm, boxOf, ident, kid, kids, normPh, type Box, type Xform } from './pptxXml'
 import { BRAND } from './guide'
 import { makeSlide, uid } from './kits'
+import { LINE_BOX_AREA } from './layouts'
 import { isDeck } from './store'
 import type { Deck, LayoutId, Slide } from './types'
 
@@ -491,7 +492,8 @@ function shrinkImage(src: string, max = 1600): Promise<string> {
 
 export type PptxMode = 'keep' | 'rebuild'
 
-// keep: 본문 슬라이드의 도형·텍스트·이미지를 원본 배치 그대로(자유 배치) · rebuild: 내용만 읽어 가이드 레이아웃으로 재구성
+// keep: 본문 슬라이드의 도형·텍스트·이미지를 원본 배치 그대로(자유 배치)
+// rebuild: 키 네임·타이틀·서브는 가이드 칸에, 나머지 내용은 그대로 라인형 1단 가이드 박스 안에
 export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMode = 'keep'): Promise<Deck> {
   let zip: JSZip
   try {
@@ -511,7 +513,7 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
   const order = all(pres, 'p:sldId').map((s) => relMap[s.getAttribute('r:id') ?? ''])
   const paths = order.filter(Boolean).map((t) => `ppt/${t!.replace(/^\/?ppt\//, '')}`)
 
-  const theme = mode === 'keep' ? await readTheme(zip) : {}
+  const theme = await readTheme(zip)
   const slides: Slide[] = []
   let deckTitle = fileTitle
   for (const [i, path] of paths.entries()) {
@@ -527,8 +529,10 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
     else if (last && (isClosing(s.title) || s.allText.some(isClosing))) layout = 'closing'
     else if (s.blocks.every((b) => b.lines.length + (b.sub ? 1 : 0) <= 1) && !s.images.length && textLen < 90) layout = 'section'
 
-    if (!layout && mode === 'keep') {
-      // 원본 배치 유지: 가이드 상단(타이틀·서브)에 들어갈 글과 그 위쪽 머리 영역을 빼고 나머지를 그대로 옮깁니다
+    if (!layout) {
+      // 본문: 키 네임·타이틀·서브는 가이드 상단 칸에 넣고, 그 위쪽 머리 영역을 뺀 나머지 내용은 그대로 옮깁니다.
+      //  keep    → 자유 배치 본문 영역에 원래 배치대로
+      //  rebuild → 라인형 1단 가이드 박스 안에 꼭 맞춰서
       const items = await readSlideItems(zip, path, rels, theme, inherited)
       const titleItem = items.find((it) => it.ph === 'title') ?? items.find((it) => it.text && s.title && it.text.plain.replace(/\s+/g, ' ') === s.title)
       // 서브는 채우기·테두리 없는 글 상자일 때만 (도식 안의 박스를 서브로 오인하지 않도록)
@@ -537,9 +541,10 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
       const headerBottom = titleItem ? Math.max(titleItem.y + titleItem.h, subItem ? subItem.y + subItem.h : 0) : 0
       // 타이틀 위쪽 머리 영역(상단 목차·장식 띠)은 가이드 상단이 대신하므로 뺍니다
       const body = items.filter((it) => it !== titleItem && it !== subItem && !(titleItem && it.kind !== 'image' && it.y + it.h <= headerBottom + H * 0.01 && it.h < H * 0.12 && !it.fill))
-      const objects = await itemsToObjects(body, W, H)
-      if (objects.length) {
-        const slide = makeSlide('free', { crumb: clip(s.crumb, 40), title: clip(s.title, 60), sub: clip(s.sub, 90) }, notes)
+      const boxed = mode === 'rebuild'
+      const objects = await itemsToObjects(body, W, H, boxed ? LINE_BOX_AREA : undefined)
+      if (objects.length || boxed) {
+        const slide = makeSlide(boxed ? 'line-box' : 'free', { crumb: clip(s.crumb, 40), title: clip(s.title, 60), sub: clip(s.sub, 90) }, notes)
         slides.push({ ...slide, objects })
         continue
       }
