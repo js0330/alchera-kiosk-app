@@ -141,6 +141,7 @@ function SlideCanvas({
   const palette = TONES[slideTone(slide)]
   const objects = slide.objects ?? []
   const area = LAYOUT_MAP[slide.layout].objectArea
+  const guideBox = LAYOUT_MAP[slide.layout].guideBox
   const hasLayer = slide.layout === 'free' || !!area || objects.length > 0
   // 빈 곳을 끌어서 여러 요소를 한 번에 선택 (슬라이드 좌표)
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
@@ -233,6 +234,10 @@ function SlideCanvas({
             }
           }
         })}
+        {/* 자유 배치: 라인형 1단 가이드 박스 자리를 고정 안내선으로 (편집 화면에서만, 내보내기·발표엔 없음) */}
+        {guideBox && editable && (
+          <div className="deck-area-guide deck-guide-box" style={{ position: 'absolute', left: guideBox.x, top: guideBox.y, width: guideBox.w, height: guideBox.h }} />
+        )}
         {/* 라인형 1단: 요소가 놓이는 박스 안쪽 영역 (편집 화면에서만 점선 · 비어 있으면 안내) */}
         {area && editable && (
           <div className="deck-area-guide" style={{ position: 'absolute', left: area.x, top: area.y, width: area.w, height: area.h }}>

@@ -238,6 +238,10 @@
     outline-offset: 0;
     pointer-events: none;
   }
+  /* 자유 배치의 가이드 박스 자리: 박스 모서리 둥글기까지 같게 */
+  .deck-guide-box {
+    border-radius: 13px;
+  }
   .deck-guides-off .deck-area-guide {
     outline-color: transparent;
   }

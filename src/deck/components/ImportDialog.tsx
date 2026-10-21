@@ -76,7 +76,7 @@ export default function ImportDialog({ onImported, onClose }: ImportDialogProps)
     <div className="relative mb-4 flex flex-wrap items-center gap-2">
       <span className="flex items-center gap-1 text-[12px] font-semibold text-[#000038]">
         가져오는 방식
-        <Tip below text={'원본 그대로: 키 네임·타이틀·서브만 가이드 자리로 옮기고, 나머지는 원래 배치 그대로 가져와요.\n가이드로 다시 짜기: 키 네임·타이틀·서브는 가이드 자리에, 나머지 내용은 그대로 라인형 1단 가이드 박스 안에 맞춰 넣어요.'} />
+        <Tip below text={'원본 그대로: 키 네임·타이틀·서브는 가이드 자리로, 나머지는 가이드 박스 자리 안에 원래 배치 그대로 (박스 선 없이) 가져와요.\n가이드로 다시 짜기: 키 네임·타이틀·서브는 가이드 자리에, 나머지 내용은 그대로 라인형 1단 가이드 박스 안에 맞춰 넣어요.'} />
       </span>
       <div className="ml-auto flex rounded-lg bg-[#F2F4FB] p-0.5">
         {(

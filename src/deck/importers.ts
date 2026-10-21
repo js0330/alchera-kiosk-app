@@ -570,8 +570,8 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
 
     if (!layout) {
       // 본문: 키 네임·타이틀·서브는 가이드 상단 칸에 넣고, 그 위쪽 머리 영역을 뺀 나머지 내용은 그대로 옮깁니다.
-      //  keep    → 자유 배치 본문 영역에 원래 배치대로
-      //  rebuild → 라인형 1단 가이드 박스 안에 꼭 맞춰서
+      //  keep    → 자유 배치 (가이드 박스 선 없이, 그 자리 안쪽에 원래 배치대로)
+      //  rebuild → 라인형 1단 (가이드 박스 선 + 그 안쪽)
       const items = await readSlideItems(zip, path, rels, theme, inherited)
       const titleItem = items.find((it) => it.ph === 'title') ?? items.find((it) => it.text && s.title && it.text.plain.replace(/\s+/g, ' ') === s.title)
       // 서브는 채우기·테두리 없는 글 상자일 때만 (도식 안의 박스를 서브로 오인하지 않도록)
@@ -585,7 +585,8 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
       )
       const boxed = mode === 'rebuild'
       // 원본 글꼴보다 넓게 그려져 상자를 넘치는 글은 상자에 맞게 줄입니다
-      const objects = await fitTextToBoxes(await itemsToObjects(body, W, H, boxed ? LINE_BOX_AREA : undefined))
+      // 두 방식 모두 라인형 1단 가이드 박스 안쪽 자리에 맞춥니다 (원본 그대로는 박스 선 없이 같은 자리)
+      const objects = await fitTextToBoxes(await itemsToObjects(body, W, H, LINE_BOX_AREA))
       if (objects.length || boxed) {
         const slide = makeSlide(boxed ? 'line-box' : 'free', { crumb: clip(s.crumb, 40), title: clip(s.title, 60), sub: clip(s.sub, 90) }, notes)
         slides.push({ ...slide, objects })

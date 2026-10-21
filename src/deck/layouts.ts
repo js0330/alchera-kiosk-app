@@ -26,6 +26,8 @@ export interface LayoutDef {
   hidden?: boolean
   // 이 레이아웃에 올린 요소는 이 영역 밖으로 나가지 않습니다 (라인형 1단: 패널 안쪽 여백)
   objectArea?: { x: number; y: number; w: number; h: number }
+  // 편집 화면에만 보이는 고정 안내선 (자유 배치: 라인형 1단 가이드 박스 자리). 요소를 가두지는 않고, 붙여넣은·불러온 내용은 이 안에 맞춰 들어갑니다
+  guideBox?: { x: number; y: number; w: number; h: number }
 }
 
 const C = BRAND.colors
@@ -616,6 +618,7 @@ export const LAYOUTS: LayoutDef[] = [
       title: '원본 배치를 유지한 슬라이드',
       sub: '불러온 PPT의 도형·텍스트·이미지를 그대로 두고 가이드 상단만 입힙니다',
     },
+    guideBox: { x: LINE_PANELS.one[0][0], y: LINE_PANELS.one[0][1], w: LINE_PANELS.one[0][2], h: LINE_PANELS.one[0][3] },
     build: (ctx) => chrome(ctx),
   },
   {
@@ -670,6 +673,8 @@ export function sectionFor(slides: Slide[], index: number): string {
   if (found === -1) return ''
   const n = slides.slice(0, found + 1).filter((s) => s.layout === 'section').length
   const t = (slides[found].content.title ?? '').trim()
+  // 간지 제목에 이미 번호가 있으면(예: 'Ⅱ. 해외 진출 실현 계획') 그대로 씁니다
+  if (/^\s*(?:[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]|[IVX]{1,4}|\d{1,2}|part\s*\d+)[.)\s]/i.test(t)) return t
   return t ? `${n}. ${t}` : ''
 }
 
