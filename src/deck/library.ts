@@ -74,7 +74,7 @@ export function tintIcon(url: string, color: string): Promise<string> {
   return p
 }
 
-export function icon(id: string, x: number, y: number, size: number, color: string = C.blue): FreeObj {
+function icon(id: string, x: number, y: number, size: number, color: string = C.blue): FreeObj {
   return { id: uid(), kind: 'image', x, y, w: size, h: size, icon: iconUrl(id), color }
 }
 
@@ -87,8 +87,8 @@ export const newIcon = (id: string, color: string = C.blue) => icon(id, FREE_ARE
 
 // ── 구성 블록 ───────────────────────────────────────────────────
 
-export type Pad = [number, number, number, number]
-export const NO_PAD: Pad = [0, 0, 0, 0]
+type Pad = [number, number, number, number]
+const NO_PAD: Pad = [0, 0, 0, 0]
 
 interface TextOpts {
   size?: number
@@ -99,7 +99,7 @@ interface TextOpts {
 }
 
 // 채우기 없는 글 상자. 높이는 최소한 글 줄 수 × 글자 크기 × 줄간격(1.3)이 되게 맞춰 글이 잘리지 않게 합니다.
-export function text(x: number, y: number, w: number, h: number, value: string, o: TextOpts = {}): FreeObj {
+function text(x: number, y: number, w: number, h: number, value: string, o: TextOpts = {}): FreeObj {
   const need = Math.ceil(value.split('\n').length * ptToPx(o.size ?? 10) * 1.3) + 1
   return {
     id: uid(),
@@ -129,7 +129,7 @@ interface ShapeOpts extends TextOpts {
   text?: string
 }
 
-export function shape(x: number, y: number, w: number, h: number, o: ShapeOpts = {}): FreeObj {
+function shape(x: number, y: number, w: number, h: number, o: ShapeOpts = {}): FreeObj {
   return {
     id: uid(),
     kind: 'shape',
@@ -153,7 +153,7 @@ export function shape(x: number, y: number, w: number, h: number, o: ShapeOpts =
   }
 }
 
-export function line(x1: number, y1: number, x2: number, y2: number, o: { color?: string; width?: number; end?: boolean; dash?: FreeObj['dash'] } = {}): FreeObj {
+function line(x1: number, y1: number, x2: number, y2: number, o: { color?: string; width?: number; end?: boolean; dash?: FreeObj['dash'] } = {}): FreeObj {
   return {
     id: uid(),
     kind: 'line',
@@ -170,8 +170,8 @@ export function line(x1: number, y1: number, x2: number, y2: number, o: { color?
   }
 }
 
-export const card = (x: number, y: number, w: number, h: number) => shape(x, y, w, h, { geom: 'roundRect', fill: C.white, line: C.line, radius: 12 })
-export const pill = (x: number, y: number, w: number, label: string, fill: string = C.blue) =>
+const card = (x: number, y: number, w: number, h: number) => shape(x, y, w, h, { geom: 'roundRect', fill: C.white, line: C.line, radius: 12 })
+const pill = (x: number, y: number, w: number, label: string, fill: string = C.blue) =>
   shape(x, y, w, 26, { geom: 'roundRect', fill, radius: 13, text: label, size: 9, bold: true, color: C.white, pad: [10, 0, 10, 0] })
 
 export interface BlockDef {
