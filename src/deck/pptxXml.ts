@@ -45,3 +45,33 @@ export function boxFromXfrm(xfrm: Element | undefined, t: Xform): Box | null {
     h: EMU_ATTR(ext, 'cy') * t.sy,
   }
 }
+
+// 슬라이드 전체를 덮는 불투명한 도형·그림 아래(앞쪽)에 있는 요소는 화면에 보이지 않습니다.
+// (예: 예전 버전 위에 흰 사각형을 덮고 새 버전을 다시 그린 장) 맨 위 덮개부터의 요소만 돌려줍니다.
+export function visibleChildren(tree: Element, W: number, H: number): Element[] {
+  const list = Array.from(tree.children)
+  let start = 0
+  list.forEach((el, i) => {
+    if (coversSlide(el, W, H)) start = i
+  })
+  return list.slice(start)
+}
+
+function coversSlide(el: Element, W: number, H: number): boolean {
+  if (el.tagName !== 'p:sp' && el.tagName !== 'p:pic') return false
+  const spPr = kid(el, 'p:spPr')
+  const xfrm = kid(spPr, 'a:xfrm')
+  const off = kid(xfrm, 'a:off')
+  const ext = kid(xfrm, 'a:ext')
+  if (!off || !ext) return false
+  const x = EMU_ATTR(off, 'x')
+  const y = EMU_ATTR(off, 'y')
+  const r = x + EMU_ATTR(ext, 'cx')
+  const b = y + EMU_ATTR(ext, 'cy')
+  if (x > W * 0.02 || y > H * 0.02 || r < W * 0.98 || b < H * 0.98) return false
+  if (el.tagName === 'p:pic') return true
+  const fill = kid(spPr, 'a:solidFill') ?? kid(spPr, 'a:blipFill')
+  if (!fill) return false
+  const alpha = all(fill, 'a:alpha')[0]
+  return !alpha || EMU_ATTR(alpha, 'val') >= 100000
+}
