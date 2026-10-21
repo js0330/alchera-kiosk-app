@@ -5,8 +5,6 @@ import ImportDialog from '../components/ImportDialog'
 import { LayoutThumb } from '../components/LayoutPicker'
 import SlideCanvas from '../components/SlideCanvas'
 import { KITS, createDeckFromKit, createDeckFromLayout, uid, type Kit } from '../kits'
-import { SAMPLES } from '../samples'
-import SampleCard from '../components/SampleCard'
 import DeckCard from '../components/DeckCard'
 import { VISIBLE_LAYOUTS } from '../layouts'
 import type { Deck } from '../types'
@@ -164,16 +162,6 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
                 footer={kit.description.split('. ')[1] ?? '새 문서로 시작'}
                 preview={<KitPreview kit={kit} />}
               />
-            ))}
-          </div>
-        </section>
-
-        {/* 샘플 덱 */}
-        <section className="mt-14">
-          <SectionHead title="알체라 세일즈덱" count={SAMPLES.length} link={{ href: '#sales', label: '전체 보기' }} />
-          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {SAMPLES.map((s, i) => (
-              <SampleCard key={s.id} sample={s} index={i} />
             ))}
           </div>
         </section>
