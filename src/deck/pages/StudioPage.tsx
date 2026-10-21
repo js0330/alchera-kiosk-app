@@ -35,7 +35,7 @@ import { INSERT_MIME, type InsertPayload } from '../insert'
 import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
 import { fitTextToBoxes } from '../textFit'
 import { makeSlide, uid } from '../kits'
-import { FREE_AREA, LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
+import { FREE_AREA, LAYOUT_MAP, LINE_BOX_AREA, checkSlide, sectionFor } from '../layouts'
 import { BLOCKS, GUIDE_BOXES, newIcon, numberCircle, placeObjects, resolveIcons, tintIcon } from '../library'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, FreeObj, LayoutId, Slide } from '../types'
@@ -206,8 +206,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     async (objs: FreeObj[], center?: { x: number; y: number }, back = false, fit = false) => {
       const moved = placeObjects(await resolveIcons(objs), center)
       // 박스 안에만 놓이는 레이아웃이면 묶음째 박스 안으로 맞춤.
-      // 붙여넣은 원본(fit)은 슬라이드보다 크면 슬라이드 안으로 줄이고, 상자보다 큰 글은 상자에 맞게 줄입니다
-      const fitted = area ? fitIntoArea(moved, area) : fit ? fitIntoArea(moved, { x: 0, y: 0, w: SLIDE_W, h: SLIDE_H }) : moved
+      // 붙여넣은 원본(fit)은 자유 배치면 가이드 박스 안내선 안쪽에, 아니면 슬라이드 안으로 맞추고, 상자보다 큰 글은 상자에 맞게 줄입니다
+      const fitted = area ? fitIntoArea(moved, area) : fit ? fitIntoArea(moved, layout.guideBox ? LINE_BOX_AREA : { x: 0, y: 0, w: SLIDE_W, h: SLIDE_H }) : moved
       const placed = fit ? await fitTextToBoxes(fitted) : fitted
       // 가이드 박스는 다른 요소 뒤에 깔립니다
       setObjects((list) => (back ? [...placed, ...list] : [...list, ...placed]))
@@ -215,7 +215,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       setEditingObj(null)
       return placed
     },
-    [setObjects, area],
+    [setObjects, area, layout.guideBox],
   )
   const addObj = (o: FreeObj) => insert([o])
 
