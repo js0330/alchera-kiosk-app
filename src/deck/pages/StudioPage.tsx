@@ -33,6 +33,7 @@ import { SLIDE_H, SLIDE_W } from '../guide'
 import { LINE_KINDS, clampToArea, fitIntoArea, newImage, newLine, newShape, newText, snapToGuide } from '../freeObjects'
 import { INSERT_MIME, type InsertPayload } from '../insert'
 import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
+import { fitTextToBoxes } from '../textFit'
 import { makeSlide, uid } from '../kits'
 import { FREE_AREA, LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
 import { BLOCKS, GUIDE_BOXES, newIcon, numberCircle, placeObjects, resolveIcons, tintIcon } from '../library'
@@ -202,10 +203,12 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
 
   // 새 요소 넣기: 아이콘은 칠하고, 위치를 정한 뒤(끌어다 놓은 곳 또는 원래 자리) 모두 선택합니다
   const insert = useCallback(
-    async (objs: FreeObj[], center?: { x: number; y: number }, back = false) => {
+    async (objs: FreeObj[], center?: { x: number; y: number }, back = false, fit = false) => {
       const moved = placeObjects(await resolveIcons(objs), center)
-      // 박스 안에만 놓이는 레이아웃이면 묶음째 박스 안으로 맞춤
-      const placed = area ? fitIntoArea(moved, area) : moved
+      // 박스 안에만 놓이는 레이아웃이면 묶음째 박스 안으로 맞춤.
+      // 붙여넣은 원본(fit)은 슬라이드보다 크면 슬라이드 안으로 줄이고, 상자보다 큰 글은 상자에 맞게 줄입니다
+      const fitted = area ? fitIntoArea(moved, area) : fit ? fitIntoArea(moved, { x: 0, y: 0, w: SLIDE_W, h: SLIDE_H }) : moved
+      const placed = fit ? await fitTextToBoxes(fitted) : fitted
       // 가이드 박스는 다른 요소 뒤에 깔립니다
       setObjects((list) => (back ? [...placed, ...list] : [...list, ...placed]))
       setSelectedObjs(placed.filter((o) => !o.locked).map((o) => o.id))
@@ -311,7 +314,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             const left = skipped ? ` 직접 그린 도형 등 ${skipped}개는 가져오지 못했어요.` : ''
             if (!objs.length) return setNotice({ text: `붙여넣을 도형을 찾지 못했어요.${left}` })
             const before = new Set(latestObjIds.current)
-            await insert(objs, undefined)
+            await insert(objs, undefined, false, true)
             setNotice({
               text: `구글 슬라이드에서 ${objs.length}개 요소를 가져왔어요.${left}`,
               action: {
