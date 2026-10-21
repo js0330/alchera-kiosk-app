@@ -19,14 +19,12 @@ import {
   Trash2,
   Type,
   Undo2,
-  Sparkles,
   WandSparkles,
 } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { LineMenu, ShapeMenu } from '../components/InsertMenus'
 import LayoutPicker from '../components/LayoutPicker'
 import LibraryPanel from '../components/LibraryPanel'
-import SmartPanel from '../components/SmartPanel'
 import ObjectPanel from '../components/ObjectPanel'
 import PresentMode from '../components/PresentMode'
 import PreviewDialog from '../components/PreviewDialog'
@@ -37,9 +35,6 @@ import { INSERT_MIME, type InsertPayload } from '../insert'
 import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
 import { makeSlide, uid } from '../kits'
 import { FREE_AREA, LAYOUT_MAP, checkSlide, sectionFor } from '../layouts'
-
-// 내용으로 요소 찾기가 구성을 짜는 자리 (박스 없는 슬라이드: 본문 영역에서 조금 아래)
-const SMART_AREA = { x: FREE_AREA.x, y: FREE_AREA.y + 20, w: FREE_AREA.w, h: FREE_AREA.h - 20 }
 import { BLOCKS, GUIDE_BOXES, newIcon, placeObjects, resolveIcons, tintIcon } from '../library'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, FreeObj, LayoutId, Slide } from '../types'
@@ -101,7 +96,6 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   const [exporting, setExporting] = useState(false)
   const [checkOpen, setCheckOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
-  const [smartOpen, setSmartOpen] = useState(false)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
   const [notice, setNotice] = useState<{ text: string; undo?: () => void; action?: { label: string; run: () => void } } | null>(
     initialNotice ? { text: initialNotice } : null,
@@ -221,12 +215,6 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     [setObjects, area],
   )
   const addObj = (o: FreeObj) => insert([o])
-  // 글 상자 하나를 골랐으면 그 글을 '내용으로 요소 찾기'로 가져올 수 있습니다
-  const selectedText = useMemo(() => {
-    if (selectedObjs.length !== 1) return undefined
-    const o = objects.find((x) => x.id === selectedObjs[0])
-    return o?.kind === 'shape' && o.text?.trim() ? o.text : undefined
-  }, [objects, selectedObjs])
 
   const removeSelected = useCallback(() => {
     const ids = latestSel.current
@@ -613,22 +601,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         </button>
         <button
           type="button"
-          className={`deck-btn ${smartOpen ? 'border-[#0000A5] bg-[#EEF1FB] text-[#0000A5]' : ''}`}
-          onClick={() => {
-            setSmartOpen((v) => !v)
-            setLibraryOpen(false)
-          }}
-          title="글을 넣으면 요소 라이브러리에서 맞는 구성을 찾아 글 그대로 채워 넣습니다"
-        >
-          <Sparkles size={15} /> 내용으로 요소 찾기
-        </button>
-        <button
-          type="button"
           className={`deck-btn ${libraryOpen ? 'border-[#0000A5] bg-[#EEF1FB] text-[#0000A5]' : ''}`}
-          onClick={() => {
-            setLibraryOpen((v) => !v)
-            setSmartOpen(false)
-          }}
+          onClick={() => setLibraryOpen((v) => !v)}
           title="샘플덱의 아이콘 · 구성 블록 · 도형을 골라 넣습니다"
         >
           <LibraryBig size={15} /> 요소 라이브러리
@@ -706,21 +680,6 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             })}
           </ol>
         </aside>
-
-        {smartOpen && (
-          <SmartPanel
-            area={area ?? SMART_AREA}
-            selectedText={selectedText}
-            onClose={() => setSmartOpen(false)}
-            onInsert={(objs, replace) => {
-              if (replace && selectedText) {
-                const id = selectedObjs[0]
-                setObjects((list) => list.filter((o) => o.id !== id))
-              }
-              insert(objs)
-            }}
-          />
-        )}
 
         {libraryOpen && (
           <LibraryPanel
