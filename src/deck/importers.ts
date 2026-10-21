@@ -100,7 +100,8 @@ function finishDeck(title: string, slides: Slide[]): Deck {
 
 const isContents = (t: string) => /^(contents|table of contents|agenda|목차|차례)$/i.test(t.trim())
 const isClosing = (t: string) => /^(감사합니다|thank\s*you|thanks|q\s*&\s*a)[.!]*$/i.test(t.trim())
-const stripNumber = (s: string) => s.replace(/^\s*(\d+[.)]|[0-9]{2}\s|[-•·])\s*/, '').trim()
+// 줄 앞 번호 떼기: 1. · 1.1 · 01 · Ⅰ. · IV. · 글머리
+const stripNumber = (s: string) => s.replace(/^\s*((?:[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]|[IVX]{1,4})[.)]|\d+(?:\.\d+)*[.)]?(?=\s)|[0-9]{2}\s|[-•·])\s*/, '').trim()
 
 // ── 텍스트 · 마크다운 ────────────────────────────────────────────
 
@@ -467,6 +468,38 @@ function interpret(texts: TextShape[], pics: PicShape[], W: number, H: number) {
   return { title, crumb, sub, blocks, images, allText: useful.flatMap((s) => s.paras.map((p) => p.plain)) }
 }
 
+// 목차·간지 알아보기 (제목이 '목차'가 아니어도)
+//  간지: 숫자만 있는 큰 글자(Ⅰ · 02 · PART 1)와 큰 제목, 아래에 그 장의 소목차가 있는 장
+//  목차: 앞쪽(2~4번째) 장에서 번호로 시작하는 짧은 줄(Ⅰ. 과제개요 …)이 3개 이상이고 다른 글은 거의 없는 장
+const NUMERAL_ONLY = /^\s*(?:[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]|[IVX]{1,4}|0?\d{1,2}|part\s*0?\d{1,2})[.)]?\s*$/i
+const NUM_LEAD = /^\s*(?:[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]|[IVX]{1,4}|\d{1,2})[.)]?\s+\S/
+
+type Outline = { kind: 'contents'; items: string[] } | { kind: 'section'; title: string; description: string }
+
+function detectOutline(texts: TextShape[], pics: PicShape[], W: number, H: number, index: number): Outline | null {
+  const linesOf = (s: TextShape) => s.paras.map((p) => p.plain.trim()).filter(Boolean)
+  const shapes = texts.filter((s) => !(s.ph === 'sldNum' || s.ph === 'dt' || s.ph === 'ftr') && linesOf(s).length)
+  if (pics.some((p) => p.w * p.h > W * H * 0.04 && p.w * p.h < W * H * 0.85)) return null
+  const lines = shapes.flatMap(linesOf)
+  if (!lines.length || lines.join('').length > 400) return null
+  const maxSize = (s: TextShape) => Math.max(0, ...s.paras.map((p) => p.size))
+
+  const numeral = shapes.find((s) => linesOf(s).length === 1 && NUMERAL_ONLY.test(linesOf(s)[0]))
+  if (numeral) {
+    const others = shapes.filter((s) => s !== numeral && linesOf(s).length <= 2)
+    const title = others.sort((a, b) => maxSize(b) - maxSize(a) || b.h - a.h)[0]
+    if (title && (maxSize(title) >= 28 || maxSize(numeral) >= 40 || numeral.h > H * 0.12)) {
+      const n = linesOf(numeral)[0].replace(/[.)]\s*$/, '').trim()
+      const rest = shapes.filter((s) => s !== numeral && s !== title).flatMap(linesOf).map(stripNumber).filter(Boolean)
+      return { kind: 'section', title: `${n}. ${linesOf(title).join(' ')}`, description: rest.join(' · ') }
+    }
+  }
+
+  const numbered = lines.filter((l) => NUM_LEAD.test(l) && l.length <= 40)
+  if (index <= 3 && numbered.length >= 3 && numbered.length >= lines.length - 2) return { kind: 'contents', items: numbered.map(stripNumber) }
+  return null
+}
+
 // 가져온 이미지는 긴 변 1600px 로 줄여 브라우저 저장 공간을 아낍니다.
 function shrinkImage(src: string, max = 1600): Promise<string> {
   return new Promise((resolve) => {
@@ -517,6 +550,9 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
   const theme = await readTheme(zip)
   const slides: Slide[] = []
   let deckTitle = fileTitle
+  // 지금 섹션(간지) 제목. 본문 장 안에 같은 글(예: 'Ⅱ. 해외진출 실현 계획')이 있으면 키 네임과 겹치므로 뺍니다
+  let section = ''
+  const norm = (x: string) => x.replace(/[\s.·]/g, '')
   for (const [i, path] of paths.entries()) {
     if (!zip.file(path)) continue
     const { texts, pics, notes, rels, inherited } = await readSlideShapes(zip, path)
@@ -525,8 +561,10 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
     const last = i === paths.length - 1
     const textLen = s.allText.join('').length
     let layout: LayoutId | null = null
+    const outline = i > 0 && !last ? detectOutline(texts, pics, W, H, i) : null
     if (i === 0) layout = 'cover'
-    else if (isContents(s.title)) layout = 'contents'
+    else if (isContents(s.title) || outline?.kind === 'contents') layout = 'contents'
+    else if (outline?.kind === 'section') layout = 'section'
     else if (last && (isClosing(s.title) || s.allText.some(isClosing))) layout = 'closing'
     else if (s.blocks.every((b) => b.lines.length + (b.sub ? 1 : 0) <= 1) && !s.images.length && textLen < 90) layout = 'section'
 
@@ -541,7 +579,10 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
       if (!subItem) s.sub = undefined
       const headerBottom = titleItem ? Math.max(titleItem.y + titleItem.h, subItem ? subItem.y + subItem.h : 0) : 0
       // 타이틀 위쪽 머리 영역(상단 목차·장식 띠)은 가이드 상단이 대신하므로 뺍니다
-      const body = items.filter((it) => it !== titleItem && it !== subItem && !(titleItem && it.kind !== 'image' && it.y + it.h <= headerBottom + H * 0.01 && it.h < H * 0.12 && !it.fill))
+      const sameAsSection = (it: (typeof items)[number]) => !!section && !!it.text && norm(it.text.plain) === norm(section)
+      const body = items.filter(
+        (it) => it !== titleItem && it !== subItem && !sameAsSection(it) && !(titleItem && it.kind !== 'image' && it.y + it.h <= headerBottom + H * 0.01 && it.h < H * 0.12 && !it.fill),
+      )
       const boxed = mode === 'rebuild'
       // 원본 글꼴보다 넓게 그려져 상자를 넘치는 글은 상자에 맞게 줄입니다
       const objects = await fitTextToBoxes(await itemsToObjects(body, W, H, boxed ? LINE_BOX_AREA : undefined))
@@ -557,10 +598,14 @@ export async function importPptx(data: ArrayBuffer, fileTitle = '', mode: PptxMo
       const subtitle = [s.sub, ...s.blocks.flatMap((b) => [b.title, b.sub, ...b.lines])].filter(Boolean).map((x) => x!.replace(/\*\*/g, '')).join('\n')
       slides.push(makeSlide('cover', { title: clip(s.title || fileTitle, 36), subtitle: clip(subtitle, 80) }, notes))
     } else if (layout === 'contents') {
-      const items = s.blocks.flatMap((b) => [b.title, b.sub, ...b.lines]).filter(Boolean).map((x) => stripNumber(x!.replace(/\*\*/g, '')))
+      const items =
+        outline?.kind === 'contents' ? outline.items : s.blocks.flatMap((b) => [b.title, b.sub, ...b.lines]).filter(Boolean).map((x) => stripNumber(x!.replace(/\*\*/g, '')))
       slides.push(makeSlide('contents', { title: 'CONTENTS', items: items.slice(0, 8).join('\n') }, notes))
     } else if (layout === 'closing') {
       slides.push(makeSlide('closing', { title: clip(s.title || '감사합니다.', 30), contact: BRAND.contact }, notes))
+    } else if (layout === 'section' && outline?.kind === 'section') {
+      section = outline.title
+      slides.push(makeSlide('section', { title: clip(outline.title, 30), description: clip(outline.description, 60) }, notes))
     } else if (layout === 'section') {
       const desc = [s.sub, ...s.blocks.flatMap((b) => [b.title, b.sub, ...b.lines])].filter(Boolean).join(' ').replace(/\*\*/g, '')
       slides.push(makeSlide('section', { title: clip(s.title || desc, 24), description: s.title ? clip(desc, 60) : '' }, notes))
