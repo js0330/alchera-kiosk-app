@@ -11,6 +11,8 @@ export const GUIDE_TEXT_SIZES = [16, 12, 10, 9, 8] as const
 // 큰 강조 숫자(블록 '핵심 수치')는 가이드 간지·마무리 타이틀 크기 27pt 를 씁니다. 고르는 버튼엔 없지만 가이드 값으로 인정합니다.
 export const GUIDE_EMPHASIS_SIZE = 27
 export const isGuideSize = (pt: number) => pt === GUIDE_EMPHASIS_SIZE || (GUIDE_TEXT_SIZES as readonly number[]).includes(pt)
+// 줄 간격: 1 · 1.3(기본) · 1.5 · 2
+export const GUIDE_LINE_HEIGHTS = [1, 1.3, 1.5, 2] as const
 export const GUIDE_TEXT_COLORS = [C.navy, C.blue, C.gray, C.crumb, C.white] as const
 export const GUIDE_FILLS = [C.white, C.imageFill, C.line, C.navy, C.blue] as const
 export const GUIDE_LINES = [C.line, C.crumb, C.gray, C.blue, C.navy, C.white] as const
@@ -247,7 +249,7 @@ export function snapToGuide(obj: FreeObj): FreeObj {
     lineWidth: obj.line ? 0.75 : undefined,
     size: obj.text ? nearestSize(obj.size ?? 10) : obj.size,
     color: obj.text ? (darkBg ? C.white : guideTextColor(obj.color ?? C.navy)) : obj.color,
-    lineHeight: obj.text ? 1.3 : obj.lineHeight,
+    lineHeight: obj.text ? ((GUIDE_LINE_HEIGHTS as readonly number[]).includes(obj.lineHeight ?? 1.3) ? obj.lineHeight : 1.3) : obj.lineHeight,
   }
 }
 

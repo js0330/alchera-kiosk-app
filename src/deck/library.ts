@@ -2,6 +2,7 @@ import { BRAND, ptToPx } from './guide'
 import { FREE_AREA, HEADER_BAR, HEADER_BODY, HEADER_PANELS, LINE_PANELS, linePanelRadius } from './layouts'
 import { GUIDE_EMPHASIS_SIZE } from './freeObjects'
 import { uid } from './kits'
+import type { NumberStyle } from './insert'
 import type { FreeObj, Geom } from './types'
 
 // 요소 라이브러리: 알체라 샘플덱(Face Trust · 공기질 AI · Physical AI)에서 쓰인 아이콘과 자주 쓰는 구성을
@@ -85,6 +86,29 @@ export async function resolveIcons(objs: FreeObj[]): Promise<FreeObj[]> {
 }
 
 export const newIcon = (id: string, color: string = C.blue) => icon(id, FREE_AREA.x + 80, FREE_AREA.y + 80, 64, color)
+
+// ── 원 숫자 ─────────────────────────────────────────────────────
+// 샘플덱의 번호 원. 원과 숫자를 따로 넣어 각각 색을 바꿀 수 있습니다.
+// 숫자 상자는 원보다 작게 두어, 원의 가장자리를 누르면 원이, 가운데를 누르면 숫자가 선택됩니다.
+
+export const NUMBERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+export const NUMBER_STYLES: { id: NumberStyle; label: string; fill: string; line?: string; color: string }[] = [
+  { id: 'fill', label: '채움', fill: C.blue, color: C.white },
+  { id: 'line', label: '테두리', fill: C.white, line: C.blue, color: C.blue },
+  { id: 'soft', label: '연한 바탕', fill: C.imageFill, color: C.blue },
+]
+
+export function numberCircle(n: number, style: NumberStyle): FreeObj[] {
+  const s = NUMBER_STYLES.find((x) => x.id === style) ?? NUMBER_STYLES[0]
+  const d = 44
+  const x = FREE_AREA.x + 80
+  const y = FREE_AREA.y + 80
+  return [
+    shape(x, y, d, d, { geom: 'ellipse', fill: s.fill, line: s.line, pad: NO_PAD }),
+    shape(x + 8, y + 8, d - 16, d - 16, { text: String(n), size: 12, bold: true, color: s.color, pad: NO_PAD }),
+  ]
+}
 
 // ── 구성 블록 ───────────────────────────────────────────────────
 

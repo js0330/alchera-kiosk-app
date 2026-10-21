@@ -1,8 +1,8 @@
 import { Info, X } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import { BRAND } from '../guide'
-import { dragProps } from '../insert'
-import { BLOCKS, GUIDE_BOXES, ICONS, iconUrl, placeObjects, type BlockDef } from '../library'
+import { dragProps, type NumberStyle } from '../insert'
+import { BLOCKS, GUIDE_BOXES, ICONS, NUMBERS, NUMBER_STYLES, iconUrl, placeObjects, type BlockDef } from '../library'
 import { LINE_KINDS, type LineKind } from '../freeObjects'
 import { SHAPES } from '../shapes'
 import type { Geom } from '../types'
@@ -16,6 +16,7 @@ interface LibraryPanelProps {
   onShape: (geom: Geom) => void
   onLine: (kind: LineKind) => void
   onIcon: (id: string) => void
+  onNumber: (n: number, style: NumberStyle) => void
   onBlock: (block: BlockDef) => void
   onBox: (box: BlockDef, lock: boolean) => void
   // 지금 슬라이드가 '본문 · 자유 배치'인지, 아니면 바꾸기
@@ -68,7 +69,7 @@ function ItemTitle({ label, tip }: { label: string; tip: string }) {
 }
 
 // 웹플로우의 "추가" 패널처럼: 샘플덱에서 가져온 구성 블록 · 아이콘 · 도형을 클릭하거나 슬라이드로 끌어다 놓습니다.
-export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock, onBox, layoutIsFree, onUseFree }: LibraryPanelProps) {
+export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onNumber, onBlock, onBox, layoutIsFree, onUseFree }: LibraryPanelProps) {
   const [tab, setTab] = useState<Tab>('boxes')
   const [lockBoxes, setLockBoxes] = useState(false)
   const tabs: [Tab, string][] = [
@@ -201,6 +202,31 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock
                 </div>
               </div>
             ))}
+            <p className="deck-label mb-2">원 숫자</p>
+            <div className="mb-4 space-y-1.5">
+              {NUMBER_STYLES.map((st) => (
+                <div key={st.id} className="grid grid-cols-6 gap-1">
+                  {NUMBERS.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      title={`${st.label} · ${n}`}
+                      className="flex h-9 items-center justify-center rounded-md hover:bg-[#EEF1FB]"
+                      onClick={() => onNumber(n, st.id)}
+                      {...dragProps({ type: 'number', n, style: st.id })}
+                    >
+                      <span
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold"
+                        style={{ background: st.fill, color: st.color, boxShadow: st.line ? `inset 0 0 0 1.5px ${st.line}` : undefined }}
+                      >
+                        {n}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+              <p className="text-[11px] leading-relaxed text-[#9CA3AF]">원과 숫자가 따로 들어가서 색을 각각 바꿀 수 있어요. 원 가장자리를 누르면 원, 가운데를 누르면 숫자가 선택돼요.</p>
+            </div>
             <p className="deck-label mb-2">선</p>
             <div className="space-y-0.5">
               {LINE_KINDS.map((k) => (

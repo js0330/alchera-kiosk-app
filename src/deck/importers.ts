@@ -581,10 +581,14 @@ export async function importGoogleSlides(url: string, mode: PptxMode = 'keep'): 
   try {
     res = await fetch(`https://docs.google.com/presentation/d/${id}/export/pptx`)
   } catch {
-    throw new ImportError(NOT_SHARED)
+    // 로그인이 필요한 파일은 구글이 로그인 화면으로 돌려보내 브라우저가 응답을 막습니다 (대부분 공유 설정 문제)
+    throw new ImportError(navigator.onLine ? NOT_SHARED : '인터넷에 연결되어 있지 않아요. 연결을 확인하고 다시 시도해 주세요.')
   }
   const type = res.headers.get('content-type') ?? ''
-  if (!res.ok || !type.includes('presentationml')) throw new ImportError(res.status === 404 ? '슬라이드를 찾지 못했어요. 주소를 다시 확인해 주세요.' : NOT_SHARED)
+  if (res.status === 404) throw new ImportError('슬라이드를 찾지 못했어요. 주소를 다시 확인해 주세요.')
+  if (res.status === 429) throw new ImportError('구글이 잠시 요청을 막았어요. 1~2분 뒤 다시 시도해 주세요.')
+  // 401·403: 로그인해야 열리는 파일 (‘알체라’ 공유 · 제한됨 · 다운로드 막힘)
+  if (!res.ok || !type.includes('presentationml')) throw new ImportError(NOT_SHARED)
   const disposition = res.headers.get('content-disposition') ?? ''
   const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
   const name = (encoded ? decodeURIComponent(encoded) : (disposition.match(/filename="([^"]+)"/)?.[1] ?? 'Google Slides')).replace(/\.pptx$/i, '')
@@ -592,7 +596,7 @@ export async function importGoogleSlides(url: string, mode: PptxMode = 'keep'): 
 }
 
 const NOT_SHARED =
-  '이 슬라이드를 열 수 없어요. 구글 슬라이드에서 [공유] → 일반 액세스를 "링크가 있는 모든 사용자"로 바꾼 뒤 다시 시도해 주세요. 회사 안에서만 공유된 파일은 파일 › 다운로드 › PPTX로 받아 "파일 불러오기"를 써주세요.'
+  '회사 계정으로만 열리는 파일이에요. 구글 슬라이드 [공유]에서 ‘링크가 있는 모든 사용자’로 바꾸거나, 파일 › 다운로드 › PowerPoint(.pptx)로 받아 ‘파일’ 탭에 올려 주세요.'
 
 // ── 진입점 ──────────────────────────────────────────────────────
 

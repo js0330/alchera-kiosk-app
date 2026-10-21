@@ -138,7 +138,7 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
                 솔루션 소개서로 시작 <ArrowRight size={15} />
               </button>
               <button type="button" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#2A2F8F] hover:underline" onClick={() => setImporting(true)}>
-                PPT · 텍스트 불러와서 가이드에 맞추기 <ArrowRight size={14} />
+                PPT · 구글 슬라이드 불러오기 <ArrowRight size={14} />
               </button>
             </div>
           </div>
