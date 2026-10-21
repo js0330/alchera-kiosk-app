@@ -18,6 +18,9 @@ interface LibraryPanelProps {
   onIcon: (id: string) => void
   onBlock: (block: BlockDef) => void
   onBox: (box: BlockDef, lock: boolean) => void
+  // 지금 슬라이드가 '본문 · 자유 배치'인지, 아니면 바꾸기
+  layoutIsFree: boolean
+  onUseFree: () => void
 }
 
 type Tab = 'boxes' | 'blocks' | 'icons' | 'shapes'
@@ -40,23 +43,32 @@ const BoxPreview = memo(function BoxPreview({ block }: { block: BlockDef }) {
   )
 })
 
-// 항목 이름 + ⓘ: 설명은 ⓘ 에 마우스를 올렸을 때만 보여 줍니다 (목록을 단순하게)
+// ⓘ: 마우스를 올렸을 때만 설명을 보여 줍니다. 말풍선은 가장 가까운 relative 상자 너비로 뜹니다.
+function InfoTip({ tip, below = false }: { tip: string; below?: boolean }) {
+  return (
+    <span className="group/tip flex p-0.5" aria-label={tip} onClick={(e) => e.stopPropagation()}>
+      <Info size={13} className="text-[#B4BAC9] transition group-hover/tip:text-[#0000A5]" />
+      <span
+        className={`pointer-events-none absolute left-2 right-2 z-20 whitespace-pre-line rounded-md bg-[#000038] px-2.5 py-1.5 text-[11px] font-normal leading-snug text-white opacity-0 shadow-lg transition group-hover/tip:opacity-100 ${below ? 'top-full mt-1' : 'bottom-full mb-1'}`}
+      >
+        {tip}
+      </span>
+    </span>
+  )
+}
+
+// 항목 이름 + ⓘ (설명은 ⓘ 에 올렸을 때만 — 목록을 단순하게)
 function ItemTitle({ label, tip }: { label: string; tip: string }) {
   return (
     <div className="relative flex items-center gap-1 border-t border-[#EEF1F7] px-3 py-2">
       <p className="text-[12px] font-bold text-[#000038]">{label}</p>
-      <span className="group/tip flex p-0.5" aria-label={tip} onClick={(e) => e.stopPropagation()}>
-        <Info size={13} className="text-[#B4BAC9] transition group-hover/tip:text-[#0000A5]" />
-        <span className="pointer-events-none absolute bottom-full left-2 right-2 z-20 mb-1 whitespace-pre-line rounded-md bg-[#000038] px-2.5 py-1.5 text-[11px] leading-snug text-white opacity-0 shadow-lg transition group-hover/tip:opacity-100">
-          {tip}
-        </span>
-      </span>
+      <InfoTip tip={tip} />
     </div>
   )
 }
 
 // 웹플로우의 "추가" 패널처럼: 샘플덱에서 가져온 구성 블록 · 아이콘 · 도형을 클릭하거나 슬라이드로 끌어다 놓습니다.
-export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock, onBox }: LibraryPanelProps) {
+export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock, onBox, layoutIsFree, onUseFree }: LibraryPanelProps) {
   const [tab, setTab] = useState<Tab>('boxes')
   const [lockBoxes, setLockBoxes] = useState(false)
   const tabs: [Tab, string][] = [
@@ -91,11 +103,21 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onBlock
       <div className="flex-1 overflow-y-auto p-4 pt-3">
         {tab === 'boxes' && (
           <>
-            <p className="mb-2 text-[11px] leading-relaxed text-[#7A8099]">레이아웃의 틀만 같은 크기·위치로 들어가요. 안의 글·이미지는 자유롭게 배치하고, 박스를 더블클릭하면 바로 글을 쓸 수 있어요.</p>
-            <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-lg bg-[#F5F7FC] px-3 py-2 text-[12px] text-[#333A4D]">
-              <input type="checkbox" checked={lockBoxes} onChange={(e) => setLockBoxes(e.target.checked)} className="accent-[#0000A5]" />
-              넣으면서 바로 잠그기 <span className="text-[11px] text-[#9CA3AF]">(실수로 안 움직이게)</span>
-            </label>
+            <div className="relative mb-3 rounded-lg bg-[#F5F7FC] px-3 py-2.5">
+              <div className="flex items-center gap-1 text-[12px] font-semibold text-[#000038]">
+                레이아웃 ‘본문 · 자유 배치’에서 써요
+                <InfoTip below tip={'레이아웃의 틀만 같은 크기·위치로 들어가요.\n안의 글·이미지는 자유롭게 배치하고, 박스를 더블클릭하면 바로 글을 쓸 수 있어요.'} />
+              </div>
+              {!layoutIsFree && (
+                <button type="button" className="mt-1 text-[11px] font-semibold text-[#0000A5] hover:underline" onClick={onUseFree}>
+                  이 슬라이드를 자유 배치로 바꾸기 →
+                </button>
+              )}
+              <label className="mt-2 flex cursor-pointer items-center gap-2 border-t border-[#E6EAF3] pt-2 text-[12px] text-[#333A4D]">
+                <input type="checkbox" checked={lockBoxes} onChange={(e) => setLockBoxes(e.target.checked)} className="accent-[#0000A5]" />
+                넣으면서 바로 잠그기
+              </label>
+            </div>
             <ul className="space-y-3">
               {GUIDE_BOXES.map((b) => (
                 <li key={b.id}>

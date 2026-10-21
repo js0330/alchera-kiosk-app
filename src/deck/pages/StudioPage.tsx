@@ -689,6 +689,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             onIcon={(id) => insert([newIcon(id)], freeCenter)}
             onBlock={(b) => insert(b.build())}
             onBox={(b, lock) => insert(lock ? b.build().map((o) => ({ ...o, locked: true })) : b.build(), undefined, true)}
+            layoutIsFree={slide.layout === 'free'}
+            onUseFree={() => changeLayout('free')}
           />
         )}
 

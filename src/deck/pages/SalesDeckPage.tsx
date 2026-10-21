@@ -11,8 +11,8 @@ export default function SalesDeckPage() {
         회사 세일즈덱을 한곳에 모았어요. 누르면 구글 슬라이드 원본이 새 탭으로 열려요. 고쳐 쓰려면 구글 슬라이드에서 ‘파일 → 사본 만들기’로 내 사본을 만들어 주세요.
       </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {SAMPLES.map((s) => (
-          <SampleCard key={s.id} sample={s} />
+        {SAMPLES.map((s, i) => (
+          <SampleCard key={s.id} sample={s} index={i} />
         ))}
       </div>
     </div>

@@ -12,12 +12,12 @@ const TABS: { id: DeckRoute; label: string }[] = [
 export default function DeckHeader({ route }: { route: DeckRoute }) {
   return (
     <header className="sticky top-0 z-30 border-b border-[#E0E5F0] bg-white/90 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-6 px-4 sm:px-6">
-        <a href="#templates" className="flex items-center gap-2.5">
+      <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-3 px-4 sm:gap-6 sm:px-6">
+        <a href="#templates" className="flex flex-shrink-0 items-center gap-2.5">
           <img src={BRAND.logo.navy} alt="ALCHERA" className="h-[14px]" />
           <span className="rounded bg-[#EEF0FB] px-1.5 py-0.5 text-[11px] font-bold text-[#0000A5]">Deck Studio</span>
         </a>
-        <nav className="flex gap-1">
+        <nav className="flex gap-1 overflow-x-auto whitespace-nowrap">
           {TABS.map((t) => (
             <a
               key={t.id}
