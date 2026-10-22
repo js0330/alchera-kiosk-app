@@ -24,6 +24,7 @@ interface SlideCanvasProps {
   onSelectObjs?: (ids: string[]) => void
   onEditObj?: (id: string | null) => void
   onObjChange?: (objs: FreeObj[]) => void
+  onImageSlot?: (id: string) => void
   // false 면 편집 점선·빈 칸 안내를 숨깁니다
   showGuides?: boolean
 }
@@ -142,6 +143,7 @@ function SlideCanvas({
   onSelectObjs,
   onEditObj,
   onObjChange,
+  onImageSlot,
   showGuides = true,
 }: SlideCanvasProps) {
   const els = buildSlide(slide, index, section)
@@ -268,6 +270,7 @@ function SlideCanvas({
             onEdit={onEditObj}
             onChange={onObjChange}
             bounds={area}
+            onImageSlot={onImageSlot}
           />
         )}
         {marquee && <div className="deck-marquee" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}

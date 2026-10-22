@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { Image as ImageIcon } from 'lucide-react'
 import { BRAND, ptToPx } from '../guide'
 import { parseRich, runStyle } from '../textStyle'
 import { hasRadius, maxRadius, objTextEl, scaleObjects, type Area } from '../freeObjects'
@@ -18,6 +19,8 @@ interface FreeLayerProps {
   onChange?: (objs: FreeObj[]) => void
   // 요소가 이 영역 밖으로 끌려 나가지 않게 (라인형 1단 박스 안쪽)
   bounds?: Area
+  // 그림이 빠진 '이미지 자리'를 더블클릭하면 그림 고르기
+  onImageSlot?: (id: string) => void
 }
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se'
@@ -162,7 +165,25 @@ function ObjView({ o }: { o: FreeObj }) {
   if (o.kind === 'image') {
     return o.src ? (
       <img src={o.src} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', borderRadius: Math.min(o.radius ?? 0, maxRadius(o)) || undefined }} />
-    ) : null
+    ) : (
+      // 이미지 자리: 원본 그림을 받지 못한 자리 (더블클릭하거나, 고른 채 그림을 붙여넣으면 채워짐 · PPTX 에는 빠짐)
+      <div
+        className="deck-image-slot"
+        title="이미지 자리 · 더블클릭해서 넣기"
+        style={{ width: '100%', height: '100%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', background: BRAND.colors.imageFill, color: BRAND.colors.gray, fontSize: 18, lineHeight: 1.4, borderRadius: Math.min(o.radius ?? 0, maxRadius(o)) || undefined }}
+      >
+        {/* 작은 자리는 글 대신 그림 표시만 (글이 넘쳐 보이지 않게) */}
+        {o.w >= 180 && o.h >= 60 ? (
+          <span>
+            이미지 자리
+            <br />
+            더블클릭해서 넣기
+          </span>
+        ) : (
+          <ImageIcon size={Math.max(12, Math.min(28, Math.min(o.w, o.h) * 0.4))} strokeWidth={1.5} />
+        )}
+      </div>
+    )
   }
   if (o.kind === 'line') return <LineView o={o} />
   const [l, t, r, b] = o.pad ?? [0, 0, 0, 0]
@@ -216,7 +237,7 @@ function ObjView({ o }: { o: FreeObj }) {
 
 // 자유 배치 요소 레이어. 편집 모드에서는 클릭으로 선택(Shift·Ctrl+클릭으로 여러 개), 끌어서 이동,
 // 모서리로 크기 조절, 선은 양 끝점을 끌어서 방향·길이 조절, 더블클릭으로 글 수정.
-export default function FreeLayer({ objects, scale, editable, selectedIds = [], editingId, onSelect, onEdit, onChange, bounds }: FreeLayerProps) {
+export default function FreeLayer({ objects, scale, editable, selectedIds = [], editingId, onSelect, onEdit, onChange, bounds, onImageSlot }: FreeLayerProps) {
   const drag = useRef<{ ids: string[]; mode: 'move' | Handle; sx: number; sy: number; starts: FreeObj[] } | null>(null)
 
   useEffect(() => {
@@ -360,7 +381,17 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
             style={{ ...boxStyle(o), cursor: editable && !editing && !locked ? 'move' : undefined, pointerEvents: isLine || locked ? 'none' : undefined }}
             className={editable ? `deck-obj${isLine ? ' is-line' : ''}${selected ? ' is-selected' : ''}${locked ? ' is-locked' : ''}` : undefined}
             onPointerDown={(e) => start(e, o, 'move')}
-            onDoubleClick={() => editable && o.kind === 'shape' && onEdit?.(o.id)}
+            data-slot={o.kind === 'image' && !o.src ? o.id : undefined}
+            onDoubleClick={(e) => {
+              if (!editable) return
+              if (o.kind === 'image' && !o.src) return onImageSlot?.(o.id)
+              // 글이 없는 도형·그림이 이미지 자리를 덮고 있어도, 그 아래 이미지 자리를 엽니다
+              if (!(o.kind === 'shape' && o.text?.trim())) {
+                const slot = document.elementsFromPoint(e.clientX, e.clientY).find((n) => n instanceof HTMLElement && n.dataset.slot) as HTMLElement | undefined
+                if (slot) return onImageSlot?.(slot.dataset.slot!)
+              }
+              if (o.kind === 'shape') onEdit?.(o.id)
+            }}
           >
             {editing ? (
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
