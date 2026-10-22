@@ -54,6 +54,7 @@ export function Dropdown({
   align = 'left',
   buttonClass = 'deck-btn deck-btn-ghost',
   caret = true,
+  keepFocus = false,
   children,
 }: {
   label: string
@@ -62,6 +63,8 @@ export function Dropdown({
   align?: 'left' | 'right'
   buttonClass?: string
   caret?: boolean
+  // 글을 고치는 중에 눌러도 글 선택이 풀리지 않게 (글자 일부 서식)
+  keepFocus?: boolean
   children: (close: () => void) => ReactNode
 }) {
   const [pos, setPos] = useState<{ left?: number; right?: number; top: number } | null>(null)
@@ -88,6 +91,7 @@ export function Dropdown({
         title={compact ? label : undefined}
         aria-label={label}
         className={`${buttonClass} ${pos ? 'bg-[#EEF1FB]' : ''}`}
+        onMouseDown={(e) => keepFocus && e.preventDefault()}
         onClick={() => {
           const r = btn.current!.getBoundingClientRect()
           setPos(pos ? null : align === 'right' ? { right: window.innerWidth - r.right, top: r.bottom + 6 } : { left: Math.min(r.left, window.innerWidth - 340), top: r.bottom + 6 })
@@ -96,7 +100,12 @@ export function Dropdown({
         {icon} {compact ? null : label} {caret && <ChevronDown size={13} className="-ml-0.5 opacity-60" />}
       </button>
       {pos && (
-        <div ref={menu} className="fixed z-50 rounded-xl border border-[#E0E5F0] bg-white p-1.5 shadow-[0_12px_40px_rgba(0,0,56,0.16)]" style={pos}>
+        <div
+          ref={menu}
+          className="fixed z-50 rounded-xl border border-[#E0E5F0] bg-white p-1.5 shadow-[0_12px_40px_rgba(0,0,56,0.16)]"
+          style={pos}
+          onMouseDown={(e) => keepFocus && e.preventDefault()}
+        >
           {children(() => setPos(null))}
         </div>
       )}

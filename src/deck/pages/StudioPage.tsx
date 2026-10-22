@@ -726,7 +726,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         <ShapeMenu compact onPick={(g) => addObj(newShape(g))} />
         <LineMenu compact onPick={(k) => addObj(newLine(k))} />
         <span className={SEP} />
-        <TextTools objs={selected} onPatch={patchSelected} />
+        <TextTools objs={selected} editing={!!editingObj} onPatch={patchSelected} />
         <div className="ml-auto flex items-center gap-1 pl-2">
           {(
             [

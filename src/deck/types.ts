@@ -67,6 +67,10 @@ export interface FreeObj {
   size?: number
   color?: string
   bold?: boolean
+  // 글 전체 밑줄 (일부만은 글 안에 __밑줄__)
+  underline?: boolean
+  // 글 전체 기울임 (일부만은 글 안에 ~~기울임~~)
+  italic?: boolean
   align?: 'left' | 'center' | 'right'
   valign?: 'top' | 'middle' | 'bottom'
   lineHeight?: number

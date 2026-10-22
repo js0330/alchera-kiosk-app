@@ -3,7 +3,7 @@ import { memo, useRef, useState, type CSSProperties } from 'react'
 import { BRAND, SLIDE_H, SLIDE_W, TONES, ptToPx } from '../guide'
 import { LAYOUT_MAP, buildSlide, slideTone } from '../layouts'
 import type { FreeObj, ImageEl, ShapeEl, Slide, SlideEl, TextEl } from '../types'
-import { listClass, parseRich, phOpacity, textStyle } from '../textStyle'
+import { listClass, parseRich, phOpacity, runStyle, textStyle } from '../textStyle'
 import EditableText from './EditableText'
 import FreeLayer from './FreeLayer'
 
@@ -39,7 +39,15 @@ function StaticText({ el, value, placeholder }: { el: TextEl; value: string; pla
   return (
     <div className={listClass(el)} style={style}>
       {(el.list === 'number' ? lines.filter((l) => l.trim()) : lines).map((line, i) => (
-        <div key={i}>{el.rich ? parseRich(line).map((r, j) => (r.bold ? <b key={j}>{r.text}</b> : r.text)) : line || '\u00a0'}</div>
+        <div key={i}>
+          {el.rich
+            ? parseRich(line).map((r, j) => (
+                <span key={j} style={runStyle(r)}>
+                  {r.text}
+                </span>
+              ))
+            : line || '\u00a0'}
+        </div>
       ))}
     </div>
   )

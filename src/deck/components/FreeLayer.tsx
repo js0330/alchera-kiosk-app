@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { BRAND, ptToPx } from '../guide'
-import { parseRich } from '../textStyle'
+import { parseRich, runStyle } from '../textStyle'
 import { hasRadius, maxRadius, objTextEl, scaleObjects, type Area } from '../freeObjects'
 import { pointsAttr, shapePoints, textInsets } from '../shapes'
 import type { FreeObj } from '../types'
@@ -132,6 +132,8 @@ function TextView({ o }: { o: FreeObj }) {
       style={{
         fontSize: ptToPx(o.size ?? 10),
         fontWeight: o.bold ? 700 : 400,
+        textDecoration: o.underline ? 'underline' : undefined,
+        fontStyle: o.italic ? 'italic' : undefined,
         color: o.color ?? BRAND.colors.navy,
         textAlign: o.align ?? 'left',
         lineHeight: o.lineHeight ?? 1.3,
@@ -142,7 +144,15 @@ function TextView({ o }: { o: FreeObj }) {
       }}
     >
       {o.text!.split('\n').map((line, i) => (
-        <div key={i}>{line ? parseRich(line).map((run, j) => (run.bold ? <b key={j}>{run.text}</b> : run.text)) : ' '}</div>
+        <div key={i}>
+          {line
+            ? parseRich(line).map((run, j) => (
+                <span key={j} style={runStyle(run)}>
+                  {run.text}
+                </span>
+              ))
+            : ' '}
+        </div>
       ))}
     </div>
   )

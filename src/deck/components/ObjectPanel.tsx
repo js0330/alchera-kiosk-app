@@ -1,7 +1,7 @@
 import { ArrowDownToLine, ArrowUpToLine, Bold, Copy, Lock, TextAlignCenter, TextAlignEnd, TextAlignStart, Trash2, WandSparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { BRAND } from '../guide'
-import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINE_HEIGHTS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, hasRadius, isGuideSize, maxRadius } from '../freeObjects'
+import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINE_HEIGHTS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, COLOR_NAMES, hasRadius, isGuideSize, maxRadius } from '../freeObjects'
 import { SHAPES } from '../shapes'
 import type { FreeObj, Geom, LineDash, LineEnd } from '../types'
 
@@ -15,15 +15,6 @@ interface ObjectPanelProps {
   onLock: () => void
 }
 
-const COLOR_NAMES: Record<string, string> = {
-  [BRAND.colors.navy]: '네이비',
-  [BRAND.colors.blue]: '알체라 블루',
-  [BRAND.colors.gray]: '그레이',
-  [BRAND.colors.crumb]: '연한 그레이',
-  [BRAND.colors.white]: '흰색',
-  [BRAND.colors.imageFill]: '이미지 배경색',
-  [BRAND.colors.line]: '테두리 회색',
-}
 
 const LINE_WIDTHS = [0.75, 1, 1.5, 2.25, 3] as const
 const RADII = [0, 4, 8, 12, 16, 24] as const

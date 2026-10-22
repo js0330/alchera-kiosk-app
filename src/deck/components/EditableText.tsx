@@ -1,10 +1,21 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { ptToPx } from '../guide'
-import { BULLET, listClass, phOpacity, textStyle } from '../textStyle'
+import { BULLET, listClass, parseRich, phOpacity, textStyle } from '../textStyle'
 import type { TextEl } from '../types'
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-const richHtml = (s: string) => escapeHtml(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+// 서식 표기(**굵게** · __밑줄__ · ~~기울임~~ · {{#색:글}}) → 편집용 HTML
+const richHtml = (s: string) =>
+  parseRich(s)
+    .map((r) => {
+      let h = escapeHtml(r.text)
+      if (r.bold) h = `<b>${h}</b>`
+      if (r.underline) h = `<u>${h}</u>`
+      if (r.italic) h = `<i>${h}</i>`
+      if (r.color) h = `<font color="${r.color}">${h}</font>`
+      return h
+    })
+    .join('')
 
 function toHtml(value: string, multiline: boolean, rich: boolean) {
   const line = rich ? richHtml : escapeHtml
@@ -16,8 +27,24 @@ function toHtml(value: string, multiline: boolean, rich: boolean) {
 }
 
 const isBold = (el: HTMLElement) => el.nodeName === 'B' || el.nodeName === 'STRONG' || Number(el.style.fontWeight) >= 600 || el.style.fontWeight === 'bold'
+const isItalic = (el: HTMLElement) => el.nodeName === 'I' || el.nodeName === 'EM' || el.style.fontStyle === 'italic'
+const isUnderline = (el: HTMLElement) => el.nodeName === 'U' || /underline/.test(el.style.textDecoration || el.style.textDecorationLine)
+// 글자 색 (font color="…" · style="color:…") → #RRGGBB
+function colorOf(el: HTMLElement): string | undefined {
+  const raw = (el.nodeName === 'FONT' && el.getAttribute('color')) || el.style.color
+  if (!raw) return undefined
+  if (raw.startsWith('#')) return raw.length === 4 ? `#${[...raw.slice(1)].map((c) => c + c).join('')}`.toUpperCase() : raw.toUpperCase()
+  const m = raw.match(/\d+/g)
+  return m && m.length >= 3 ? `#${m.slice(0, 3).map((n) => Number(n).toString(16).padStart(2, '0')).join('')}`.toUpperCase() : undefined
+}
+// 줄마다 감싸기 (빈 줄은 그대로)
+const wrapLines = (s: string, open: string, close: string) =>
+  s
+    .split('\n')
+    .map((l) => (l.trim() ? `${open}${l}${close}` : l))
+    .join('\n')
 
-// contentEditable 의 DOM 을 저장 형식(줄바꿈 + **굵게**)으로 바꿉니다.
+// contentEditable 의 DOM 을 저장 형식(줄바꿈 + **굵게** · __밑줄__ · ~~기울임~~ · {{#색:글}})으로 바꿉니다.
 function serialize(node: Node, rich: boolean): string {
   let out = ''
   node.childNodes.forEach((c) => {
@@ -28,11 +55,14 @@ function serialize(node: Node, rich: boolean): string {
       if (c.nodeName === 'DIV' || c.nodeName === 'P') {
         if (out && !out.endsWith('\n')) out += '\n'
         out += inner.replace(/\n$/, '') + '\n'
-      } else if (rich && isBold(c)) {
-        out += inner
-          .split('\n')
-          .map((l) => (l.trim() ? `**${l}**` : l))
-          .join('\n')
+      } else if (rich) {
+        let v = inner
+        if (isBold(c)) v = wrapLines(v, '**', '**')
+        if (isUnderline(c)) v = wrapLines(v, '__', '__')
+        if (isItalic(c)) v = wrapLines(v, '~~', '~~')
+        const color = colorOf(c)
+        if (color) v = wrapLines(v, `{{${color}:`, '}}')
+        out += v
       } else out += inner
     }
   })
@@ -40,7 +70,7 @@ function serialize(node: Node, rich: boolean): string {
 }
 
 function readValue(node: HTMLElement, multiline: boolean, rich: boolean) {
-  const text = serialize(node, rich).replace(/ /g, ' ').replace(/\*\*\*\*/g, '')
+  const text = serialize(node, rich).replace(/ /g, ' ').replace(/\*\*\*\*/g, '').replace(/____/g, '').replace(/~~~~/g, '').replace(/\{\{#[0-9A-F]{6}:\}\}/g, '')
   return multiline ? text.replace(/\n$/, '') : text.replace(/\n/g, ' ')
 }
 
@@ -142,7 +172,7 @@ export default function EditableText({ el, value, onChange, onFocus, autoFocus, 
         }}
         onKeyDown={(e) => {
           const mod = e.metaKey || e.ctrlKey
-          if (mod && (e.key === 'i' || e.key === 'u')) e.preventDefault()
+          if (mod && (e.key === 'i' || e.key === 'u') && !rich) e.preventDefault()
           if (mod && e.key === 'b' && !rich) e.preventDefault()
           if (e.key === 'Escape') (e.target as HTMLElement).blur()
           if (e.key !== 'Enter') return

@@ -2,7 +2,7 @@ import type PptxGenJS from 'pptxgenjs'
 import { BRAND, PX_PER_IN, SLIDE_IN, TONES } from './guide'
 import { buildSlide, sectionFor, slideTone } from './layouts'
 import { downloadBlob, safeFileName } from './store'
-import { parseRich } from './textStyle'
+import { parseRich, type Run } from './textStyle'
 import type { Deck, FreeObj, ShapeEl, TextEl } from './types'
 
 const inch = (px: number) => px / PX_PER_IN
@@ -79,7 +79,7 @@ function textRuns(el: TextEl, value: string): PptxGenJS.TextProps[] | string {
     if (!runs.length) runs.push({ text: '', bold: false })
     return runs.map((r, j) => ({
       text: r.text,
-      options: { bold: r.bold || !!el.bold, breakLine: j === runs.length - 1 && i < lines.length - 1 },
+      options: { ...runOptions(r), bold: r.bold || !!el.bold, breakLine: j === runs.length - 1 && i < lines.length - 1 },
     }))
   })
 }
@@ -94,12 +94,20 @@ function shadow(el: Pick<ShapeEl, 'shadow'>): PptxGenJS.ShadowProps | undefined 
 
 const pt = (px: number) => (px / PX_PER_IN) * 72
 
-function richRuns(text: string, bold: boolean): PptxGenJS.TextProps[] {
+// 글 일부 서식(밑줄·기울임·색)을 PPTX 글 구간 옵션으로
+function runOptions(r: Run): PptxGenJS.TextPropsOptions {
+  return { underline: r.underline ? { style: 'sng' } : undefined, italic: r.italic || undefined, color: r.color ? hex(r.color) : undefined }
+}
+
+function richRuns(text: string, bold: boolean, underline = false, italic = false): PptxGenJS.TextProps[] {
   const lines = text.split('\n')
   return lines.flatMap((line, i) => {
     const runs = parseRich(line)
     if (!runs.length) runs.push({ text: '', bold: false })
-    return runs.map((r, j) => ({ text: r.text, options: { bold: r.bold || bold, breakLine: j === runs.length - 1 && i < lines.length - 1 } }))
+    return runs.map((r, j) => ({
+      text: r.text,
+      options: { ...runOptions({ ...r, underline: r.underline || underline, italic: r.italic || italic }), bold: r.bold || bold, breakLine: j === runs.length - 1 && i < lines.length - 1 },
+    }))
   })
 }
 
@@ -144,7 +152,7 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
     return
   }
   const [l, t, r, b] = o.pad ?? [0, 0, 0, 0]
-  s.addText(richRuns(o.text, !!o.bold), {
+  s.addText(richRuns(o.text, !!o.bold, !!o.underline, !!o.italic), {
     ...common,
     shape,
     fontFace: BRAND.font.ppt,
