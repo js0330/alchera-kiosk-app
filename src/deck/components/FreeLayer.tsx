@@ -25,6 +25,11 @@ type Handle = Corner | 'p1' | 'p2' | 'radius' | `group-${Corner}`
 const HANDLES: Corner[] = ['nw', 'ne', 'sw', 'se']
 const MIN = 12
 
+// 모서리 손잡이 자리 (요소 상자 기준). 클래스 이름을 조합해 쓰면 사이트를 만들 때 스타일이 빠지므로 위치를 직접 줍니다
+const cornerAt = (hd: Corner, w: number, h: number) => ({ left: hd.includes('w') ? -8 : w - 6, top: hd.includes('n') ? -8 : h - 6, right: 'auto', bottom: 'auto' })
+// 채우기·테두리가 없는 글 상자
+const isTextBox = (o: FreeObj) => o.kind === 'shape' && !o.fill && !o.line
+
 const boxOfObjs = (list: FreeObj[]) => {
   const x = Math.min(...list.map((o) => o.x))
   const y = Math.min(...list.map((o) => o.y))
@@ -363,7 +368,10 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
               single &&
               !editing &&
               !isLine &&
-              HANDLES.map((hd) => <span key={hd} className={`deck-handle deck-handle-${hd}`} style={{ transform: `scale(${1 / scale})` }} onPointerDown={(e) => start(e, o, hd)} />)}
+              // 글 상자(채우기·테두리 없음)는 오른쪽 아래 손잡이 하나, 도형·이미지는 네 모서리
+              (isTextBox(o) ? (['se'] as const) : HANDLES).map((hd) => (
+                <span key={hd} className={`deck-handle deck-handle-${hd}`} style={{ ...cornerAt(hd, o.w, o.h), transform: `scale(${1 / scale})` }} onPointerDown={(e) => start(e, o, hd)} />
+              ))}
             {selected && single && !editing && hasRadius(o) && (
               <span
                 className="deck-handle deck-handle-radius"
@@ -396,15 +404,7 @@ export default function FreeLayer({ objects, scale, editable, selectedIds = [], 
               key={hd}
               className={`deck-handle deck-handle-${hd}`}
               title="끌어서 같은 비율로 크기 조절"
-              // 위치는 직접 지정 (묶음 테두리 모서리)
-              style={{
-                left: hd.includes('w') ? -8 : group.w - 6,
-                top: hd.includes('n') ? -8 : group.h - 6,
-                right: 'auto',
-                bottom: 'auto',
-                transform: `scale(${1 / scale})`,
-                pointerEvents: 'auto',
-              }}
+              style={{ ...cornerAt(hd, group.w, group.h), transform: `scale(${1 / scale})`, pointerEvents: 'auto' }}
               onPointerDown={(e) => start(e, groupObjs[0], `group-${hd}`)}
             />
           ))}

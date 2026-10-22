@@ -22,6 +22,8 @@ interface LibraryPanelProps {
   // 지금 슬라이드가 '본문 · 자유 배치'인지, 아니면 바꾸기
   layoutIsFree: boolean
   onUseFree: () => void
+  // 오른쪽 패널 '샘플' 탭 안에 넣을 때: 머리줄·테두리 없이
+  embedded?: boolean
 }
 
 type Tab = 'boxes' | 'blocks' | 'icons' | 'shapes'
@@ -69,7 +71,7 @@ function ItemTitle({ label, tip }: { label: string; tip: string }) {
 }
 
 // 웹플로우의 "추가" 패널처럼: 샘플덱에서 가져온 구성 블록 · 아이콘 · 도형을 클릭하거나 슬라이드로 끌어다 놓습니다.
-export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onNumber, onBlock, onBox, layoutIsFree, onUseFree }: LibraryPanelProps) {
+export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onNumber, onBlock, onBox, layoutIsFree, onUseFree, embedded = false }: LibraryPanelProps) {
   const [tab, setTab] = useState<Tab>('boxes')
   const [lockBoxes, setLockBoxes] = useState(false)
   const tabs: [Tab, string][] = [
@@ -79,8 +81,8 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onNumbe
     ['shapes', '도형·선'],
   ]
   return (
-    <div className="flex w-[288px] flex-shrink-0 flex-col border-r border-[#E0E5F0] bg-white">
-      <div className="flex items-center justify-between px-4 pb-2 pt-3">
+    <div className={embedded ? 'flex min-h-0 flex-1 flex-col' : 'flex w-[288px] flex-shrink-0 flex-col border-r border-[#E0E5F0] bg-white'}>
+      <div className={embedded ? 'hidden' : 'flex items-center justify-between px-4 pb-2 pt-3'}>
         <div>
           <h3 className="text-[14px] font-bold text-[#000038]">요소 라이브러리</h3>
           <p className="text-[11px] text-[#7A8099]">클릭하거나 슬라이드로 끌어다 놓으세요</p>
@@ -89,7 +91,7 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onNumbe
           <X size={16} />
         </button>
       </div>
-      <div className="mx-4 flex rounded-lg bg-[#F2F4FB] p-0.5">
+      <div className={`mx-4 flex rounded-lg bg-[#F2F4FB] p-0.5 ${embedded ? 'mt-3' : ''}`}>
         {tabs.map(([id, label]) => (
           <button
             key={id}

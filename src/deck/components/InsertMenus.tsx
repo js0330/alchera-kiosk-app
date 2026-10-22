@@ -45,8 +45,26 @@ export function LineIcon({ kind, width = 40 }: { kind: LineKind; width?: number 
 }
 
 // 툴바 버튼 + 아래로 펼쳐지는 메뉴 (툴바가 가로 스크롤이라 화면 기준 위치에 띄웁니다)
-function Dropdown({ label, icon, children }: { label: string; icon: ReactNode; children: (close: () => void) => ReactNode }) {
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
+//  compact: 아이콘만 보이는 버튼 (이름은 마우스를 올리면) · align right: 버튼 오른쪽 끝에 맞춰 펼침
+//  trigger: 버튼 모양을 직접 정할 때 (예: 다운로드 버튼)
+export function Dropdown({
+  label,
+  icon,
+  compact = false,
+  align = 'left',
+  buttonClass = 'deck-btn deck-btn-ghost',
+  caret = true,
+  children,
+}: {
+  label: string
+  icon?: ReactNode
+  compact?: boolean
+  align?: 'left' | 'right'
+  buttonClass?: string
+  caret?: boolean
+  children: (close: () => void) => ReactNode
+}) {
+  const [pos, setPos] = useState<{ left?: number; right?: number; top: number } | null>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -67,16 +85,18 @@ function Dropdown({ label, icon, children }: { label: string; icon: ReactNode; c
       <button
         ref={btn}
         type="button"
-        className={`deck-btn deck-btn-ghost ${pos ? 'bg-[#EEF1FB]' : ''}`}
+        title={compact ? label : undefined}
+        aria-label={label}
+        className={`${buttonClass} ${pos ? 'bg-[#EEF1FB]' : ''}`}
         onClick={() => {
           const r = btn.current!.getBoundingClientRect()
-          setPos(pos ? null : { left: Math.min(r.left, window.innerWidth - 340), top: r.bottom + 6 })
+          setPos(pos ? null : align === 'right' ? { right: window.innerWidth - r.right, top: r.bottom + 6 } : { left: Math.min(r.left, window.innerWidth - 340), top: r.bottom + 6 })
         }}
       >
-        {icon} {label} <ChevronDown size={13} className="-ml-0.5 opacity-60" />
+        {icon} {compact ? null : label} {caret && <ChevronDown size={13} className="-ml-0.5 opacity-60" />}
       </button>
       {pos && (
-        <div ref={menu} className="fixed z-50 rounded-xl border border-[#E0E5F0] bg-white p-3 shadow-[0_12px_40px_rgba(0,0,56,0.16)]" style={pos}>
+        <div ref={menu} className="fixed z-50 rounded-xl border border-[#E0E5F0] bg-white p-1.5 shadow-[0_12px_40px_rgba(0,0,56,0.16)]" style={pos}>
           {children(() => setPos(null))}
         </div>
       )}
@@ -84,11 +104,47 @@ function Dropdown({ label, icon, children }: { label: string; icon: ReactNode; c
   )
 }
 
-export function ShapeMenu({ onPick }: { onPick: (geom: Geom) => void }) {
+export interface MenuItem {
+  label: string
+  icon?: ReactNode
+  hint?: string
+  disabled?: boolean
+  onClick: () => void
+}
+
+// 메뉴 항목 목록 (null 은 구분선)
+export function MenuList({ items, close }: { items: (MenuItem | null)[]; close: () => void }) {
   return (
-    <Dropdown label="도형" icon={<Shapes size={15} />}>
+    <div className="min-w-[220px]">
+      {items.map((it, i) =>
+        it ? (
+          <button
+            key={it.label}
+            type="button"
+            disabled={it.disabled}
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-[#1A1D3D] hover:bg-[#EEF1FB] disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
+            onClick={() => {
+              it.onClick()
+              close()
+            }}
+          >
+            <span className="flex w-4 justify-center text-[#5A6080]">{it.icon}</span>
+            <span className="flex-1">{it.label}</span>
+            {it.hint && <span className="text-[11px] text-[#9CA3AF]">{it.hint}</span>}
+          </button>
+        ) : (
+          <div key={`sep-${i}`} className="my-1 h-px bg-[#EEF1F7]" />
+        ),
+      )}
+    </div>
+  )
+}
+
+export function ShapeMenu({ onPick, compact }: { onPick: (geom: Geom) => void; compact?: boolean }) {
+  return (
+    <Dropdown label="도형" icon={<Shapes size={16} />} compact={compact}>
       {(close) => (
-        <div className="w-[300px] space-y-3">
+        <div className="w-[300px] space-y-3 p-1.5">
           {(['기본 도형', '화살표'] as const).map((g) => (
             <div key={g}>
               <p className="deck-label mb-1.5">{g}</p>
@@ -119,11 +175,11 @@ export function ShapeMenu({ onPick }: { onPick: (geom: Geom) => void }) {
   )
 }
 
-export function LineMenu({ onPick }: { onPick: (kind: LineKind) => void }) {
+export function LineMenu({ onPick, compact }: { onPick: (kind: LineKind) => void; compact?: boolean }) {
   return (
-    <Dropdown label="선" icon={<Minus size={15} />}>
+    <Dropdown label="선" icon={<Minus size={16} />} compact={compact}>
       {(close) => (
-        <div className="w-[200px] space-y-0.5">
+        <div className="w-[200px] space-y-0.5 p-1">
           {LINE_KINDS.map((k) => (
             <button
               key={k.id}
