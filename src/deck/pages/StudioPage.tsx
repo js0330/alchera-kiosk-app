@@ -2,12 +2,14 @@ import {
   ArrowLeft,
   CircleAlert,
   CircleCheck,
+  Ellipsis,
   Copy,
   Download,
   FileJson,
   LayoutTemplate,
   LibraryBig,
   LoaderCircle,
+  MousePointer2,
   LockOpen,
   Eye,
   EyeOff,
@@ -21,10 +23,12 @@ import {
   Type,
   Undo2,
   WandSparkles,
+  X,
 } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from 'react'
-import { LineMenu, ShapeMenu } from '../components/InsertMenus'
-import LayoutPicker from '../components/LayoutPicker'
+import { Dropdown, LineMenu, MenuList, ShapeMenu, type MenuItem } from '../components/InsertMenus'
+import TextTools from '../components/TextTools'
+import LayoutPicker, { LayoutThumb } from '../components/LayoutPicker'
 import LibraryPanel from '../components/LibraryPanel'
 import ObjectPanel from '../components/ObjectPanel'
 import PresentMode from '../components/PresentMode'
@@ -37,10 +41,15 @@ import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from
 import { fitTextToBoxes } from '../textFit'
 import { GoogleError, SCOPE_FILE, getGoogleToken, loadGoogle, uploadAsGoogleSlides } from '../google'
 import { makeSlide, uid } from '../kits'
-import { FREE_AREA, LAYOUT_MAP, LINE_BOX_AREA, checkSlide, sectionFor } from '../layouts'
+import { FREE_AREA, LAYOUT_MAP, LINE_BOX_AREA, VISIBLE_LAYOUTS, checkSlide, sectionFor } from '../layouts'
 import { BLOCKS, GUIDE_BOXES, newIcon, numberCircle, placeObjects, resolveIcons, tintIcon } from '../library'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, FreeObj, LayoutId, Slide } from '../types'
+
+// 도구줄 버튼 모양
+const MENU_BTN = 'rounded px-2 py-0.5 text-[13px] text-[#333A4D] hover:bg-[#F2F4FB]'
+const ICON_BTN = 'deck-btn deck-btn-ghost h-8 px-2'
+const SEP = 'mx-1.5 h-5 w-px flex-shrink-0 bg-[#D9DEEA]'
 
 // 복사한 자유 배치 요소. 다른 슬라이드·다른 문서에도 붙여넣을 수 있도록 모듈에 둡니다.
 const CLIP_MARK = 'alchera-deck-objects:'
@@ -99,7 +108,9 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   const [exporting, setExporting] = useState(false)
   const [checkOpen, setCheckOpen] = useState<false | 'pptx' | 'google'>(false)
   const [sending, setSending] = useState(false)
-  const [libraryOpen, setLibraryOpen] = useState(false)
+  // 오른쪽 패널: 양식(레이아웃) · 샘플(요소 라이브러리) · 설정(선택한 요소·가이드 체크·노트)
+  const [panel, setPanel] = useState<'layouts' | 'library' | 'settings' | null>('settings')
+  const [layoutMode, setLayoutMode] = useState<'add' | 'change'>('add')
   const [dragFrom, setDragFrom] = useState<number | null>(null)
   const [notice, setNotice] = useState<{ text: string; undo?: () => void; action?: { label: string; run: () => void }; ms?: number } | null>(
     initialNotice ? { text: initialNotice } : null,
@@ -552,134 +563,197 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     })()
   }
 
+  const openLayouts = (mode: 'add' | 'change') => {
+    setLayoutMode(mode)
+    setPanel('layouts')
+  }
+  const downloadPptx = () => (allIssues.length ? setCheckOpen('pptx') : runExport())
+  const sendGoogle = () => {
+    loadGoogle().catch(() => undefined)
+    if (allIssues.length) setCheckOpen('google')
+    else sendToGoogle()
+  }
+
   const exportJson = () => {
     downloadBlob(new Blob([JSON.stringify(deck, null, 2)], { type: 'application/json' }), `${safeFileName(deck.title)}.deck.json`)
   }
 
+  // 슬라이드 도구 (슬라이드 메뉴 · 도구줄 [···] 에서 같이 씁니다)
+  const lockedCount = objects.filter((o) => o.locked).length
+  const slideTools: (MenuItem | null)[] = [
+    { label: showGuides ? '편집선 숨기기' : '편집선 보기', icon: showGuides ? <EyeOff size={14} /> : <Eye size={14} />, onClick: () => setShowGuides((v) => !v) },
+    {
+      label: '가이드 서식 맞추기',
+      icon: <WandSparkles size={14} />,
+      disabled: !objects.length,
+      onClick: () => {
+        setObjects((objs) => objs.map(snapToGuide))
+        setNotice({ text: '이 슬라이드를 가이드 서식(글자 크기·색·배경)에 맞췄어요', undo })
+      },
+    },
+    {
+      label: lockedCount ? `잠금 해제 (${lockedCount})` : '잠금 해제',
+      icon: <LockOpen size={14} />,
+      disabled: !lockedCount,
+      onClick: () => {
+        const ids = objects.filter((o) => o.locked).map((o) => o.id)
+        setObjects((objs) => objs.map((o) => (o.locked ? { ...o, locked: undefined } : o)))
+        setSelectedObjs(ids)
+      },
+    },
+  ]
+
   return (
     <div className="flex h-screen flex-col">
-      {/* 상단 바 */}
-      <header className="flex h-14 flex-shrink-0 items-center gap-3 border-b border-[#E0E5F0] bg-white px-3">
-        <a href="#templates" className="deck-btn deck-btn-ghost px-2" aria-label="템플릿으로">
+      {/* 상단: 문서 제목 · 메뉴(파일 · 슬라이드 · 삽입) · 미리보기 · 다운로드 */}
+      <header className="flex flex-shrink-0 items-center gap-3 border-b border-[#E0E5F0] bg-white px-3 py-1.5">
+        <a href="#templates" className="deck-btn deck-btn-ghost px-2" aria-label="템플릿으로" title="템플릿 화면으로">
           <ArrowLeft size={18} />
         </a>
-        <input
-          value={deck.title}
-          onChange={(e) => onChange({ ...deck, title: e.target.value }, 'title')}
-          className="min-w-0 flex-1 rounded-md px-2 py-1 text-[16px] font-bold text-[#000038] outline-none hover:bg-[#F5F7FC] focus:bg-[#F5F7FC] sm:max-w-[360px]"
-          aria-label="문서 제목"
-        />
-        <span className={`hidden text-[12px] sm:inline ${saveState === 'error' ? 'font-semibold text-[#E84B55]' : 'text-[#7A8099]'}`}>
-          {saveState === 'saved' ? '이 브라우저에 저장됨' : saveState === 'saving' ? '저장 중…' : '저장 공간 부족 — 이미지를 줄이거나 JSON으로 보관하세요'}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          <button type="button" className="deck-btn hidden md:inline-flex" onClick={exportJson} title="팀원에게 공유할 수 있는 편집용 파일">
-            <FileJson size={16} /> 편집 파일
-          </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3">
+            <input
+              value={deck.title}
+              onChange={(e) => onChange({ ...deck, title: e.target.value }, 'title')}
+              className="min-w-0 max-w-[420px] flex-1 rounded-md px-1.5 py-0.5 text-[16px] font-bold text-[#000038] outline-none hover:bg-[#F5F7FC] focus:bg-[#F5F7FC]"
+              aria-label="문서 제목"
+            />
+            <span className={`hidden text-[11px] sm:inline ${saveState === 'error' ? 'font-semibold text-[#E84B55]' : 'text-[#9CA3AF]'}`}>
+              {saveState === 'saved' ? '이 브라우저에 저장됨' : saveState === 'saving' ? '저장 중…' : '저장 공간 부족 — 이미지를 줄이거나 편집 파일로 보관하세요'}
+            </span>
+          </div>
+          <nav className="flex">
+            <Dropdown label="파일" caret={false} buttonClass={MENU_BTN}>
+              {(close) => (
+                <MenuList
+                  close={close}
+                  items={[
+                    { label: 'PPTX 파일로 다운로드', icon: <Download size={14} />, onClick: downloadPptx },
+                    { label: '구글 슬라이드로 보내기', icon: <Presentation size={14} />, onClick: sendGoogle },
+                    { label: '편집 파일로 저장 (.deck.json)', icon: <FileJson size={14} />, onClick: exportJson, hint: '팀원과 주고받기' },
+                    null,
+                    { label: '미리보기', icon: <ScanEye size={14} />, onClick: () => setPreviewing(true) },
+                    { label: '발표 시작', icon: <Play size={14} />, onClick: () => setPresenting(true) },
+                    null,
+                    { label: '템플릿 화면으로', icon: <ArrowLeft size={14} />, onClick: () => (window.location.hash = 'templates') },
+                  ]}
+                />
+              )}
+            </Dropdown>
+            <Dropdown label="슬라이드" caret={false} buttonClass={MENU_BTN}>
+              {(close) => (
+                <MenuList
+                  close={close}
+                  items={[
+                    { label: '새 슬라이드', icon: <Plus size={14} />, onClick: () => openLayouts('add') },
+                    { label: '레이아웃 바꾸기', icon: <LayoutTemplate size={14} />, hint: layout.name, onClick: () => openLayouts('change') },
+                    { label: '이 슬라이드 복제', icon: <Copy size={14} />, onClick: () => duplicate(index) },
+                    { label: '이 슬라이드 삭제', icon: <Trash2 size={14} />, disabled: deck.slides.length === 1, onClick: () => remove(index) },
+                    null,
+                    ...slideTools,
+                    null,
+                    { label: '발표 시작', icon: <Play size={14} />, onClick: () => setPresenting(true) },
+                  ]}
+                />
+              )}
+            </Dropdown>
+            <Dropdown label="삽입" caret={false} buttonClass={MENU_BTN}>
+              {(close) => (
+                <MenuList
+                  close={close}
+                  items={[
+                    { label: '텍스트', icon: <Type size={14} />, onClick: () => addObj(newText()) },
+                    { label: '이미지', icon: <ImagePlus size={14} />, onClick: () => pickImage('__free__') },
+                    { label: '도형 · 선 · 아이콘 · 블록', icon: <LibraryBig size={14} />, hint: '샘플', onClick: () => setPanel('library') },
+                    { label: '새 슬라이드', icon: <Plus size={14} />, onClick: () => openLayouts('add') },
+                  ]}
+                />
+              )}
+            </Dropdown>
+          </nav>
+        </div>
+        <div className="flex items-center gap-2">
           <button type="button" className="deck-btn" onClick={() => setPreviewing(true)} title="편집 표시 없이 완성된 모습으로 보기">
-            <ScanEye size={16} /> 미리보기
+            <Play size={15} /> 미리보기
           </button>
-          <button type="button" className="deck-btn" onClick={() => setPresenting(true)}>
-            <Play size={16} /> 발표
-          </button>
-          <button
-            type="button"
-            className="deck-btn"
-            disabled={sending}
-            onMouseEnter={() => loadGoogle().catch(() => undefined)}
-            onClick={() => (allIssues.length ? setCheckOpen('google') : sendToGoogle())}
-            title="회사 구글 계정으로 로그인해서 내 구글 드라이브에 구글 슬라이드로 만듭니다"
+          <Dropdown
+            label={exporting ? '만드는 중…' : sending ? '보내는 중…' : '다운로드'}
+            icon={exporting || sending ? <LoaderCircle size={16} className="animate-spin" /> : <Download size={16} />}
+            align="right"
+            buttonClass="deck-btn deck-btn-primary"
           >
-            {sending ? <LoaderCircle size={16} className="animate-spin" /> : <Presentation size={16} />} 구글 슬라이드로
-          </button>
-          <button
-            type="button"
-            className="deck-btn deck-btn-primary"
-            disabled={exporting}
-            onClick={() => (allIssues.length ? setCheckOpen('pptx') : runExport())}
-          >
-            {exporting ? <LoaderCircle size={16} className="animate-spin" /> : <Download size={16} />} PPTX 다운로드
-          </button>
+            {(close) => (
+              <MenuList
+                close={close}
+                items={[
+                  { label: 'PPTX 파일로 다운로드', icon: <Download size={14} />, disabled: exporting, onClick: downloadPptx },
+                  { label: '구글 슬라이드로 보내기', icon: <Presentation size={14} />, disabled: sending, onClick: sendGoogle, hint: '내 드라이브' },
+                  { label: '편집 파일 (.deck.json)', icon: <FileJson size={14} />, onClick: exportJson, hint: '팀원과 주고받기' },
+                ]}
+              />
+            )}
+          </Dropdown>
         </div>
       </header>
 
-      {/* 슬라이드 도구: 되돌리기 · 레이아웃 · 요소 넣기 */}
-      <div className="flex h-12 flex-shrink-0 items-center gap-1.5 overflow-x-auto border-b border-[#E0E5F0] bg-[#FBFCFE] px-3">
-        <button type="button" className="deck-btn deck-btn-ghost px-2" disabled={!canUndo} onClick={undo} title="되돌리기 (Ctrl+Z)" aria-label="되돌리기">
+      {/* 도구줄: 되돌리기 · 선택 · 넣기 · 글자 서식 · 양식/샘플 패널 */}
+      <div className="flex h-11 flex-shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[#E0E5F0] bg-[#F6F7FB] px-3">
+        <button type="button" className={ICON_BTN} disabled={!canUndo} onClick={undo} title="되돌리기 (Ctrl+Z)" aria-label="되돌리기">
           <Undo2 size={16} />
         </button>
-        <button type="button" className="deck-btn deck-btn-ghost px-2" disabled={!canRedo} onClick={redo} title="다시 실행 (Ctrl+Shift+Z)" aria-label="다시 실행">
+        <button type="button" className={ICON_BTN} disabled={!canRedo} onClick={redo} title="다시 실행 (Ctrl+Shift+Z)" aria-label="다시 실행">
           <Redo2 size={16} />
         </button>
-        <div className="mx-1 h-6 w-px flex-shrink-0 bg-[#E0E5F0]" />
-        <button type="button" className="deck-btn" onClick={() => setPicker('change')}>
-          <LayoutTemplate size={16} /> 레이아웃: {layout.name}
-        </button>
+        <span className={SEP} />
         <button
           type="button"
-          className={`deck-btn ${showGuides ? 'deck-btn-ghost' : 'border-[#0000A5] text-[#0000A5]'}`}
-          onClick={() => setShowGuides((v) => !v)}
-          title="편집용 점선과 빈 칸 안내 문구를 숨기고 실제 결과처럼 봅니다"
+          className={`${ICON_BTN} ${!editingObj ? 'bg-[#E6EAFB] text-[#0000A5]' : ''}`}
+          onClick={() => {
+            setEditingObj(null)
+            setSelectedObjs([])
+          }}
+          title="선택 (Esc)"
+          aria-label="선택"
         >
-          {showGuides ? <EyeOff size={15} /> : <Eye size={15} />} {showGuides ? '편집선 숨기기' : '편집선 보기'}
+          <MousePointer2 size={16} />
         </button>
-        <button type="button" className="deck-btn deck-btn-ghost" onClick={() => duplicate(index)} title="이 슬라이드 복제">
-          <Copy size={15} /> 복제
+        <button type="button" className={ICON_BTN} onClick={() => addObj(newText())} title="텍스트 넣기" aria-label="텍스트 넣기">
+          <Type size={16} />
         </button>
-        <button type="button" className="deck-btn deck-btn-ghost" disabled={deck.slides.length === 1} onClick={() => remove(index)} title="이 슬라이드 삭제">
-          <Trash2 size={15} /> 삭제
+        <button type="button" className={ICON_BTN} onClick={() => pickImage('__free__')} title="이미지 넣기" aria-label="이미지 넣기">
+          <ImagePlus size={16} />
         </button>
-        <div className="mx-1 h-6 w-px flex-shrink-0 bg-[#E0E5F0]" />
-        <button type="button" className="deck-btn deck-btn-ghost" onClick={() => addObj(newText())}>
-          <Type size={15} /> 텍스트
-        </button>
-        <ShapeMenu onPick={(g) => addObj(newShape(g))} />
-        <LineMenu onPick={(k) => addObj(newLine(k))} />
-        <button type="button" className="deck-btn deck-btn-ghost" onClick={() => pickImage('__free__')}>
-          <ImagePlus size={15} /> 이미지
-        </button>
-        <button
-          type="button"
-          className={`deck-btn ${libraryOpen ? 'border-[#0000A5] bg-[#EEF1FB] text-[#0000A5]' : ''}`}
-          onClick={() => setLibraryOpen((v) => !v)}
-          title="샘플덱의 아이콘 · 구성 블록 · 도형을 골라 넣습니다"
-        >
-          <LibraryBig size={15} /> 요소 라이브러리
-        </button>
-        {objects.some((o) => o.locked) && (
-          <button
-            type="button"
-            className="deck-btn deck-btn-ghost"
-            title="이 슬라이드에서 잠근 요소를 모두 다시 움직일 수 있게 합니다"
-            onClick={() => {
-              const ids = objects.filter((o) => o.locked).map((o) => o.id)
-              setObjects((objs) => objs.map((o) => (o.locked ? { ...o, locked: undefined } : o)))
-              setSelectedObjs(ids)
-            }}
-          >
-            <LockOpen size={15} /> 잠금 해제 ({objects.filter((o) => o.locked).length})
-          </button>
-        )}
-        {objects.length > 0 && (
-          <button
-            type="button"
-            className="deck-btn deck-btn-ghost"
-            title="이 슬라이드에 올린 요소의 글자 크기·색·배경을 가이드 값으로 맞춥니다"
-            onClick={() => {
-              setObjects((objs) => objs.map(snapToGuide))
-              setNotice({ text: '이 슬라이드를 가이드 서식(글자 크기·색·배경)에 맞췄어요', undo })
-            }}
-          >
-            <WandSparkles size={15} /> 가이드 서식 맞추기
-          </button>
-        )}
+        <ShapeMenu compact onPick={(g) => addObj(newShape(g))} />
+        <LineMenu compact onPick={(k) => addObj(newLine(k))} />
+        <span className={SEP} />
+        <TextTools objs={selected} onPatch={patchSelected} />
+        <div className="ml-auto flex items-center gap-1 pl-2">
+          {(
+            [
+              ['layouts', '양식', <LayoutTemplate key="l" size={15} />],
+              ['library', '샘플', <LibraryBig key="s" size={15} />],
+            ] as const
+          ).map(([id, label, icon]) => (
+            <button
+              key={id}
+              type="button"
+              className={`deck-btn h-8 px-2.5 ${panel === id ? 'border-[#C9D1F5] bg-[#E6EAFB] text-[#0000A5]' : 'border-transparent bg-transparent hover:bg-[#EEF1FB]'}`}
+              onClick={() => setPanel(panel === id ? null : id)}
+            >
+              {icon} {label}
+            </button>
+          ))}
+          <Dropdown label="더보기" icon={<Ellipsis size={16} />} compact caret={false} align="right" buttonClass={ICON_BTN}>
+            {(close) => <MenuList close={close} items={slideTools} />}
+          </Dropdown>
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1">
-        {/* 썸네일 (요소 라이브러리를 열면 그 자리에 라이브러리) */}
-        <aside className={`w-[200px] flex-shrink-0 flex-col border-r border-[#E0E5F0] bg-white ${libraryOpen ? 'hidden' : 'flex'}`}>
+        {/* 썸네일 */}
+        <aside className="flex w-[168px] flex-shrink-0 flex-col border-r border-[#E0E5F0] bg-white">
           <div className="p-3">
-            <button type="button" className="deck-btn w-full justify-center" onClick={() => setPicker('add')}>
+            <button type="button" className="deck-btn w-full justify-center" onClick={() => openLayouts('add')}>
               <Plus size={16} /> 새 슬라이드
             </button>
           </div>
@@ -707,7 +781,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
                       i === index ? 'border-[#0000A5]' : 'border-transparent ring-1 ring-[#E0E5F0] hover:ring-[#4D6BFF]'
                     }`}
                   >
-                    <SlideCanvas slide={s} index={i} section={sectionFor(deck.slides, i)} width={152} />
+                    <SlideCanvas slide={s} index={i} section={sectionFor(deck.slides, i)} width={124} />
                     {n > 0 && (
                       <span className="absolute right-1 top-1 rounded bg-[#F1A11D] px-1 text-[10px] font-bold text-white" title="가이드 체크 항목">
                         {n}
@@ -719,20 +793,6 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             })}
           </ol>
         </aside>
-
-        {libraryOpen && (
-          <LibraryPanel
-            onClose={() => setLibraryOpen(false)}
-            onShape={(g) => addObj(newShape(g))}
-            onLine={(k) => addObj(newLine(k))}
-            onIcon={(id) => insert([newIcon(id)], freeCenter)}
-            onNumber={(n, style) => insert(numberCircle(n, style), freeCenter)}
-            onBlock={(b) => insert(b.build())}
-            onBox={(b, lock) => insert(lock ? b.build().map((o) => ({ ...o, locked: true })) : b.build(), undefined, true)}
-            layoutIsFree={slide.layout === 'free'}
-            onUseFree={() => changeLayout('free')}
-          />
-        )}
 
         {/* 편집 캔버스 — 라이브러리·도형 메뉴에서 끌어다 놓을 수 있습니다 */}
         <main
@@ -772,79 +832,190 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
           </div>
         </main>
 
-        {/* 오른쪽 패널: 가이드 체크 + 발표자 노트 */}
-        <aside className="hidden w-[280px] flex-shrink-0 flex-col overflow-y-auto border-l border-[#E0E5F0] bg-white lg:flex">
-          {selected.length > 0 && (
-            <ObjectPanel
-              objs={selected}
-              onPatch={patchSelected}
-              onRemove={removeSelected}
-              onDuplicate={duplicateSelected}
-              onOrder={orderSelected}
-              onSnap={() => setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? snapToGuide(o) : o)))}
-              onLock={() => {
-                const n = selectedObjs.length
-                setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? { ...o, locked: true } : o)))
-                setSelectedObjs([])
-                setEditingObj(null)
-                setNotice({ text: `${n}개 요소를 잠갔어요. 위 도구줄의 [잠금 해제]로 다시 풀 수 있어요.`, undo })
-              }}
-            />
-          )}
-          <section className="border-b border-[#E0E5F0] p-4">
-            <h3 className="deck-label mb-3">가이드 체크</h3>
-            {issues.length === 0 ? (
-              <p className="flex items-center gap-2 text-[13px] font-semibold text-[#16A34A]">
-                <CircleCheck size={16} /> 이 슬라이드는 가이드에 맞아요
-              </p>
-            ) : (
-              <ul className="space-y-1.5">
-                {issues.map((it) => (
-                  <li key={it.field} className="flex items-start gap-2 text-[13px] text-[#333A4D]">
-                    <CircleAlert size={15} className="mt-0.5 flex-shrink-0 text-[#F1A11D]" />
-                    <span>
-                      <b>{it.label}</b> {it.kind === 'empty' ? '— 비어 있어요' : '— 권장 글자 수보다 길어요'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+        {/* 오른쪽 패널: 양식 · 샘플 · 설정 */}
+        {panel && (
+          <aside className="flex w-[300px] flex-shrink-0 flex-col border-l border-[#E0E5F0] bg-white">
+            <div className="flex items-center gap-1 border-b border-[#EEF1F7] px-3 py-2">
+              {(
+                [
+                  ['layouts', '양식'],
+                  ['library', '샘플'],
+                  ['settings', '설정'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPanel(id)}
+                  className={`rounded-md px-2.5 py-1 text-[13px] font-semibold ${panel === id ? 'bg-[#E6EAFB] text-[#0000A5]' : 'text-[#7A8099] hover:text-[#000038]'}`}
+                >
+                  {label}
+                </button>
+              ))}
+              <button type="button" className="deck-btn deck-btn-ghost ml-auto px-1.5" onClick={() => setPanel(null)} aria-label="패널 닫기">
+                <X size={16} />
+              </button>
+            </div>
+
+            {panel === 'layouts' && (
+              <div className="flex-1 overflow-y-auto p-3">
+                <div className="flex rounded-lg bg-[#F2F4FB] p-0.5">
+                  {(
+                    [
+                      ['add', '새 슬라이드로 추가'],
+                      ['change', '지금 장 바꾸기'],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setLayoutMode(id)}
+                      className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold ${layoutMode === id ? 'bg-white text-[#000038] shadow-sm' : 'text-[#7A8099]'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mb-2 mt-3 text-[11px] text-[#7A8099]">
+                  {layoutMode === 'add' ? '회사 양식으로 지금 장 다음에 새 슬라이드를 추가해요.' : `지금 장(${index + 1})의 양식을 바꿔요. 쓴 글은 그대로 남아요.`}
+                </p>
+                <div className="grid grid-cols-2 gap-x-2.5 gap-y-3">
+                  {VISIBLE_LAYOUTS.map((l) => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      className="group text-left"
+                      onClick={() => (layoutMode === 'add' ? addSlide(l.id) : changeLayout(l.id))}
+                    >
+                      <div
+                        className={`overflow-hidden rounded-md ring-1 transition group-hover:ring-2 group-hover:ring-[#4D6BFF] ${
+                          layoutMode === 'change' && slide.layout === l.id ? 'ring-2 ring-[#0000A5]' : 'ring-[#E0E5F0]'
+                        }`}
+                      >
+                        <LayoutThumb id={l.id} width={130} />
+                      </div>
+                      <span className="mt-1 block text-[11px] text-[#333A4D]">{l.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
-          </section>
 
-          <section className="border-b border-[#E0E5F0] p-4">
-            <h3 className="deck-label mb-3">입력 항목</h3>
-            <ul className="space-y-2">
-              {layout.fields.map((f) => {
-                const len = (slide.content[f.key] ?? '').trim().length
-                const over = f.max !== undefined && len > f.max
-                return (
-                  <li key={f.key} className="flex items-center justify-between text-[12px]">
-                    <span className="text-[#333A4D]">{f.label}</span>
-                    {f.kind === 'image' ? (
-                      <span className="text-[#7A8099]">{slide.content[f.key] ? '첨부됨' : '없음'}</span>
-                    ) : (
-                      <span className={`tabular-nums ${over ? 'font-bold text-[#E84B55]' : 'text-[#7A8099]'}`}>
-                        {len}
-                        {f.max ? ` / ${f.max}` : ''}
-                      </span>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
+            {panel === 'library' && (
+              <LibraryPanel
+                embedded
+                onClose={() => setPanel(null)}
+                onShape={(g) => addObj(newShape(g))}
+                onLine={(k) => addObj(newLine(k))}
+                onIcon={(id) => insert([newIcon(id)], freeCenter)}
+                onNumber={(n, style) => insert(numberCircle(n, style), freeCenter)}
+                onBlock={(b) => insert(b.build())}
+                onBox={(b, lock) => insert(lock ? b.build().map((o) => ({ ...o, locked: true })) : b.build(), undefined, true)}
+                layoutIsFree={slide.layout === 'free'}
+                onUseFree={() => changeLayout('free')}
+              />
+            )}
 
-          <section className="flex flex-1 flex-col border-b border-[#E0E5F0] p-4">
-            <h3 className="deck-label mb-2">발표자 노트</h3>
-            <textarea
-              value={slide.notes}
-              onChange={(e) => updateSlide(slide.id, (s) => ({ ...s, notes: e.target.value }), `notes:${slide.id}`)}
-              placeholder="발표할 때 말할 내용을 적어두세요. PPTX 노트로 함께 내보내져요."
-              className="min-h-[140px] flex-1 resize-none rounded-lg border border-[#E0E5F0] p-3 text-[13px] leading-relaxed outline-none focus:border-[#4D6BFF]"
-            />
-          </section>
-        </aside>
+            {panel === 'settings' && (
+              <div className="flex flex-1 flex-col overflow-y-auto">
+                <section className="flex items-center justify-between border-b border-[#E0E5F0] px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="deck-label">레이아웃</p>
+                    <p className="truncate text-[13px] font-semibold text-[#000038]">{layout.name}</p>
+                  </div>
+                  <button type="button" className="deck-btn h-8" onClick={() => openLayouts('change')}>
+                    바꾸기
+                  </button>
+                </section>
+                {selected.length > 0 && (
+                  <ObjectPanel
+                    objs={selected}
+                    onPatch={patchSelected}
+                    onRemove={removeSelected}
+                    onDuplicate={duplicateSelected}
+                    onOrder={orderSelected}
+                    onSnap={() => setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? snapToGuide(o) : o)))}
+                    onLock={() => {
+                      const n = selectedObjs.length
+                      setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? { ...o, locked: true } : o)))
+                      setSelectedObjs([])
+                      setEditingObj(null)
+                      setNotice({ text: `${n}개 요소를 잠갔어요. 도구줄 오른쪽 [···]의 잠금 해제로 다시 풀 수 있어요.`, undo })
+                    }}
+                  />
+                )}
+                <section className="border-b border-[#E0E5F0] p-4">
+                  <h3 className="deck-label mb-3">가이드 체크</h3>
+                  {issues.length === 0 ? (
+                    <p className="flex items-center gap-2 text-[13px] font-semibold text-[#16A34A]">
+                      <CircleCheck size={16} /> 이 슬라이드는 가이드에 맞아요
+                    </p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {issues.map((it) => (
+                        <li key={it.field} className="flex items-start gap-2 text-[13px] text-[#333A4D]">
+                          <CircleAlert size={15} className="mt-0.5 flex-shrink-0 text-[#F1A11D]" />
+                          <span>
+                            <b>{it.label}</b> {it.kind === 'empty' ? '— 비어 있어요' : '— 권장 글자 수보다 길어요'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+
+                <section className="border-b border-[#E0E5F0] p-4">
+                  <h3 className="deck-label mb-3">입력 항목</h3>
+                  <ul className="space-y-2">
+                    {layout.fields.map((f) => {
+                      const len = (slide.content[f.key] ?? '').trim().length
+                      const over = f.max !== undefined && len > f.max
+                      return (
+                        <li key={f.key} className="flex items-center justify-between text-[12px]">
+                          <span className="text-[#333A4D]">{f.label}</span>
+                          {f.kind === 'image' ? (
+                            <span className="text-[#7A8099]">{slide.content[f.key] ? '첨부됨' : '없음'}</span>
+                          ) : (
+                            <span className={`tabular-nums ${over ? 'font-bold text-[#E84B55]' : 'text-[#7A8099]'}`}>
+                              {len}
+                              {f.max ? ` / ${f.max}` : ''}
+                            </span>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+
+                <section className="flex flex-1 flex-col p-4">
+                  <h3 className="deck-label mb-2">발표자 노트</h3>
+                  <textarea
+                    value={slide.notes}
+                    onChange={(e) => updateSlide(slide.id, (s) => ({ ...s, notes: e.target.value }), `notes:${slide.id}`)}
+                    placeholder="발표할 때 말할 내용을 적어두세요. PPTX 노트로 함께 내보내져요."
+                    className="min-h-[140px] flex-1 resize-none rounded-lg border border-[#E0E5F0] p-3 text-[13px] leading-relaxed outline-none focus:border-[#4D6BFF]"
+                  />
+                </section>
+              </div>
+            )}
+          </aside>
+        )}
       </div>
+
+      {/* 아래 상태줄 */}
+      <footer className="flex h-8 flex-shrink-0 items-center gap-4 border-t border-[#E0E5F0] bg-white px-4 text-[11px] text-[#7A8099]">
+        <span className="tabular-nums">
+          {index + 1} / {deck.slides.length}
+        </span>
+        <span className="truncate">
+          {editingObj
+            ? '글자 수정 중 · 바깥을 클릭하면 선택으로 돌아갑니다'
+            : selected.length
+              ? `${selected.length}개 선택 · 끌어서 이동 · 모서리로 크기 조절 · Delete 삭제`
+              : '클릭해서 선택 · 더블클릭해서 글자 수정 · Ctrl/⌘+V로 붙여넣기'}
+        </span>
+        <span className="ml-auto">화면에 맞춤</span>
+      </footer>
 
       <input
         ref={fileInput}
