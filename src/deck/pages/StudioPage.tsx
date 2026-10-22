@@ -100,6 +100,28 @@ function readImage(file: File): Promise<string> {
   })
 }
 
+// 그림을 상자 비율에 맞춰 가운데를 잘라 냅니다 (이미지 자리 채우기 — 그림이 찌그러지지 않게)
+function coverCrop(src: string, w: number, h: number): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const iw = img.naturalWidth
+      const ih = img.naturalHeight
+      const box = w / h
+      const sw = iw / ih > box ? ih * box : iw
+      const sh = iw / ih > box ? ih : iw / box
+      const out = Math.min(1600, sw)
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(out)
+      canvas.height = Math.round(out / box)
+      canvas.getContext('2d')!.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height)
+      resolve(src.startsWith('data:image/png') ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.88))
+    }
+    img.onerror = () => resolve(src)
+    img.src = src
+  })
+}
+
 export default function StudioPage({ deck, saveState, onChange: saveDeck, initialNotice }: StudioPageProps) {
   const [current, setCurrent] = useState(0)
   const [picker, setPicker] = useState<'add' | 'change' | null>(null)
@@ -276,6 +298,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   latestArea.current = area
   const latestObjIds = useRef<string[]>([])
   latestObjIds.current = objects.map((o) => o.id)
+  const latestObjs = useRef(objects)
+  latestObjs.current = objects
 
   useEffect(() => {
     setSelectedObjs([])
@@ -318,14 +342,19 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       const image = Array.from(data.files).find((f) => f.type.startsWith('image/'))
       const internal = text.startsWith(CLIP_MARK) && objClipboard && text === `${CLIP_MARK}${objClipboard.key}` ? objClipboard : null
       const google = !internal && hasGoogleShapes(data)
+      // 고른 것이 '이미지 자리' 하나면, 붙여넣은 그림으로 그 자리를 채웁니다
+      const slotTarget =
+        latestSel.current.length === 1 ? latestObjs.current.find((o) => o.id === latestSel.current[0] && o.kind === 'image' && !o.src) : undefined
       if (!internal && !google && !image && !text.trim() && !htmlHasText(html)) return
       e.preventDefault()
       // 구글 슬라이드: 도형·글·이미지를 같은 자리에 그대로
       if (google) {
         // 클립보드 내용은 이 순간에만 읽을 수 있어서, 읽는 부분은 objectsFromGoogle 첫머리에서 바로 처리합니다
         objectsFromGoogle(data)
-          .then(async ({ objs, skipped }) => {
-            const left = skipped ? ` 직접 그린 도형 등 ${skipped}개는 가져오지 못했어요.` : ''
+          .then(async ({ objs, skipped, missingImages }) => {
+            const left =
+              (skipped ? ` 직접 그린 도형 등 ${skipped}개는 가져오지 못했어요.` : '') +
+              (missingImages ? ` 회사 공유 파일의 그림 ${missingImages}개는 ‘이미지 자리’로 넣었어요 — 더블클릭하거나 원본 그림을 복사해 고른 자리에 붙여넣으세요.` : '')
             if (!objs.length) return setNotice({ text: `붙여넣을 도형을 찾지 못했어요.${left}` })
             const before = new Set(latestObjIds.current)
             await insert(objs, undefined, false, true)
@@ -347,6 +376,9 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         const copies = latestArea.current ? fitIntoArea(shifted, latestArea.current) : shifted
         setObjects((objs) => [...objs, ...copies])
         setSelectedObjs(copies.map((o) => o.id))
+      } else if (image && slotTarget) {
+        // 이미지 자리를 고른 채 그림을 붙여넣으면 그 자리를 채웁니다
+        readImage(image).then((src) => fillSlot(slotTarget.id, src))
       } else if (image) {
         // PowerPoint 처럼 그림과 서식 있는 글이 함께 오면: 보이는 그대로 그림으로 넣고, 글로 바꾸는 버튼을 줍니다
         const textObjs = htmlHasText(html) ? objectsFromHtml(html) : []
@@ -572,6 +604,19 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     loadGoogle().catch(() => undefined)
     if (allIssues.length) setCheckOpen('google')
     else sendToGoogle()
+  }
+
+  // 이미지 자리 채우기: 같은 자리·크기에 그림을 맞춰 넣습니다
+  const fillSlot = async (id: string, src: string) => {
+    const slot = latestObjs.current.find((o) => o.id === id)
+    if (!slot) return
+    const cropped = await coverCrop(src, slot.w, slot.h)
+    setObjects((list) => list.map((o) => (o.id === id ? { ...o, src: cropped } : o)))
+    setSelectedObjs([id])
+  }
+  const pickSlotImage = (id: string) => {
+    imageField.current = `__slot__:${id}`
+    fileInput.current?.click()
   }
 
   const exportJson = () => {
@@ -827,6 +872,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
               onSelectObjs={setSelectedObjs}
               onEditObj={setEditingObj}
               onObjChange={updateObjs}
+              onImageSlot={pickSlotImage}
               showGuides={showGuides}
             />
           </div>
@@ -1027,7 +1073,9 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
           e.target.value = ''
           if (!file || !imageField.current) return
           const src = await readImage(file)
-          if (imageField.current === '__free__') {
+          if (imageField.current.startsWith('__slot__:')) {
+            fillSlot(imageField.current.slice(9), src)
+          } else if (imageField.current === '__free__') {
             const img = new Image()
             img.onload = () => addObj(newImage(src, img.naturalWidth, img.naturalHeight))
             img.src = src

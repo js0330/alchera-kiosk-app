@@ -176,7 +176,7 @@ const unwrap = (raw: string) => {
 
 // 구글 슬라이드에서 복사한 도형 목록 → 자유 배치 요소.
 // 자유형(직접 그린) 도형과 지원하지 않는 도형(원호·파이 등)은 건너뛰고 개수만 알려 줍니다.
-export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getData'>): Promise<{ objs: FreeObj[]; skipped: number }> {
+export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getData'>): Promise<{ objs: FreeObj[]; skipped: number; missingImages: number }> {
   const inner = unwrap(data.getData(GOOGLE_DRAWING_MIME))
   const cmds: unknown[][] = inner?.resolved ?? []
   let imageUrls: Record<string, string> = {}
@@ -217,6 +217,7 @@ export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getD
 
   const out: FreeObj[] = []
   let skipped = 0
+  let missingImages = 0
   for (const it of created) {
     if (it.code !== IMAGE && it.code !== TEXT_BOX && !isLineCode(it.code) && !GOOGLE_GEOMS[it.code]) {
       skipped++
@@ -263,11 +264,9 @@ export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getD
     if (it.code === IMAGE) {
       const url = imageUrls[String(p.get(P.imageId))]
       const src = url ? await toDataUrl(url) : null
-      out.push(
-        src
-          ? { id: uid(), kind: 'image', ...box, src }
-          : { id: uid(), kind: 'shape', geom: 'rect', ...box, fill: C.imageFill, text: '이미지\n(원본에서 따로 넣어 주세요)', size: 9, color: C.gray, align: 'center', valign: 'middle', lineHeight: 1.3, pad: [8, 8, 8, 8] },
-      )
+      // 회사 계정으로만 열리는 원본의 그림은 구글이 다른 사이트에 주지 않아 받을 수 없습니다 → 같은 자리·크기의 '이미지 자리'
+      if (!src) missingImages++
+      out.push(src ? { id: uid(), kind: 'image', ...box, src } : { id: uid(), kind: 'image', ...box })
       continue
     }
 
@@ -306,7 +305,7 @@ export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getD
       pad,
     })
   }
-  return { objs: out, skipped }
+  return { objs: out, skipped, missingImages }
 }
 
 // ── HTML (PowerPoint · 웹 · 문서) ───────────────────────────────

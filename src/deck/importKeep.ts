@@ -208,13 +208,14 @@ function geomOf(spPr: Element | undefined): { geom: FreeObj['geom'] | 'line'; ra
   if (/^(line|straightConnector1|bentConnector\d|curvedConnector\d)$/.test(prst)) return { geom: 'line' }
   if (prst === 'ellipse' || prst === 'circle') return { geom: 'ellipse' }
   if (prst === 'round2SameRect') return { geom: 'round2SameRect' }
-  // 지원하는 기본 도형·화살표는 같은 이름으로
-  if (SHAPE_GEOMS.has(prst as Geom)) return { geom: prst as Geom }
+  // 둥근 사각형은 원본 둥글기(adj)를 꼭 읽습니다 (아래 '같은 이름' 처리보다 먼저 — 빠뜨리면 기본값 16.7%로 더 둥글어짐)
   if (/round|snip/i.test(prst)) {
     const adj = kid(kid(spPr, 'a:prstGeom'), 'a:avLst')?.getElementsByTagName('a:gd')[0]
     const v = adj ? Number((adj.getAttribute('fmla') ?? '').replace('val ', '')) / 100000 : 0.16667
     return { geom: 'roundRect', radiusRatio: Number.isFinite(v) ? v : 0.16667 }
   }
+  // 지원하는 기본 도형·화살표는 같은 이름으로
+  if (SHAPE_GEOMS.has(prst as Geom)) return { geom: prst as Geom }
   return { geom: 'rect' }
 }
 
