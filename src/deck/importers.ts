@@ -433,7 +433,7 @@ function interpret(texts: TextShape[], pics: PicShape[], W: number, H: number) {
   let crumb: string | undefined
   if (titleShape) {
     const above = rest.filter((s) => s.y + s.h <= titleShape!.y + 1 && s.paras.length === 1).sort((a, b) => a.y - b.y || a.x - b.x)
-    crumb = above.map((s) => s.paras[0].plain.trim()).find((t) => t && t.length <= 60)
+    crumb = above.map((s) => s.paras[0].plain.trim()).find((t) => t && t.length <= 60 && !/^alchera$/i.test(t))
     rest = rest.filter((s) => !above.includes(s))
   }
 
@@ -491,8 +491,11 @@ function detectOutline(texts: TextShape[], pics: PicShape[], W: number, H: numbe
   if (!lines.length || lines.join('').length > 400) return null
   const maxSize = (s: TextShape) => Math.max(0, ...s.paras.map((p) => p.size))
 
-  const numeral = shapes.find((s) => linesOf(s).length === 1 && NUMERAL_ONLY.test(linesOf(s)[0]))
-  if (numeral) {
+  // 간지 번호는 크게 쓴 숫자입니다. 구석의 작은 쪽 번호('02')는 간지 번호가 아닙니다
+  const bigNumeral = (s: TextShape) => (maxSize(s) >= 36 || s.h > H * 0.12) && s.y < H * 0.8
+  const numeral = shapes.find((s) => linesOf(s).length === 1 && NUMERAL_ONLY.test(linesOf(s)[0]) && bigNumeral(s))
+  // 간지는 글 상자가 몇 개 없습니다 (번호 · 제목 · 소목차 정도). 칸이 많은 본문 장은 간지가 아닙니다
+  if (numeral && shapes.length <= 6) {
     const others = shapes.filter((s) => s !== numeral && linesOf(s).length <= 2)
     const title = others.sort((a, b) => maxSize(b) - maxSize(a) || b.h - a.h)[0]
     if (title && (maxSize(title) >= 28 || maxSize(numeral) >= 40 || numeral.h > H * 0.12)) {
