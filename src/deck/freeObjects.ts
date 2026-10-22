@@ -13,7 +13,19 @@ export const GUIDE_EMPHASIS_SIZE = 27
 export const isGuideSize = (pt: number) => pt === GUIDE_EMPHASIS_SIZE || (GUIDE_TEXT_SIZES as readonly number[]).includes(pt)
 // 줄 간격: 1 · 1.3(기본) · 1.5 · 2
 export const GUIDE_LINE_HEIGHTS = [1, 1.3, 1.5, 2] as const
-export const GUIDE_TEXT_COLORS = [C.navy, C.blue, C.gray, C.crumb, C.white] as const
+export const GUIDE_TEXT_COLORS = [C.navy, C.blue, C.pointBlue, C.red, C.gray, C.crumb, C.white] as const
+// 색 이름 (색 고르기 버튼에 마우스를 올렸을 때)
+export const COLOR_NAMES: Record<string, string> = {
+  [C.navy]: '네이비',
+  [C.blue]: '알체라 블루',
+  [C.pointBlue]: '포인트 블루 (어두운 바탕용)',
+  [C.red]: '레드 (강조)',
+  [C.gray]: '그레이',
+  [C.crumb]: '연한 그레이',
+  [C.white]: '흰색',
+  [C.imageFill]: '이미지 배경색',
+  [C.line]: '테두리 회색',
+}
 export const GUIDE_FILLS = [C.white, C.imageFill, C.line, C.navy, C.blue] as const
 export const GUIDE_LINES = [C.line, C.crumb, C.gray, C.blue, C.navy, C.white] as const
 export const GUIDE_ICON_COLORS = [C.blue, C.navy, C.gray, C.crumb, C.white] as const
@@ -271,7 +283,14 @@ export function snapToGuide(obj: FreeObj): FreeObj {
     line: obj.line ? nearest(obj.line, GUIDE_LINES) : undefined,
     lineWidth: obj.line ? 0.75 : undefined,
     size: obj.text ? nearestSize(obj.size ?? 10) : obj.size,
-    color: obj.text ? (darkBg ? C.white : guideTextColor(obj.color ?? C.navy)) : obj.color,
+    // 이미 가이드 색(포인트 블루·레드 포함)이면 그대로, 아니면 바탕에 맞는 가이드 색으로
+    color: obj.text
+      ? (GUIDE_TEXT_COLORS as readonly string[]).includes((obj.color ?? '').toUpperCase())
+        ? obj.color!.toUpperCase()
+        : darkBg
+          ? C.white
+          : guideTextColor(obj.color ?? C.navy)
+      : obj.color,
     lineHeight: obj.text ? ((GUIDE_LINE_HEIGHTS as readonly number[]).includes(obj.lineHeight ?? 1.3) ? obj.lineHeight : 1.3) : obj.lineHeight,
   }
 }

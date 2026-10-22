@@ -25,18 +25,44 @@ export function listClass(el: TextEl) {
 export interface Run {
   text: string
   bold: boolean
+  underline?: boolean
+  color?: string
 }
 
-// "**굵게**" 표기를 굵기 구간으로 나눕니다. 한 줄 단위로 사용합니다.
+// 글 일부의 서식 표기 (한 줄 단위):
+//   **굵게**   __밑줄__   {{#E53935:색}}   — 서로 겹쳐 쓸 수 있습니다 (예: {{#E53935:**굵은 빨강**}})
+// 표기를 구간(run)으로 나눕니다.
+const TOKEN = /(\*\*|__|\{\{#[0-9A-Fa-f]{6}:|\}\})/
 export function parseRich(line: string): Run[] {
   const runs: Run[] = []
-  line.split(/(\*\*[^*]+\*\*)/g).forEach((part) => {
-    if (!part) return
-    const bold = part.startsWith('**') && part.endsWith('**') && part.length > 4
-    runs.push({ text: bold ? part.slice(2, -2) : part, bold })
-  })
+  let bold = false
+  let underline = false
+  const colors: string[] = []
+  for (const part of line.split(TOKEN)) {
+    if (!part) continue
+    if (part === '**') bold = !bold
+    else if (part === '__') underline = !underline
+    else if (part.startsWith('{{#')) colors.push(part.slice(2, 9).toUpperCase())
+    else if (part === '}}' && colors.length) colors.pop()
+    else {
+      const run: Run = { text: part, bold }
+      if (underline) run.underline = true
+      if (colors.length) run.color = colors[colors.length - 1]
+      runs.push(run)
+    }
+  }
   return runs
 }
+
+// 구간 하나의 화면 서식
+export const runStyle = (r: Run): CSSProperties => ({
+  fontWeight: r.bold ? 700 : undefined,
+  textDecoration: r.underline ? 'underline' : undefined,
+  color: r.color,
+})
+
+// 표기 없이 글자만
+export const plainText = (s: string) => parseRich(s).map((r) => r.text).join('')
 
 export const BULLET = '• '
 

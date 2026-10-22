@@ -15,6 +15,8 @@ const C = BRAND.colors
 const COLOR_SWATCHES = [
   { name: 'Navy', hex: C.navy, use: '타이틀 · 본문 · 간지 배경' },
   { name: 'Alchera Blue', hex: C.blue, use: '슬라이드 서브 · 헤더 · 강조선' },
+  { name: 'Point Blue', hex: C.pointBlue, use: '네이비·블루 바탕 위 포인트 글자 (결론 바 강조)' },
+  { name: 'Red', hex: C.red, use: '경고 · 핵심 수치 강조 (글 일부)' },
   { name: 'Gray', hex: C.gray, use: '안내문 · 이미지 안내 문구' },
   { name: 'Crumb', hex: C.crumb, use: '키 네임(상단 목차)' },
   { name: 'Page', hex: C.pageNum, use: '페이지 번호 · 마무리 연락처' },
