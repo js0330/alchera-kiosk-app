@@ -26,27 +26,31 @@ export interface Run {
   text: string
   bold: boolean
   underline?: boolean
+  italic?: boolean
   color?: string
 }
 
 // 글 일부의 서식 표기 (한 줄 단위):
-//   **굵게**   __밑줄__   {{#E53935:색}}   — 서로 겹쳐 쓸 수 있습니다 (예: {{#E53935:**굵은 빨강**}})
+//   **굵게**   __밑줄__   ~~기울임~~   {{#E53935:색}}   — 서로 겹쳐 쓸 수 있습니다 (예: {{#E53935:**굵은 빨강**}})
 // 표기를 구간(run)으로 나눕니다.
-const TOKEN = /(\*\*|__|\{\{#[0-9A-Fa-f]{6}:|\}\})/
+const TOKEN = /(\*\*|__|~~|\{\{#[0-9A-Fa-f]{6}:|\}\})/
 export function parseRich(line: string): Run[] {
   const runs: Run[] = []
   let bold = false
   let underline = false
+  let italic = false
   const colors: string[] = []
   for (const part of line.split(TOKEN)) {
     if (!part) continue
     if (part === '**') bold = !bold
     else if (part === '__') underline = !underline
+    else if (part === '~~') italic = !italic
     else if (part.startsWith('{{#')) colors.push(part.slice(2, 9).toUpperCase())
     else if (part === '}}' && colors.length) colors.pop()
     else {
       const run: Run = { text: part, bold }
       if (underline) run.underline = true
+      if (italic) run.italic = true
       if (colors.length) run.color = colors[colors.length - 1]
       runs.push(run)
     }
@@ -58,6 +62,7 @@ export function parseRich(line: string): Run[] {
 export const runStyle = (r: Run): CSSProperties => ({
   fontWeight: r.bold ? 700 : undefined,
   textDecoration: r.underline ? 'underline' : undefined,
+  fontStyle: r.italic ? 'italic' : undefined,
   color: r.color,
 })
 

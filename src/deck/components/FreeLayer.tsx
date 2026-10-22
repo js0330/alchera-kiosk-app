@@ -133,6 +133,7 @@ function TextView({ o }: { o: FreeObj }) {
         fontSize: ptToPx(o.size ?? 10),
         fontWeight: o.bold ? 700 : 400,
         textDecoration: o.underline ? 'underline' : undefined,
+        fontStyle: o.italic ? 'italic' : undefined,
         color: o.color ?? BRAND.colors.navy,
         textAlign: o.align ?? 'left',
         lineHeight: o.lineHeight ?? 1.3,

@@ -94,19 +94,19 @@ function shadow(el: Pick<ShapeEl, 'shadow'>): PptxGenJS.ShadowProps | undefined 
 
 const pt = (px: number) => (px / PX_PER_IN) * 72
 
-// 글 일부 서식(밑줄·색)을 PPTX 글 구간 옵션으로
+// 글 일부 서식(밑줄·기울임·색)을 PPTX 글 구간 옵션으로
 function runOptions(r: Run): PptxGenJS.TextPropsOptions {
-  return { underline: r.underline ? { style: 'sng' } : undefined, color: r.color ? hex(r.color) : undefined }
+  return { underline: r.underline ? { style: 'sng' } : undefined, italic: r.italic || undefined, color: r.color ? hex(r.color) : undefined }
 }
 
-function richRuns(text: string, bold: boolean, underline = false): PptxGenJS.TextProps[] {
+function richRuns(text: string, bold: boolean, underline = false, italic = false): PptxGenJS.TextProps[] {
   const lines = text.split('\n')
   return lines.flatMap((line, i) => {
     const runs = parseRich(line)
     if (!runs.length) runs.push({ text: '', bold: false })
     return runs.map((r, j) => ({
       text: r.text,
-      options: { ...runOptions({ ...r, underline: r.underline || underline }), bold: r.bold || bold, breakLine: j === runs.length - 1 && i < lines.length - 1 },
+      options: { ...runOptions({ ...r, underline: r.underline || underline, italic: r.italic || italic }), bold: r.bold || bold, breakLine: j === runs.length - 1 && i < lines.length - 1 },
     }))
   })
 }
@@ -152,7 +152,7 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
     return
   }
   const [l, t, r, b] = o.pad ?? [0, 0, 0, 0]
-  s.addText(richRuns(o.text, !!o.bold, !!o.underline), {
+  s.addText(richRuns(o.text, !!o.bold, !!o.underline, !!o.italic), {
     ...common,
     shape,
     fontFace: BRAND.font.ppt,

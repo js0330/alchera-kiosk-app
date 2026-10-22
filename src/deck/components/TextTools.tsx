@@ -1,4 +1,4 @@
-import { Bold, TextAlignCenter, TextAlignEnd, TextAlignStart, Underline } from 'lucide-react'
+import { Bold, Italic, TextAlignCenter, TextAlignEnd, TextAlignStart, Underline } from 'lucide-react'
 import { BRAND } from '../guide'
 import { COLOR_NAMES, GUIDE_EMPHASIS_SIZE, GUIDE_LINE_HEIGHTS, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES } from '../freeObjects'
 import type { FreeObj } from '../types'
@@ -10,7 +10,7 @@ const ALIGNS = [
   ['right', '오른쪽', TextAlignEnd],
 ] as const
 
-// 글을 고치는 중이고 글자 일부를 끌어서 골랐으면, 굵게·밑줄·색은 그 부분에만 줍니다
+// 글을 고치는 중이고 글자 일부를 끌어서 골랐으면, 굵게·기울임·밑줄·색은 그 부분에만 줍니다
 function inlineSelection(): boolean {
   const active = document.activeElement as HTMLElement | null
   const sel = window.getSelection()
@@ -23,8 +23,8 @@ const inline = (cmd: string, value?: string) => {
 // 누를 때 글 선택이 풀리지 않게
 const keep = (e: React.MouseEvent) => e.preventDefault()
 
-// 도구줄의 글자 서식: 글꼴(가이드 글꼴 고정) · 크기 · 줄 간격 · 굵게 · 밑줄 · 색 · 정렬.
-// 굵게·밑줄·색은 글을 고치면서 일부를 골랐으면 그 부분에만, 아니면 고른 글 상자 전체에 줍니다.
+// 도구줄의 글자 서식: 글꼴(가이드 글꼴 고정) · 크기 · 줄 간격 · 굵게 · 기울임 · 밑줄 · 색 · 정렬.
+// 굵게·기울임·밑줄·색은 글을 고치면서 일부를 골랐으면 그 부분에만, 아니면 고른 글 상자 전체에 줍니다.
 // 고를 수 있는 값은 가이드 값뿐입니다. 아무것도 고르지 않으면 흐리게 보입니다.
 export default function TextTools({ objs, editing, onPatch }: { objs: FreeObj[]; editing: boolean; onPatch: (patch: Partial<FreeObj>) => void }) {
   const texts = objs.filter((o) => o.kind === 'shape')
@@ -83,6 +83,16 @@ export default function TextTools({ objs, editing, onPatch }: { objs: FreeObj[];
         aria-label="굵게"
       >
         <Bold size={15} />
+      </button>
+      <button
+        type="button"
+        className={`${btn} ${s0?.italic ? 'bg-[#E6EAFB] text-[#0000A5]' : ''}`}
+        onMouseDown={keep}
+        onClick={() => (inlineSelection() ? inline('italic') : onPatch({ italic: !s0?.italic }))}
+        title="기울임 (Ctrl+I) · 글 일부를 고르면 그 부분만"
+        aria-label="기울임"
+      >
+        <Italic size={15} />
       </button>
       <button
         type="button"
