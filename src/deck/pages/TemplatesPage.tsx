@@ -54,6 +54,44 @@ function SectionHead({ title, count, link }: { title: string; count?: number; li
   )
 }
 
+// 왜 Deck Studio 인가: 구글 슬라이드 · AI 와 비교한 한 줄 + 장점 4가지
+const COMPARE: [who: string, text: string, ours?: boolean][] = [
+  ['구글 슬라이드 · PPT', '자유롭지만, 글자 크기·색·여백을 사람이 매번 가이드에 맞춰야 해요.'],
+  ['AI로 만들기', '빠르지만, 회사 양식과 다르고 만들 때마다 모양이 달라져요.'],
+  ['Deck Studio', 'AI·초안의 내용은 그대로 살리고, 모양은 회사 가이드로 고정해요.', true],
+]
+const STRENGTHS: [title: string, text: string][] = [
+  ['가이드가 기본값', '글자 크기·색·로고·여백은 가이드 값만 고를 수 있어요. 누가 만들어도 같은 알체라 장표가 나와요.'],
+  ['초안을 살려서 정리', '구글 슬라이드·PPT·AI 초안을 붙여넣거나 불러오면 글·도형·배치는 살리고 가이드 틀 안에 맞춰 넣어요.'],
+  ['회사 장표 부품', '샘플덱에서 뽑은 가이드 박스·블록·아이콘을 끌어다 놓기만 하면 돼요. 구글 머티리얼 아이콘도 찾아 쓸 수 있어요.'],
+  ['끝은 익숙한 도구로', 'PPTX·구글 슬라이드로 내보내면 그대로 고칠 수 있는 파일이에요. 만드는 동안 문서는 내 브라우저에만 저장돼요.'],
+]
+
+function WhyStudio() {
+  return (
+    <section className="mt-14">
+      <SectionHead title="왜 Deck Studio인가요?" />
+      <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        {COMPARE.map(([who, text, ours]) => (
+          <div key={who} className={`rounded-2xl border px-5 py-4 ${ours ? 'border-[#0000A5] bg-[#0000A5] text-white' : 'border-[#E0E5F0] bg-white text-[#3A3F5C]'}`}>
+            <p className={`text-[12px] font-semibold tracking-[0.04em] ${ours ? 'text-white/80' : 'text-[#7A8099]'}`}>{who}</p>
+            <p className="mt-1.5 break-keep text-[14px] font-medium leading-relaxed">{text}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {STRENGTHS.map(([title, text], i) => (
+          <div key={title} className="rounded-2xl border border-[#E0E5F0] bg-white p-5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EEF0FC] text-[12px] font-bold text-[#0000A5]">{i + 1}</span>
+            <h3 className="mt-3 text-[15px] font-bold text-[#1A1D3D]">{title}</h3>
+            <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#5A6080]">{text}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 // Hero 오른쪽 그림: 격자 · 원 · 기울어진 슬라이드 · 떠 있는 확인 카드 (넓은 화면에서만)
 function HeroArt() {
   return (
@@ -148,6 +186,8 @@ export default function TemplatesPage({ decks, onOpen, onImported, onRemove }: T
       </div>
 
       <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+        <WhyStudio />
+
         {/* 시작 키트 */}
         <section className="mt-14">
           <SectionHead title="어떤 자료를 만드세요?" count={KITS.length} />
