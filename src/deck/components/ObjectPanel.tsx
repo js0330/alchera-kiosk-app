@@ -153,8 +153,8 @@ export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOr
         <>
           <Row label="모양">
             <select
-              value={s0.geom ?? 'rect'}
-              onChange={(e) => onPatch({ geom: e.target.value as Geom, radius: e.target.value === 'roundRect' ? (s0.radius ?? 12) : s0.radius })}
+              value={s0.path ? '' : (s0.geom ?? 'rect')}
+              onChange={(e) => onPatch({ geom: e.target.value as Geom, path: undefined, radius: e.target.value === 'roundRect' ? (s0.radius ?? 12) : s0.radius })}
               className="h-7 rounded-md border border-[#E0E5F0] bg-white px-1.5 text-[12px] text-[#333A4D] outline-none focus:border-[#4D6BFF]"
               aria-label="도형 모양"
             >

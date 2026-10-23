@@ -122,6 +122,8 @@ export interface RawItem extends Box {
   flipV?: boolean
   geom?: FreeObj['geom']
   radiusRatio?: number
+  // 직접 그린 도형(custGeom) 윤곽 — SVG 경로, 0~1000 비율
+  path?: string
   fill?: Color | null
   line?: Color | null
   lineW?: number
@@ -219,6 +221,47 @@ function geomOf(spPr: Element | undefined): { geom: FreeObj['geom'] | 'line'; ra
   return { geom: 'rect' }
 }
 
+// 직접 그린 도형(custGeom)의 윤곽 → SVG 경로 (상자 기준 0~1000, 뒤집기 반영). 호(arcTo)는 짧은 직선으로 나눠 그립니다.
+function custPath(spPr: Element | undefined, flipH?: boolean, flipV?: boolean): string | undefined {
+  const lst = kid(kid(spPr, 'a:custGeom'), 'a:pathLst')
+  if (!lst) return undefined
+  const paths = kids(lst, 'a:path')
+  // 여러 윤곽이 같은 좌표계를 쓰지 않을 수 있어, 각 윤곽의 w·h 로 비율을 냅니다
+  let d = ''
+  for (const path of paths) {
+    // w·h 가 없으면 도형 크기 좌표계
+    const ext = kid(kid(spPr, 'a:xfrm'), 'a:ext')
+    const pw = EMU_ATTR(path, 'w') || EMU_ATTR(ext, 'cx') || 1
+    const ph = EMU_ATTR(path, 'h') || EMU_ATTR(ext, 'cy') || 1
+    const P = (x: number, y: number) => `${Math.round(((flipH ? pw - x : x) / pw) * 1000)} ${Math.round(((flipV ? ph - y : y) / ph) * 1000)}`
+    const pt = (el: Element) => [EMU_ATTR(el, 'x'), EMU_ATTR(el, 'y')] as const
+    let cur: readonly [number, number] = [0, 0]
+    for (const c of Array.from(path.children)) {
+      const pts = kids(c, 'a:pt').map(pt)
+      if (c.tagName === 'a:moveTo' && pts[0]) d += `M${P(...(cur = pts[0]))}`
+      else if (c.tagName === 'a:lnTo' && pts[0]) d += `L${P(...(cur = pts[0]))}`
+      else if (c.tagName === 'a:cubicBezTo' && pts.length === 3) {
+        d += `C${P(...pts[0])} ${P(...pts[1])} ${P(...(cur = pts[2]))}`
+      } else if (c.tagName === 'a:quadBezTo' && pts.length === 2) d += `Q${P(...pts[0])} ${P(...(cur = pts[1]))}`
+      else if (c.tagName === 'a:arcTo') {
+        const wR = EMU_ATTR(c, 'wR')
+        const hR = EMU_ATTR(c, 'hR')
+        const st = ((EMU_ATTR(c, 'stAng') / 60000) * Math.PI) / 180
+        const sw = ((EMU_ATTR(c, 'swAng') / 60000) * Math.PI) / 180
+        const cx = cur[0] - wR * Math.cos(st)
+        const cy = cur[1] - hR * Math.sin(st)
+        const steps = Math.max(2, Math.ceil(Math.abs(sw) / (Math.PI / 16)))
+        for (let i = 1; i <= steps; i++) {
+          const a = st + (sw * i) / steps
+          cur = [cx + wR * Math.cos(a), cy + hR * Math.sin(a)]
+          d += `L${P(...cur)}`
+        }
+      } else if (c.tagName === 'a:close') d += 'Z'
+    }
+  }
+  return d || undefined
+}
+
 function fillOf(spPr: Element | undefined, style: Element | undefined, theme: ThemeColors): Color | null | 'image' {
   if (!spPr) return styleRefColor(style, 'a:fillRef', theme)
   if (kid(spPr, 'a:noFill')) return null
@@ -302,6 +345,7 @@ export async function readSlideItems(
         if (!box) continue
         const extras = xfrmExtras(kid(spPr, 'a:xfrm'))
         const { geom, radiusRatio } = geomOf(spPr)
+        const path = custPath(spPr, extras.flipH, extras.flipV)
         const ln = lineOf(spPr, style, theme)
         if (geom === 'line' || tag === 'p:cxnSp') {
           if (ln.color) items.push({ kind: 'line', ...box, ...extras, line: ln.color, lineW: ln.w, dash: ln.dash, arrowStart: ln.head, arrowEnd: ln.tail })
@@ -322,7 +366,7 @@ export async function readSlideItems(
           continue
         }
         if (!text && !fill && !ln.color) continue
-        items.push({ kind: 'shape', ...box, ...extras, geom, radiusRatio, fill, line: ln.color, lineW: ln.w, dash: ln.dash, text, ph: phType })
+        items.push({ kind: 'shape', ...box, ...extras, geom, radiusRatio, path, fill, line: ln.color, lineW: ln.w, dash: ln.dash, text, ph: phType })
       } else if (tag === 'p:pic') {
         const spPr = kid(el, 'p:spPr')
         const box = boxOf(spPr, t)
@@ -480,6 +524,7 @@ export async function itemsToObjects(items: RawItem[], slideW: number, slideH: n
       kind: 'shape',
       ...geo,
       geom: it.geom,
+      path: it.path,
       radius: it.geom === 'roundRect' ? r1(Math.min(it.w, it.h) * k * Math.min(0.5, it.radiusRatio ?? 0.16667)) : undefined,
       fill: hexOf(it.fill as Color | null),
       opacity: it.fill && (it.fill as Color).alpha < 1 ? (it.fill as Color).alpha : undefined,

@@ -379,26 +379,27 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       } else if (image && slotTarget) {
         // 이미지 자리를 고른 채 그림을 붙여넣으면 그 자리를 채웁니다
         readImage(image).then((src) => fillSlot(slotTarget.id, src))
+      } else if (image && htmlHasText(html)) {
+        // PowerPoint·Keynote 처럼 그림과 서식 있는 글이 함께 오면: 고칠 수 있는 글(레이어)로 넣고, 그림으로 바꾸는 버튼을 줍니다
+        const textObjs = objectsFromHtml(html)
+        const asPicture = () =>
+          readImage(image).then((src) => {
+            const img = new Image()
+            img.onload = () => {
+              setObjects((list) => list.filter((o) => !placed.some((p) => p.id === o.id)))
+              insert([newImage(src, img.naturalWidth, img.naturalHeight)])
+            }
+            img.src = src
+          })
+        let placed: FreeObj[] = []
+        insert(textObjs).then((objs) => {
+          placed = objs
+          setNotice({ text: '고칠 수 있는 글로 붙여넣었어요. 원본 모양 그대로가 필요하면 그림으로 바꾸세요.', action: { label: '그림으로 바꾸기', run: asPicture } })
+        })
       } else if (image) {
-        // PowerPoint 처럼 그림과 서식 있는 글이 함께 오면: 보이는 그대로 그림으로 넣고, 글로 바꾸는 버튼을 줍니다
-        const textObjs = htmlHasText(html) ? objectsFromHtml(html) : []
         readImage(image).then((src) => {
           const img = new Image()
-          img.onload = async () => {
-            const [pic] = await insert([newImage(src, img.naturalWidth, img.naturalHeight)])
-            if (textObjs.length)
-              setNotice({
-                text: '그림으로 붙여넣었어요. 글을 고치려면 편집 가능한 글로 바꾸세요.',
-                action: {
-                  label: '글로 바꾸기',
-                  run: () => {
-                    const placed = placeObjects(textObjs)
-                    setObjects((list) => [...list.filter((o) => o.id !== pic.id), ...placed])
-                    setSelectedObjs(placed.map((o) => o.id))
-                  },
-                },
-              })
-          }
+          img.onload = () => insert([newImage(src, img.naturalWidth, img.naturalHeight)])
           img.src = src
         })
       } else if (htmlHasText(html)) {
