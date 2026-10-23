@@ -1,7 +1,7 @@
 import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react'
 import { memo, useRef, useState, type CSSProperties } from 'react'
 import { BRAND, SLIDE_H, SLIDE_W, TONES, ptToPx } from '../guide'
-import { LAYOUT_MAP, buildSlide, slideTone } from '../layouts'
+import { LAYOUT_MAP, buildSlide, isFreeLayout, slideTone } from '../layouts'
 import type { FreeObj, ImageEl, ShapeEl, Slide, SlideEl, TextEl } from '../types'
 import { listClass, parseRich, phOpacity, runStyle, textStyle } from '../textStyle'
 import EditableText from './EditableText'
@@ -152,7 +152,7 @@ function SlideCanvas({
   const objects = slide.objects ?? []
   const area = LAYOUT_MAP[slide.layout].objectArea
   const guideBox = LAYOUT_MAP[slide.layout].guideBox
-  const hasLayer = slide.layout === 'free' || !!area || objects.length > 0
+  const hasLayer = isFreeLayout(slide.layout) || !!area || objects.length > 0
   // 빈 곳을 끌어서 여러 요소를 한 번에 선택 (슬라이드 좌표)
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const marqueeStart = useRef<{ x: number; y: number; rect: DOMRect } | null>(null)

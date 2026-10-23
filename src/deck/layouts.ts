@@ -622,6 +622,28 @@ export const LAYOUTS: LayoutDef[] = [
     build: (ctx) => chrome(ctx),
   },
   {
+    id: 'free-section',
+    name: '간지 배경 · 자유',
+    description: '간지 배경에 오른쪽 위 로고만 — 가이드 칸 없이 자유롭게',
+    category: '자유 배치',
+    tone: 'navy',
+    fields: [],
+    sample: {},
+    // 로고는 간지와 같은 자리
+    build: (ctx) => [logo(ctx.p, 1142.7, 49, 87.5)],
+  },
+  {
+    id: 'free-blank',
+    name: '흰 배경 · 자유',
+    description: '흰 배경에 오른쪽 위 로고만 — 가이드 칸 없이 자유롭게',
+    category: '자유 배치',
+    tone: 'light',
+    fields: [],
+    sample: {},
+    // 로고는 본문 슬라이드와 같은 자리
+    build: (ctx) => [logo(ctx.p, 1142.6, 49, 87.7)],
+  },
+  {
     id: 'closing',
     name: '마무리',
     description: '감사 인사 + 회사 연락처',
@@ -648,7 +670,10 @@ for (const l of LAYOUTS) if (l.fields.some((fd) => fd.key === 'crumb')) l.sample
 export const LAYOUT_MAP = Object.fromEntries(LAYOUTS.map((l) => [l.id, l])) as Record<LayoutId, LayoutDef>
 
 // 화면(레이아웃 라이브러리)에 보여 줄 레이아웃과 순서 — 칸이 고정된 예전 레이아웃은 숨김
-export const VISIBLE_LAYOUTS = (['cover-1', 'cover', 'contents', 'section', 'line-box', 'free', 'closing'] as const).map((id) => LAYOUT_MAP[id])
+export const VISIBLE_LAYOUTS = (['cover-1', 'cover', 'contents', 'section', 'line-box', 'free', 'free-blank', 'free-section', 'closing'] as const).map((id) => LAYOUT_MAP[id])
+
+// 요소를 자유롭게 올리는 레이아웃 (본문 · 자유 배치, 흰 배경 · 자유, 간지 배경 · 자유)
+export const isFreeLayout = (id: LayoutId) => id === 'free' || id === 'free-blank' || id === 'free-section'
 
 export const LAYOUT_CATEGORIES: LayoutCategory[] = ['표지·구성', '라인형', '타이틀형', '자유 배치']
 

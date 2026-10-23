@@ -17,6 +17,8 @@ export type LayoutId =
   | 'header-2'
   | 'header-3'
   | 'free'
+  | 'free-section'
+  | 'free-blank'
   | 'closing'
 
 export type FieldKind = 'text' | 'multiline' | 'bullets' | 'numbers' | 'image'

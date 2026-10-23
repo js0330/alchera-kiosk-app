@@ -24,8 +24,8 @@ interface LayoutPickerProps {
 
 // 화면에 보여 주는 레이아웃만: 본문(라인형 1단 · 자유 배치)과 표지·목차·간지·마무리
 const SECTIONS: [string, LayoutId[]][] = [
-  ['본문', ['line-box', 'free']],
-  ['표지 · 목차 · 간지 · 마무리', ['cover-1', 'cover', 'contents', 'section', 'closing']],
+  ['본문', ['line-box', 'free', 'free-blank']],
+  ['표지 · 목차 · 간지 · 마무리', ['cover-1', 'cover', 'contents', 'section', 'free-section', 'closing']],
 ]
 
 export default function LayoutPicker({ title, current, onPick, onClose }: LayoutPickerProps) {

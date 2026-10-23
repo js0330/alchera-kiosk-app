@@ -36,12 +36,13 @@ import PreviewDialog from '../components/PreviewDialog'
 import SlideCanvas from '../components/SlideCanvas'
 import { SLIDE_H, SLIDE_W } from '../guide'
 import { LINE_KINDS, clampToArea, fitIntoArea, newImage, newLine, newShape, newText, snapToGuide } from '../freeObjects'
+import { BRAND } from '../guide'
 import { INSERT_MIME, type InsertPayload } from '../insert'
 import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
 import { fitTextToBoxes } from '../textFit'
 import { GoogleError, SCOPE_FILE, getGoogleToken, loadGoogle, uploadAsGoogleSlides } from '../google'
 import { makeSlide, uid } from '../kits'
-import { FREE_AREA, LAYOUT_MAP, LINE_BOX_AREA, VISIBLE_LAYOUTS, checkSlide, sectionFor } from '../layouts'
+import { FREE_AREA, LAYOUT_MAP, LINE_BOX_AREA, VISIBLE_LAYOUTS, checkSlide, isFreeLayout, sectionFor } from '../layouts'
 import { BLOCKS, GUIDE_BOXES, newIcon, numberCircle, placeObjects, resolveIcons, tintIcon } from '../library'
 import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, FreeObj, LayoutId, Slide } from '../types'
@@ -254,6 +255,11 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     [setObjects, area, layout.guideBox],
   )
   const addObj = (o: FreeObj) => insert([o])
+  // 남색 배경(간지 배경 · 자유 등)에 새로 넣는 글은 흰 글자로 — 남색 글자는 보이지 않으므로
+  const textHere = (at?: Partial<FreeObj>) => {
+    const o = newText(at)
+    return LAYOUT_MAP[slide.layout].tone === 'navy' ? { ...o, color: BRAND.colors.white } : o
+  }
 
   const removeSelected = useCallback(() => {
     const ids = latestSel.current
@@ -407,7 +413,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         insert(objectsFromHtml(html))
       } else {
         const lines = text.replace(/\r\n?/g, '\n').trim()
-        addObj(newText({ text: lines, h: Math.min(400, 24 + lines.split('\n').length * 24) }))
+        addObj(textHere({ text: lines, h: Math.min(400, 24 + lines.split('\n').length * 24) }))
       }
     }
     const copy = (e: ClipboardEvent) => onCopy(e, false)
@@ -708,7 +714,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
                 <MenuList
                   close={close}
                   items={[
-                    { label: '텍스트', icon: <Type size={14} />, onClick: () => addObj(newText()) },
+                    { label: '텍스트', icon: <Type size={14} />, onClick: () => addObj(textHere()) },
                     { label: '이미지', icon: <ImagePlus size={14} />, onClick: () => pickImage('__free__') },
                     { label: '도형 · 선 · 아이콘 · 블록', icon: <LibraryBig size={14} />, hint: '샘플', onClick: () => setPanel('library') },
                     { label: '새 슬라이드', icon: <Plus size={14} />, onClick: () => openLayouts('add') },
@@ -763,7 +769,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         >
           <MousePointer2 size={16} />
         </button>
-        <button type="button" className={ICON_BTN} onClick={() => addObj(newText())} title="텍스트 넣기" aria-label="텍스트 넣기">
+        <button type="button" className={ICON_BTN} onClick={() => addObj(textHere())} title="텍스트 넣기" aria-label="텍스트 넣기">
           <Type size={16} />
         </button>
         <button type="button" className={ICON_BTN} onClick={() => pickImage('__free__')} title="이미지 넣기" aria-label="이미지 넣기">
@@ -958,7 +964,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
                 onNumber={(n, style) => insert(numberCircle(n, style), freeCenter)}
                 onBlock={(b) => insert(b.build())}
                 onBox={(b, lock) => insert(lock ? b.build().map((o) => ({ ...o, locked: true })) : b.build(), undefined, true)}
-                layoutIsFree={slide.layout === 'free'}
+                layoutIsFree={isFreeLayout(slide.layout)}
                 onUseFree={() => changeLayout('free')}
               />
             )}
