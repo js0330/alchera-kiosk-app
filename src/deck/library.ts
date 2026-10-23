@@ -45,7 +45,39 @@ export const ICONS: IconDef[] = [
   { id: 'sync', label: '순환·반복', source: 'Physical AI' },
 ]
 
-export const iconUrl = (id: string) => `${import.meta.env.BASE_URL}deck/library/icons/${id}.png`
+// 구글 머티리얼 아이콘(Material Symbols, Apache 2.0) — 'ms:이름' 으로 씁니다. 그림은 jsDelivr 에서 받아 브라우저에서 칠합니다.
+const MATERIAL_BASE = 'https://cdn.jsdelivr.net/npm/@material-symbols/svg-400@0.48.1/outlined'
+export const iconUrl = (id: string) => (id.startsWith('ms:') ? `${MATERIAL_BASE}/${id.slice(3)}.svg` : `${import.meta.env.BASE_URL}deck/library/icons/${id}.png`)
+
+// 자주 쓰는 머티리얼 아이콘 (한글로 찾을 수 있게 이름을 붙임)
+export const MATERIAL_PICKS: [name: string, label: string][] = [
+  ['security', '보안'], ['lock', '잠금'], ['verified_user', '인증'], ['shield', '방패'], ['face', '얼굴'], ['person', '사람'],
+  ['groups', '그룹'], ['badge', '사원증'], ['id_card', '신분증'], ['fingerprint', '지문'], ['how_to_reg', '등록'], ['person_search', '사람 찾기'],
+  ['frame_person', '얼굴 인식'], ['visibility', '보기'], ['videocam', '카메라'], ['photo_camera', '사진'], ['memory', '칩'], ['smart_toy', '로봇·AI'],
+  ['psychology', '두뇌·AI'], ['neurology', '신경망'], ['cloud', '클라우드'], ['database', '데이터베이스'], ['storage', '저장'], ['dns', '서버'],
+  ['wifi', '와이파이'], ['router', '공유기'], ['sensors', '센서'], ['speed', '속도'], ['timer', '타이머'], ['schedule', '시간'],
+  ['calendar_month', '달력'], ['trending_up', '성장'], ['bar_chart', '막대 그래프'], ['pie_chart', '파이 차트'], ['monitoring', '모니터링'], ['query_stats', '분석'],
+  ['payments', '결제'], ['credit_card', '카드'], ['account_balance', '은행'], ['store', '매장'], ['shopping_cart', '장바구니'], ['local_shipping', '배송'],
+  ['factory', '공장'], ['apartment', '건물'], ['home', '집'], ['location_on', '위치'], ['map', '지도'], ['public', '글로벌'],
+  ['language', '언어'], ['handshake', '협력'], ['support_agent', '상담'], ['call', '전화'], ['mail', '메일'], ['chat', '채팅'],
+  ['notifications', '알림'], ['check_circle', '확인'], ['cancel', '취소'], ['warning', '경고'], ['info', '정보'], ['help', '도움말'],
+  ['settings', '설정'], ['build', '도구'], ['bolt', '전력'], ['eco', '친환경'], ['health_and_safety', '안전'], ['medical_services', '의료'],
+  ['school', '교육'], ['directions_car', '자동차'], ['flight', '비행기'], ['rocket_launch', '출시'], ['lightbulb', '아이디어'], ['trophy', '수상'],
+  ['military_tech', '메달'], ['star', '별'], ['thumb_up', '좋아요'], ['description', '문서'], ['folder', '폴더'], ['search', '검색'],
+  ['qr_code', 'QR 코드'], ['door_front', '출입문'], ['meeting_room', '출입'], ['sync', '동기화'], ['link', '연결'], ['hub', '허브'],
+]
+
+let materialNames: Promise<string[]> | null = null
+// 머티리얼 아이콘 전체 이름 (약 3,900개, 영어) — 처음 찾을 때 한 번 받아 둡니다
+export function loadMaterialNames(): Promise<string[]> {
+  materialNames ??= fetch(`${import.meta.env.BASE_URL}deck/material-icons.json`)
+    .then((r) => r.json() as Promise<string[]>)
+    .catch(() => {
+      materialNames = null
+      return []
+    })
+  return materialNames
+}
 
 const tintCache = new Map<string, Promise<string>>()
 
@@ -56,12 +88,16 @@ export function tintIcon(url: string, color: string): Promise<string> {
   if (!p) {
     p = new Promise((resolve, reject) => {
       const img = new Image()
+      // 다른 곳(머티리얼 아이콘)의 그림도 칠할 수 있게
+      img.crossOrigin = 'anonymous'
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        canvas.width = img.naturalWidth
-        canvas.height = img.naturalHeight
+        // SVG(머티리얼)는 선명하게 256px 로 그립니다
+        const svg = /\.svg($|\?)/.test(url)
+        canvas.width = svg ? 256 : img.naturalWidth
+        canvas.height = svg ? 256 : img.naturalHeight
         const ctx = canvas.getContext('2d')!
-        ctx.drawImage(img, 0, 0)
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
         ctx.globalCompositeOperation = 'source-in'
         ctx.fillStyle = color
         ctx.fillRect(0, 0, canvas.width, canvas.height)

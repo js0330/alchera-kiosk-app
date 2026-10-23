@@ -60,6 +60,29 @@ function RadiusRow({ objs, onPatch }: { objs: FreeObj[]; onPatch: (patch: Partia
   )
 }
 
+const OPACITIES = [100, 80, 60, 40, 20] as const
+
+// 투명도(불투명도): 요소 전체(채우기·테두리·글·그림)가 옅어집니다. 100% = 원래대로
+function OpacityRow({ objs, onPatch }: { objs: FreeObj[]; onPatch: (patch: Partial<FreeObj>) => void }) {
+  const cur = Math.round((objs[0].opacity ?? 1) * 100)
+  const set = (v: number) => onPatch({ opacity: v >= 100 ? undefined : Math.max(5, v) / 100 })
+  return (
+    <div className="space-y-1.5">
+      <Row label="불투명도">
+        {OPACITIES.map((v) => (
+          <button key={v} type="button" className={chip(cur === v)} onClick={() => set(v)}>
+            {v}
+          </button>
+        ))}
+      </Row>
+      <div className="flex items-center gap-2">
+        <input type="range" min={5} max={100} step={5} value={cur} onChange={(e) => set(Number(e.target.value))} className="flex-1 accent-[#0000A5]" aria-label="불투명도" />
+        <span className="w-12 text-right text-[12px] tabular-nums text-[#333A4D]">{cur}%</span>
+      </div>
+    </div>
+  )
+}
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -235,6 +258,8 @@ export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOr
       )}
 
       {objs.some(hasRadius) && <RadiusRow objs={objs.filter(hasRadius)} onPatch={onPatch} />}
+
+      <OpacityRow objs={objs} onPatch={onPatch} />
 
       {l0 && (
         <>

@@ -1,8 +1,8 @@
 import { Info, X } from 'lucide-react'
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { BRAND } from '../guide'
 import { dragProps, type NumberStyle } from '../insert'
-import { BLOCKS, GUIDE_BOXES, ICONS, NUMBERS, NUMBER_STYLES, iconUrl, placeObjects, type BlockDef } from '../library'
+import { BLOCKS, GUIDE_BOXES, ICONS, MATERIAL_PICKS, NUMBERS, NUMBER_STYLES, iconUrl, loadMaterialNames, placeObjects, type BlockDef } from '../library'
 import { LINE_KINDS, type LineKind } from '../freeObjects'
 import { SHAPES } from '../shapes'
 import type { Geom } from '../types'
@@ -10,6 +10,60 @@ import { makeSlide } from '../kits'
 import ObjectsPreview from './ObjectsPreview'
 import SlideCanvas from './SlideCanvas'
 import { LineIcon, ShapeIcon } from './InsertMenus'
+
+// 아이콘 단추 하나 (눌러서 넣기 · 끌어다 놓기)
+function IconButton({ id, label, onIcon }: { id: string; label: string; onIcon: (id: string) => void }) {
+  const url = iconUrl(id)
+  return (
+    <button
+      type="button"
+      title={label}
+      className="flex flex-col items-center gap-1 rounded-lg px-1 py-2 hover:bg-[#EEF1FB]"
+      onClick={() => onIcon(id)}
+      {...dragProps({ type: 'icon', id })}
+    >
+      <span className="block h-8 w-8" style={{ background: BRAND.colors.blue, WebkitMask: `url(${url}) center / contain no-repeat`, mask: `url(${url}) center / contain no-repeat` }} />
+      <span className="w-full truncate text-center text-[10px] text-[#7A8099]">{label}</span>
+    </button>
+  )
+}
+
+// 구글 머티리얼 아이콘: 자주 쓰는 것(한글 이름)을 먼저 보여 주고, 검색하면 전체(영어 이름 약 3,900개)에서 찾습니다
+function MaterialIcons({ onIcon }: { onIcon: (id: string) => void }) {
+  const [q, setQ] = useState('')
+  const [names, setNames] = useState<string[]>([])
+  const query = q.trim().toLowerCase()
+  useEffect(() => {
+    if (query) loadMaterialNames().then(setNames)
+  }, [query])
+  const list: [string, string][] = !query
+    ? MATERIAL_PICKS
+    : [
+        ...MATERIAL_PICKS.filter(([n, l]) => l.includes(query) || n.includes(query.replace(/\s+/g, '_'))),
+        ...names.filter((n) => n.includes(query.replace(/\s+/g, '_')) && !MATERIAL_PICKS.some(([p]) => p === n)).map((n) => [n, n.replace(/_/g, ' ')] as [string, string]),
+      ].slice(0, 80)
+  return (
+    <div className="mb-4">
+      <p className="deck-label mb-2">구글 머티리얼 아이콘</p>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="찾기 — 한글(보안, 얼굴…) 또는 영어(face, lock…)"
+        className="mb-2 h-8 w-full rounded-md border border-[#D9DEEA] px-2 text-[12px] outline-none focus:border-[#4D6BFF]"
+        aria-label="머티리얼 아이콘 찾기"
+      />
+      {list.length ? (
+        <div className="grid grid-cols-4 gap-1.5">
+          {list.map(([n, l]) => (
+            <IconButton key={n} id={`ms:${n}`} label={l} onIcon={onIcon} />
+          ))}
+        </div>
+      ) : (
+        <p className="py-3 text-center text-[11px] text-[#9CA3AF]">{query && !names.length ? '불러오는 중…' : '찾는 아이콘이 없어요. 영어로도 찾아 보세요.'}</p>
+      )}
+    </div>
+  )
+}
 
 interface LibraryPanelProps {
   onClose: () => void
@@ -162,24 +216,12 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onNumbe
                 <p className="deck-label mb-2">{src} 샘플</p>
                 <div className="grid grid-cols-4 gap-1.5">
                   {ICONS.filter((i) => i.source === src).map((i) => (
-                    <button
-                      key={i.id}
-                      type="button"
-                      title={i.label}
-                      className="flex flex-col items-center gap-1 rounded-lg px-1 py-2 hover:bg-[#EEF1FB]"
-                      onClick={() => onIcon(i.id)}
-                      {...dragProps({ type: 'icon', id: i.id })}
-                    >
-                      <span
-                        className="block h-8 w-8"
-                        style={{ background: BRAND.colors.blue, WebkitMask: `url(${iconUrl(i.id)}) center / contain no-repeat`, mask: `url(${iconUrl(i.id)}) center / contain no-repeat` }}
-                      />
-                      <span className="w-full truncate text-center text-[10px] text-[#7A8099]">{i.label}</span>
-                    </button>
+                    <IconButton key={i.id} id={i.id} label={i.label} onIcon={onIcon} />
                   ))}
                 </div>
               </div>
             ))}
+            <MaterialIcons onIcon={onIcon} />
             <p className="text-[11px] leading-relaxed text-[#9CA3AF]">넣은 뒤 오른쪽 패널에서 아이콘 색(블루·네이비·그레이·흰색)을 바꿀 수 있어요.</p>
           </>
         )}

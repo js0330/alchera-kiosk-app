@@ -207,7 +207,7 @@ function ObjView({ o }: { o: FreeObj }) {
         {o.path ? (
           // 직접 그린 도형: 0~1000 비율 좌표를 상자 크기에 맞춰 늘립니다 (선 굵기는 그대로)
           <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-            <path d={o.path} fill={o.fill ?? 'none'} fillOpacity={o.opacity} stroke={o.line ?? 'none'} strokeWidth={bw} vectorEffect="non-scaling-stroke" strokeDasharray={o.line ? dashArray(o, bw) : undefined} strokeLinejoin="round" />
+            <path d={o.path} fill={o.fill ?? 'none'} stroke={o.line ?? 'none'} strokeWidth={bw} vectorEffect="non-scaling-stroke" strokeDasharray={o.line ? dashArray(o, bw) : undefined} strokeLinejoin="round" />
           </svg>
         ) : (
           <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>

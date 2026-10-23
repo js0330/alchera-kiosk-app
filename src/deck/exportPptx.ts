@@ -144,7 +144,7 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
     const data = o.src.startsWith('data:') ? o.src : await urlToDataUrl(o.src).catch(() => null)
     if (!data) return
     const r = Math.min(o.radius ?? 0, Math.min(o.w, o.h) / 2)
-    s.addImage({ ...box, data: r > 0 ? await roundCorners(data, o.w, o.h, r) : data })
+    s.addImage({ ...box, data: r > 0 ? await roundCorners(data, o.w, o.h, r) : data, transparency: transparency(o.opacity) } as PptxGenJS.ImageProps)
     return
   }
   if (o.kind === 'line') {
@@ -154,6 +154,7 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
       line: {
         color: hex(o.line ?? '#000038'),
         width: o.lineWidth ?? 1,
+        transparency: transparency(o.opacity),
         dashType: o.dash === 'dash' ? 'dash' : o.dash === 'dot' ? 'sysDot' : undefined,
         beginArrowType: end(o.arrowStart),
         endArrowType: end(o.arrowEnd),
@@ -169,7 +170,7 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
   const common = {
     ...box,
     fill: o.fill ? { color: hex(o.fill), transparency: transparency(o.opacity) } : undefined,
-    line: o.line ? { color: hex(o.line), width: o.lineWidth ?? 0.75, dashType: o.dash === 'dash' ? ('dash' as const) : o.dash === 'dot' ? ('sysDot' as const) : undefined } : undefined,
+    line: o.line ? { color: hex(o.line), width: o.lineWidth ?? 0.75, transparency: transparency(o.opacity), dashType: o.dash === 'dash' ? ('dash' as const) : o.dash === 'dot' ? ('sysDot' as const) : undefined } : undefined,
     rectRadius: radius > 0 ? inch(radius) : undefined,
     shadow: shadow(o),
   }
@@ -182,7 +183,10 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
     return
   }
   const [l, t, r, b] = o.pad ?? [0, 0, 0, 0]
-  s.addText(richRuns(o.text, !!o.bold, !!o.underline, !!o.italic, o.size ?? 10), {
+  // 투명도는 글자에도 (화면처럼 요소 전체가 옅어지게)
+  const runs = richRuns(o.text, !!o.bold, !!o.underline, !!o.italic, o.size ?? 10)
+  const faded = o.opacity !== undefined ? runs.map((r) => ({ ...r, options: { ...r.options, transparency: transparency(o.opacity) } as PptxGenJS.TextPropsOptions })) : runs
+  s.addText(faded, {
     ...(o.path ? { ...box, shadow: undefined } : common),
     shape: o.path ? undefined : shape,
     fontFace: BRAND.font.ppt,
