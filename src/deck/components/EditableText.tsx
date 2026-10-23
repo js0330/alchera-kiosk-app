@@ -13,6 +13,7 @@ const richHtml = (s: string) =>
       if (r.underline) h = `<u>${h}</u>`
       if (r.italic) h = `<i>${h}</i>`
       if (r.color) h = `<font color="${r.color}">${h}</font>`
+      if (r.scale) h = `<span data-x="${r.scale}" style="font-size:${r.scale}em">${h}</span>`
       return h
     })
     .join('')
@@ -62,6 +63,7 @@ function serialize(node: Node, rich: boolean): string {
         if (isItalic(c)) v = wrapLines(v, '~~', '~~')
         const color = colorOf(c)
         if (color) v = wrapLines(v, `{{${color}:`, '}}')
+        if (c.dataset.x) v = wrapLines(v, `{{x${c.dataset.x}:`, '}}')
         out += v
       } else out += inner
     }
@@ -70,7 +72,7 @@ function serialize(node: Node, rich: boolean): string {
 }
 
 function readValue(node: HTMLElement, multiline: boolean, rich: boolean) {
-  const text = serialize(node, rich).replace(/ /g, ' ').replace(/\*\*\*\*/g, '').replace(/____/g, '').replace(/~~~~/g, '').replace(/\{\{#[0-9A-F]{6}:\}\}/g, '')
+  const text = serialize(node, rich).replace(/ /g, ' ').replace(/\*\*\*\*/g, '').replace(/____/g, '').replace(/~~~~/g, '').replace(/\{\{(#[0-9A-F]{6}|x[\d.]+):\}\}/g, '')
   return multiline ? text.replace(/\n$/, '') : text.replace(/\n/g, ' ')
 }
 

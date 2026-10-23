@@ -28,30 +28,37 @@ export interface Run {
   underline?: boolean
   italic?: boolean
   color?: string
+  // 글 상자 글자 크기 대비 배율 (예: 2.5 = 2.5배). 상자 크기를 바꾸면 함께 커지고 작아집니다
+  scale?: number
 }
 
 // 글 일부의 서식 표기 (한 줄 단위):
-//   **굵게**   __밑줄__   ~~기울임~~   {{#E53935:색}}   — 서로 겹쳐 쓸 수 있습니다 (예: {{#E53935:**굵은 빨강**}})
+//   **굵게**   __밑줄__   ~~기울임~~   {{#E53935:색}}   {{x2.5:크게}}   — 서로 겹쳐 쓸 수 있습니다 (예: {{#E53935:**굵은 빨강**}})
 // 표기를 구간(run)으로 나눕니다.
-const TOKEN = /(\*\*|__|~~|\{\{#[0-9A-Fa-f]{6}:|\}\})/
+const TOKEN = /(\*\*|__|~~|\{\{#[0-9A-Fa-f]{6}:|\{\{x\d+(?:\.\d+)?:|\}\})/
 export function parseRich(line: string): Run[] {
   const runs: Run[] = []
   let bold = false
   let underline = false
   let italic = false
-  const colors: string[] = []
+  // 색·배율은 }} 로 닫으므로 연 순서대로 쌓아 둡니다
+  const open: { color?: string; scale?: number }[] = []
   for (const part of line.split(TOKEN)) {
     if (!part) continue
     if (part === '**') bold = !bold
     else if (part === '__') underline = !underline
     else if (part === '~~') italic = !italic
-    else if (part.startsWith('{{#')) colors.push(part.slice(2, 9).toUpperCase())
-    else if (part === '}}' && colors.length) colors.pop()
+    else if (part.startsWith('{{#')) open.push({ color: part.slice(2, 9).toUpperCase() })
+    else if (part.startsWith('{{x')) open.push({ scale: Number(part.slice(3, -1)) })
+    else if (part === '}}' && open.length) open.pop()
     else {
       const run: Run = { text: part, bold }
       if (underline) run.underline = true
       if (italic) run.italic = true
-      if (colors.length) run.color = colors[colors.length - 1]
+      const color = open.findLast((o) => o.color)?.color
+      const scale = open.findLast((o) => o.scale)?.scale
+      if (color) run.color = color
+      if (scale && scale !== 1) run.scale = scale
       runs.push(run)
     }
   }
@@ -64,6 +71,7 @@ export const runStyle = (r: Run): CSSProperties => ({
   textDecoration: r.underline ? 'underline' : undefined,
   fontStyle: r.italic ? 'italic' : undefined,
   color: r.color,
+  fontSize: r.scale ? `${r.scale}em` : undefined,
 })
 
 // 표기 없이 글자만

@@ -154,44 +154,81 @@ function buildText(text: string, ranges: StyleRange[], defAlign: FreeObj['align'
     return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
   }
   const allBold = visible.length > 0 && visible.every((i) => bold[i])
-  let out = ''
-  let open = false
-  for (let i = 0; i < n; i++) {
-    const ch = text[i]
-    const b = !allBold && bold[i] && ch !== '\n'
-    if (b !== open && (ch.trim() || !b)) {
-      out += '**'
-      open = b
-    }
-    if (ch === '\n' && open) {
-      out += '**'
-      open = false
-    }
-    out += ch
+  const baseSize = majority(size, 0) ?? 14
+  const baseColor = (majority(color, '') ?? '#000000').toUpperCase()
+  // 대표와 다른 색·크기는 그 부분만 표기 ({{#색:…}} · {{x배율:…}}) — 예: '국내 1 위' 의 크고 파란 1
+  const colorAt = (i: number) => {
+    const c = color[i].toUpperCase()
+    return /^#[0-9A-F]{6}$/.test(c) && c !== baseColor ? c : ''
   }
-  if (open) out += '**'
+  const scaleAt = (i: number) => (size[i] && Math.abs(size[i] / baseSize - 1) > 0.04 ? Math.round((size[i] / baseSize) * 100) / 100 : 0)
+  let out = ''
+  let i = 0
+  while (i < n) {
+    if (text[i] === '\n') {
+      out += '\n'
+      i++
+      continue
+    }
+    // 같은 색·크기가 이어지는 구간 (사이 빈칸은 앞 구간에 붙임)
+    const c = colorAt(i)
+    const x = scaleAt(i)
+    let j = i + 1
+    while (j < n && text[j] !== '\n' && (!text[j].trim() || (colorAt(j) === c && scaleAt(j) === x))) j++
+    let seg = ''
+    let open = false
+    for (let k = i; k < j; k++) {
+      const b = !allBold && bold[k]
+      if (b !== open && (text[k].trim() || !b)) {
+        seg += '**'
+        open = b
+      }
+      seg += text[k]
+    }
+    if (open) seg += '**'
+    if (x) seg = `{{x${x}:${seg}}}`
+    if (c) seg = `{{${c}:${seg}}}`
+    out += seg
+    i = j
+  }
   return {
     text: out.replace(/\*\*\*\*/g, '').replace(/\n+$/, ''),
-    size: majority(size, 0) ?? 14,
-    color: majority(color, '') ?? '#000000',
+    size: baseSize,
+    color: baseColor,
     bold: allBold,
     align: align ?? defAlign,
   }
 }
 
+// 그림 받기: 먼저 파일로 받아 문서 안에 저장하고, 막혀 있으면(회사 공유 파일 등)
+// 내 구글 로그인으로 그림 주소를 그대로 열어 봅니다 — 열리면 그 주소로 보여 줍니다.
 async function toDataUrl(url: string): Promise<string | null> {
   try {
-    const blob = await (await fetch(url)).blob()
-    if (!blob.type.startsWith('image/')) return null
-    return await new Promise((resolve, reject) => {
-      const r = new FileReader()
-      r.onload = () => resolve(r.result as string)
-      r.onerror = reject
-      r.readAsDataURL(blob)
-    })
+    const res = await fetch(url)
+    const blob = res.ok ? await res.blob() : null
+    if (blob?.type.startsWith('image/'))
+      return await new Promise((resolve, reject) => {
+        const r = new FileReader()
+        r.onload = () => resolve(r.result as string)
+        r.onerror = reject
+        r.readAsDataURL(blob)
+      })
   } catch {
-    return null
+    // 아래에서 주소로 열어 봅니다
   }
+  return new Promise((resolve) => {
+    const img = new Image()
+    const timer = setTimeout(() => resolve(null), 8000)
+    img.onload = () => {
+      clearTimeout(timer)
+      resolve(img.naturalWidth > 0 ? url : null)
+    }
+    img.onerror = () => {
+      clearTimeout(timer)
+      resolve(null)
+    }
+    img.src = url
+  })
 }
 
 export function hasGoogleShapes(data: Pick<DataTransfer, 'types'>) {
