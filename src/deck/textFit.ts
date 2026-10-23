@@ -34,6 +34,7 @@ function probeFor(o: FreeObj, size: number, width: number): HTMLDivElement {
     for (const run of parseRich(line)) {
       const el = document.createElement(run.bold ? 'b' : 'span')
       el.textContent = run.text
+      if (run.scale) el.style.fontSize = `${run.scale}em`
       row.appendChild(el)
     }
     div.appendChild(row)

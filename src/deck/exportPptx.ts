@@ -10,7 +10,9 @@ const hex = (c: string) => c.replace('#', '').toUpperCase()
 const transparency = (opacity?: number) => (opacity === undefined ? undefined : Math.round((1 - opacity) * 100))
 
 async function urlToDataUrl(url: string): Promise<string> {
-  const blob = await (await fetch(url)).blob()
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`image ${res.status}`)
+  const blob = await res.blob()
   return new Promise((resolve, reject) => {
     const r = new FileReader()
     r.onload = () => resolve(r.result as string)
@@ -95,18 +97,23 @@ function shadow(el: Pick<ShapeEl, 'shadow'>): PptxGenJS.ShadowProps | undefined 
 const pt = (px: number) => (px / PX_PER_IN) * 72
 
 // 글 일부 서식(밑줄·기울임·색)을 PPTX 글 구간 옵션으로
-function runOptions(r: Run): PptxGenJS.TextPropsOptions {
-  return { underline: r.underline ? { style: 'sng' } : undefined, italic: r.italic || undefined, color: r.color ? hex(r.color) : undefined }
+function runOptions(r: Run, size?: number): PptxGenJS.TextPropsOptions {
+  return {
+    underline: r.underline ? { style: 'sng' } : undefined,
+    italic: r.italic || undefined,
+    color: r.color ? hex(r.color) : undefined,
+    fontSize: r.scale && size ? Math.round(size * r.scale * 10) / 10 : undefined,
+  }
 }
 
-function richRuns(text: string, bold: boolean, underline = false, italic = false): PptxGenJS.TextProps[] {
+function richRuns(text: string, bold: boolean, underline = false, italic = false, size?: number): PptxGenJS.TextProps[] {
   const lines = text.split('\n')
   return lines.flatMap((line, i) => {
     const runs = parseRich(line)
     if (!runs.length) runs.push({ text: '', bold: false })
     return runs.map((r, j) => ({
       text: r.text,
-      options: { ...runOptions({ ...r, underline: r.underline || underline, italic: r.italic || italic }), bold: r.bold || bold, breakLine: j === runs.length - 1 && i < lines.length - 1 },
+      options: { ...runOptions({ ...r, underline: r.underline || underline, italic: r.italic || italic }, size), bold: r.bold || bold, breakLine: j === runs.length - 1 && i < lines.length - 1 },
     }))
   })
 }
@@ -133,7 +140,9 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
   const box = { x: inch(o.x), y: inch(o.y), w: inch(o.w), h: inch(o.h), rotate: o.rot || undefined }
   if (o.kind === 'image') {
     if (!o.src) return
-    const data = o.src.startsWith('data:') ? o.src : await urlToDataUrl(o.src)
+    // 주소로만 보이는 그림(회사 공유 파일 등)은 받을 수 없으면 빼고 나머지를 내보냅니다
+    const data = o.src.startsWith('data:') ? o.src : await urlToDataUrl(o.src).catch(() => null)
+    if (!data) return
     const r = Math.min(o.radius ?? 0, Math.min(o.w, o.h) / 2)
     s.addImage({ ...box, data: r > 0 ? await roundCorners(data, o.w, o.h, r) : data })
     return
@@ -173,7 +182,7 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
     return
   }
   const [l, t, r, b] = o.pad ?? [0, 0, 0, 0]
-  s.addText(richRuns(o.text, !!o.bold, !!o.underline, !!o.italic), {
+  s.addText(richRuns(o.text, !!o.bold, !!o.underline, !!o.italic, o.size ?? 10), {
     ...(o.path ? { ...box, shadow: undefined } : common),
     shape: o.path ? undefined : shape,
     fontFace: BRAND.font.ppt,
