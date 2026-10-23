@@ -46,6 +46,8 @@ const GOOGLE_GEOMS: Record<number, Geom> = {
   107: 'wedgeRectCallout',
 }
 const IMAGE = 3
+// 직접 그린 도형(자유형). 지원하지 않는 다른 도형도 윤곽(path)이 실려 오면 자유형처럼 그립니다
+const FREEFORM = 1
 const TEXT_BOX = 108
 const isLineCode = (code: number) => code >= 144 && code <= 158
 
@@ -55,6 +57,7 @@ const P = {
   imageId: 49,
   imageW: 8,
   imageH: 9,
+  path: 12,
   fillOn: 14,
   fill: 15,
   fillAlpha: 16,
@@ -93,6 +96,32 @@ const arrowOf = (v: unknown): LineEnd | undefined => {
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10
+
+// 자유형 윤곽 → SVG 경로 (상자 기준 0~1000). 윤곽 = [[?, ?, [명령, 숫자 개수, …], [x, y, …], …], …]
+// 명령: 0 이동 · 1 직선 · 2 곡선(3점) · 3 곡선(2점) · 5 닫기. 모르는 명령이 있으면 null.
+function pathOf(v: unknown, pw: number, ph: number, flip: boolean): string | null {
+  if (!Array.isArray(v) || !pw || !ph) return null
+  const pt = (x: number, y: number) => `${Math.round(((flip ? pw - x : x) / pw) * 1000)} ${Math.round((y / ph) * 1000)}`
+  let d = ''
+  for (const sub of v) {
+    const [ops, xy] = Array.isArray(sub) ? [sub[2], sub[3]] : []
+    if (!Array.isArray(ops) || !Array.isArray(xy)) return null
+    let k = 0
+    for (let i = 0; i + 1 < ops.length; i += 2) {
+      const [op, n] = [Number(ops[i]), Number(ops[i + 1])]
+      const pts: string[] = []
+      for (let j = 0; j + 1 < n; j += 2) pts.push(pt(Number(xy[k + j]), Number(xy[k + j + 1])))
+      k += n
+      if (op === 0) d += pts.map((q) => `M${q}`).join('')
+      else if (op === 1) d += pts.map((q) => `L${q}`).join('')
+      else if (op === 2 && pts.length % 3 === 0) for (let j = 0; j < pts.length; j += 3) d += `C${pts[j]} ${pts[j + 1]} ${pts[j + 2]}`
+      else if (op === 3 && pts.length % 2 === 0) for (let j = 0; j < pts.length; j += 2) d += `Q${pts[j]} ${pts[j + 1]}`
+      else if (op === 5) d += 'Z'
+      else return null
+    }
+  }
+  return d || null
+}
 
 interface StyleRange {
   start: number
@@ -219,7 +248,8 @@ export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getD
   let skipped = 0
   let missingImages = 0
   for (const it of created) {
-    if (it.code !== IMAGE && it.code !== TEXT_BOX && !isLineCode(it.code) && !GOOGLE_GEOMS[it.code]) {
+    const free = !GOOGLE_GEOMS[it.code] && (it.code === FREEFORM || Array.isArray(it.p.get(P.path)))
+    if (it.code !== IMAGE && it.code !== TEXT_BOX && !isLineCode(it.code) && !GOOGLE_GEOMS[it.code] && !free) {
       skipped++
       continue
     }
@@ -250,14 +280,17 @@ export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getD
       continue
     }
 
-    const w0 = it.code === IMAGE ? Number(p.get(P.imageW)) || BASE : BASE
-    const h0 = it.code === IMAGE ? Number(p.get(P.imageH)) || BASE : BASE
+    // 그림·자유형은 자기 크기(8·9번 속성)를, 나머지 도형은 기본 상자를 변환합니다
+    const w0 = it.code === IMAGE || free ? Number(p.get(P.imageW)) || BASE : BASE
+    const h0 = it.code === IMAGE || free ? Number(p.get(P.imageH)) || BASE : BASE
     const sx = Math.hypot(m[0], m[1])
     const sy = Math.hypot(m[2], m[3])
     const w = w0 * sx * UNIT_PX
     const h = h0 * sy * UNIT_PX
     const center = apply(m, w0 / 2, h0 / 2)
-    const rot = Math.round(((Math.atan2(m[1], m[0]) * 180) / Math.PI) * 10) / 10
+    // 좌우가 뒤집힌 자유형은 윤곽을 뒤집고, 회전은 뒤집기 전 기준으로
+    const flip = free && m[0] * m[3] - m[1] * m[2] < 0
+    const rot = Math.round(((Math.atan2(flip ? -m[1] : m[1], flip ? -m[0] : m[0]) * 180) / Math.PI) * 10) / 10
     const box = { x: r1(center.x * UNIT_PX - w / 2), y: r1(center.y * UNIT_PX - h / 2), w: r1(w), h: r1(h), rot: rot ? rot : undefined }
     if (w < 1 || h < 1) continue
 
@@ -277,7 +310,12 @@ export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getD
     const fill = p.get(P.fillOn) === 1 && p.get(P.fill) ? String(p.get(P.fill)) : undefined
     const opacity = fill && p.has(P.fillAlpha) && Number(p.get(P.fillAlpha)) < 1 ? Number(p.get(P.fillAlpha)) : undefined
     if (!t && !fill && !lineColor) continue
-    const geom: Geom = it.code === TEXT_BOX ? 'rect' : GOOGLE_GEOMS[it.code]
+    const geom: Geom = it.code === TEXT_BOX || free ? 'rect' : GOOGLE_GEOMS[it.code]
+    const path = free ? pathOf(p.get(P.path), w0, h0, flip) : null
+    if (free && !path) {
+      skipped++
+      continue
+    }
     const ins = Array.isArray(p.get(P.insets)) ? (p.get(P.insets) as number[]) : null
     // 안쪽 여백: [위, 오른, 아래, 왼] 순서 (CSS 와 같음)
     const pad: [number, number, number, number] = ins
@@ -289,6 +327,7 @@ export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getD
       id: uid(),
       kind: 'shape',
       geom,
+      path: path ?? undefined,
       ...box,
       radius: geom === 'roundRect' ? r1(Math.min(w, h) * (Number.isFinite(adj) && p.has(P.adj1) ? adj / 100000 : 0.16667)) : undefined,
       fill,

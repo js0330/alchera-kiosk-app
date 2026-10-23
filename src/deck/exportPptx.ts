@@ -112,6 +112,23 @@ function richRuns(text: string, bold: boolean, underline = false, italic = false
 }
 
 // 자유 배치 요소 → PPTX 네이티브 도형·텍스트 상자·이미지·선
+// SVG 경로(0~1000 비율) → pptxgenjs 자유형 점 (인치, 상자 기준)
+type PathPoint = NonNullable<PptxGenJS.ShapeProps['points']>[number]
+function pathPoints(d: string, w: number, h: number): PathPoint[] {
+  const out: PathPoint[] = []
+  const X = (v: string) => inch((Number(v) / 1000) * w)
+  const Y = (v: string) => inch((Number(v) / 1000) * h)
+  for (const [, cmd, args] of d.matchAll(/([MLCQZ])([^MLCQZ]*)/g)) {
+    const n = args.trim() ? args.trim().split(/\s+/) : []
+    if (cmd === 'M') out.push({ x: X(n[0]), y: Y(n[1]), moveTo: true })
+    else if (cmd === 'L') out.push({ x: X(n[0]), y: Y(n[1]) })
+    else if (cmd === 'C') out.push({ x: X(n[4]), y: Y(n[5]), curve: { type: 'cubic', x1: X(n[0]), y1: Y(n[1]), x2: X(n[2]), y2: Y(n[3]) } })
+    else if (cmd === 'Q') out.push({ x: X(n[2]), y: Y(n[3]), curve: { type: 'quadratic', x1: X(n[0]), y1: Y(n[1]) } })
+    else out.push({ close: true })
+  }
+  return out
+}
+
 async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
   const box = { x: inch(o.x), y: inch(o.y), w: inch(o.w), h: inch(o.h), rotate: o.rot || undefined }
   if (o.kind === 'image') {
@@ -147,14 +164,18 @@ async function addFreeObject(pptx: PptxGenJS, s: PptxGenJS.Slide, o: FreeObj) {
     rectRadius: radius > 0 ? inch(radius) : undefined,
     shadow: shadow(o),
   }
-  if (!o.text?.trim()) {
+  // 직접 그린 도형: 윤곽을 PowerPoint 자유형(custGeom) 점으로. 글은 그 위에 같은 크기의 글 상자로
+  if (o.path) {
+    if (o.fill || o.line) s.addShape('custGeom' as PptxGenJS.ShapeType, { ...common, rectRadius: undefined, line: common.line ?? { type: 'none' }, points: pathPoints(o.path, o.w, o.h) })
+    if (!o.text?.trim()) return
+  } else if (!o.text?.trim()) {
     if (o.fill || o.line) s.addShape(shape, { ...common, line: common.line ?? { type: 'none' } })
     return
   }
   const [l, t, r, b] = o.pad ?? [0, 0, 0, 0]
   s.addText(richRuns(o.text, !!o.bold, !!o.underline, !!o.italic), {
-    ...common,
-    shape,
+    ...(o.path ? { ...box, shadow: undefined } : common),
+    shape: o.path ? undefined : shape,
     fontFace: BRAND.font.ppt,
     fontSize: o.size ?? 10,
     color: hex(o.color ?? '#000038'),

@@ -201,12 +201,19 @@ function ObjView({ o }: { o: FreeObj }) {
     // PowerPoint 처럼 상자보다 긴 글은 잘라내지 않고 넘쳐 보이게 (잘린 글자가 생기지 않도록)
     overflow: 'visible',
   }
-  if (pts) {
+  if (pts || o.path) {
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-        <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
-          <polygon points={pointsAttr(pts)} fill={o.fill ?? 'none'} stroke={o.line ?? 'none'} strokeWidth={bw} strokeDasharray={o.line ? dashArray(o, bw) : undefined} strokeLinejoin="round" />
-        </svg>
+        {o.path ? (
+          // 직접 그린 도형: 0~1000 비율 좌표를 상자 크기에 맞춰 늘립니다 (선 굵기는 그대로)
+          <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+            <path d={o.path} fill={o.fill ?? 'none'} fillOpacity={o.opacity} stroke={o.line ?? 'none'} strokeWidth={bw} vectorEffect="non-scaling-stroke" strokeDasharray={o.line ? dashArray(o, bw) : undefined} strokeLinejoin="round" />
+          </svg>
+        ) : (
+          <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+            <polygon points={pointsAttr(pts!)} fill={o.fill ?? 'none'} stroke={o.line ?? 'none'} strokeWidth={bw} strokeDasharray={o.line ? dashArray(o, bw) : undefined} strokeLinejoin="round" />
+          </svg>
+        )}
         {o.text ? (
           <div style={textBox}>
             <TextView o={o} />

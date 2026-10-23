@@ -53,6 +53,8 @@ export interface FreeObj {
   rot?: number
   // shape — 도형 종류는 shapes.ts 의 SHAPES 참고 (PowerPoint 기본 도형 이름과 같음)
   geom?: Geom
+  // 직접 그린 도형(자유형)의 윤곽 — SVG 경로, 상자 기준 0~1000 비율 좌표. 있으면 geom 대신 이 모양으로 그립니다
+  path?: string
   fill?: string
   line?: string
   lineWidth?: number
