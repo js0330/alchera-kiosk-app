@@ -38,7 +38,7 @@ import { SLIDE_H, SLIDE_W } from '../guide'
 import { LINE_KINDS, clampToArea, fitIntoArea, newImage, newLine, newShape, newText, snapToGuide } from '../freeObjects'
 import { BRAND } from '../guide'
 import { INSERT_MIME, type InsertPayload } from '../insert'
-import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml } from '../pasteImport'
+import { hasGoogleShapes, htmlHasText, objectsFromGoogle, objectsFromHtml, readGoogleClipboard } from '../pasteImport'
 import { fitTextToBoxes } from '../textFit'
 import { GoogleError, SCOPE_FILE, getGoogleToken, loadGoogle, uploadAsGoogleSlides } from '../google'
 import { makeSlide, uid } from '../kits'
@@ -354,9 +354,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       if (!internal && !google && !image && !text.trim() && !htmlHasText(html)) return
       e.preventDefault()
       // 구글 슬라이드: 도형·글·이미지를 같은 자리에 그대로
-      if (google) {
-        // 클립보드 내용은 이 순간에만 읽을 수 있어서, 읽는 부분은 objectsFromGoogle 첫머리에서 바로 처리합니다
-        objectsFromGoogle(data)
+      const pasteGoogle = (src: Pick<DataTransfer, 'types' | 'getData'>) =>
+        objectsFromGoogle(src)
           .then(async ({ objs, skipped, missingImages }) => {
             const left =
               (skipped ? ` 직접 그린 도형 등 ${skipped}개는 가져오지 못했어요.` : '') +
@@ -373,6 +372,9 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             })
           })
           .catch(() => setNotice({ text: '구글 슬라이드 내용을 읽지 못했어요. 이미지로 붙여넣으려면 캡처해서 붙여넣어 주세요.' }))
+      if (google) {
+        // 클립보드 내용은 이 순간에만 읽을 수 있어서, 읽는 부분은 objectsFromGoogle 첫머리에서 바로 처리합니다
+        pasteGoogle(data)
         return
       }
       if (internal) {
@@ -382,38 +384,49 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         const copies = latestArea.current ? fitIntoArea(shifted, latestArea.current) : shifted
         setObjects((objs) => [...objs, ...copies])
         setSelectedObjs(copies.map((o) => o.id))
-      } else if (image && slotTarget) {
-        // 이미지 자리를 고른 채 그림을 붙여넣으면 그 자리를 채웁니다
-        readImage(image).then((src) => fillSlot(slotTarget.id, src))
-      } else if (image && htmlHasText(html)) {
-        // PowerPoint·Keynote 처럼 그림과 서식 있는 글이 함께 오면: 고칠 수 있는 글(레이어)로 넣고, 그림으로 바꾸는 버튼을 줍니다
-        const textObjs = objectsFromHtml(html)
-        const asPicture = () =>
+        return
+      }
+      // 그림이 함께 오면: 구글 슬라이드가 도형 정보를 클립보드 안쪽에만 실어 보낸 경우가 있어 한 번 더 찾아보고,
+      // 있으면 도형·글 그대로, 없으면 아래(그림·글)로 붙여넣습니다
+      if (image && !slotTarget) readGoogleClipboard().then((g) => (g ? pasteGoogle(g) : pasteRest()))
+      else pasteRest()
+      function pasteRest() {
+        if (image && slotTarget) {
+          // 이미지 자리를 고른 채 그림을 붙여넣으면 그 자리를 채웁니다
+          readImage(image).then((src) => fillSlot(slotTarget.id, src))
+        } else if (image && htmlHasText(html)) {
+          // PowerPoint·Keynote 처럼 그림과 서식 있는 글이 함께 오면: 고칠 수 있는 글(레이어)로 넣고, 그림으로 바꾸는 버튼을 줍니다
+          const textObjs = objectsFromHtml(html)
+          const asPicture = () =>
+            readImage(image).then((src) => {
+              const img = new Image()
+              img.onload = () => {
+                setObjects((list) => list.filter((o) => !placed.some((p) => p.id === o.id)))
+                insert([newImage(src, img.naturalWidth, img.naturalHeight)])
+              }
+              img.src = src
+            })
+          let placed: FreeObj[] = []
+          insert(textObjs).then((objs) => {
+            placed = objs
+            setNotice({ text: '고칠 수 있는 글로 붙여넣었어요. 원본 모양 그대로가 필요하면 그림으로 바꾸세요.', action: { label: '그림으로 바꾸기', run: asPicture } })
+          })
+        } else if (image) {
           readImage(image).then((src) => {
             const img = new Image()
             img.onload = () => {
-              setObjects((list) => list.filter((o) => !placed.some((p) => p.id === o.id)))
               insert([newImage(src, img.naturalWidth, img.naturalHeight)])
+              setNotice({ text: '복사한 곳에서 그림으로만 보내 와서 그림으로 붙여넣었어요. 구글 슬라이드라면 슬라이드 안에서 요소를 골라(Ctrl+A) 복사해 주세요.' })
             }
             img.src = src
           })
-        let placed: FreeObj[] = []
-        insert(textObjs).then((objs) => {
-          placed = objs
-          setNotice({ text: '고칠 수 있는 글로 붙여넣었어요. 원본 모양 그대로가 필요하면 그림으로 바꾸세요.', action: { label: '그림으로 바꾸기', run: asPicture } })
-        })
-      } else if (image) {
-        readImage(image).then((src) => {
-          const img = new Image()
-          img.onload = () => insert([newImage(src, img.naturalWidth, img.naturalHeight)])
-          img.src = src
-        })
-      } else if (htmlHasText(html)) {
-        // 서식 있는 글(웹·문서·PowerPoint 글 상자): 굵게·크기·색·글머리·표를 살려서
-        insert(objectsFromHtml(html))
-      } else {
-        const lines = text.replace(/\r\n?/g, '\n').trim()
-        addObj(textHere({ text: lines, h: Math.min(400, 24 + lines.split('\n').length * 24) }))
+        } else if (htmlHasText(html)) {
+          // 서식 있는 글(웹·문서·PowerPoint 글 상자): 굵게·크기·색·글머리·표를 살려서
+          insert(objectsFromHtml(html))
+        } else {
+          const lines = text.replace(/\r\n?/g, '\n').trim()
+          addObj(textHere({ text: lines, h: Math.min(400, 24 + lines.split('\n').length * 24) }))
+        }
       }
     }
     const copy = (e: ClipboardEvent) => onCopy(e, false)

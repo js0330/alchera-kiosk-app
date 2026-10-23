@@ -235,6 +235,24 @@ export function hasGoogleShapes(data: Pick<DataTransfer, 'types'>) {
   return data.types.includes(GOOGLE_DRAWING_MIME)
 }
 
+// 구글 슬라이드가 도형 정보를 일반 붙여넣기에는 싣지 않고 클립보드 안쪽('web …' 형식)에만 둔 경우, 직접 읽어 옵니다.
+// 브라우저가 처음 한 번 '클립보드 보기 허용'을 물을 수 있습니다. 없거나 막히면 null.
+// 허용 창에 답이 없으면 붙여넣기가 멈추지 않도록 3초까지만 기다립니다.
+export async function readGoogleClipboard(): Promise<Pick<DataTransfer, 'types' | 'getData'> | null> {
+  try {
+    const items = await Promise.race([navigator.clipboard.read(), new Promise<null>((r) => setTimeout(() => r(null), 3000))])
+    for (const item of items ?? []) {
+      if (!item.types.includes(`web ${GOOGLE_DRAWING_MIME}`)) continue
+      const map = new Map<string, string>()
+      for (const t of item.types) if (t.startsWith('web ')) map.set(t.slice(4), await (await item.getType(t)).text())
+      return { types: [...map.keys()], getData: (t: string) => map.get(t) ?? '' }
+    }
+  } catch {
+    // 읽을 수 없으면 보통 붙여넣기로
+  }
+  return null
+}
+
 const unwrap = (raw: string) => {
   const outer = JSON.parse(raw)
   return typeof outer.data === 'string' ? JSON.parse(outer.data) : outer.data
