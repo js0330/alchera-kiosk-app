@@ -10,6 +10,8 @@ const C = BRAND.colors
 
 export const GOOGLE_DRAWING_MIME = 'application/x-vnd.google-docs-drawings-object+wrapped'
 const GOOGLE_IMAGE_MIME = 'application/x-vnd.google-docs-image-clip+wrapped'
+// 왼쪽 슬라이드 목록에서 슬라이드(페이지)째 복사했을 때
+const GOOGLE_PAGE_MIME = 'application/x-vnd.google-docs-drawings-page+wrapped'
 
 // ── 구글 슬라이드 ───────────────────────────────────────────────
 // 클립보드 좌표 단위 = 25 EMU. 구글 슬라이드 기본 너비 10in(9,144,000 EMU) 을 1280px 로 맞춥니다.
@@ -232,7 +234,62 @@ async function toDataUrl(url: string): Promise<string | null> {
 }
 
 export function hasGoogleShapes(data: Pick<DataTransfer, 'types'>) {
-  return data.types.includes(GOOGLE_DRAWING_MIME)
+  return data.types.includes(GOOGLE_DRAWING_MIME) || data.types.includes(GOOGLE_PAGE_MIME)
+}
+
+// 슬라이드째 복사한 내용은 색이 테마 번호([null, n])로, 제목·본문 자리의 위치·글꼴은 레이아웃·마스터에 있어
+// 요소만 복사했을 때와 같은 모양(색·크기가 정해진 명령 목록)으로 풀어 줍니다. 레이아웃·마스터의 장식과 발표자 노트는 뺍니다.
+type Cmd = unknown[]
+function resolvePage(d: { unresolvedCommands?: Cmd[]; masterCommands?: Cmd[] }): Cmd[] {
+  const slide = d.unresolvedCommands ?? []
+  const master = d.masterCommands ?? []
+  // 테마 색: 마스터 페이지 속성 0번 = [이름, [색 12개]] — [null, n] 은 n번째 색
+  let palette: string[] = []
+  for (const c of master) {
+    const t = c[0] === 12 ? props(c[4]).get(0) : null
+    if (Array.isArray(t) && Array.isArray(t[1])) palette = t[1] as string[]
+  }
+  const color = (v: unknown) => (Array.isArray(v) && v.length === 2 && v[0] === null && typeof v[1] === 'number' ? (palette[v[1] - 1] ?? v) : v)
+  const fix = (list: unknown) => (Array.isArray(list) ? list.map(color) : list)
+
+  // 이 슬라이드의 마스터·레이아웃
+  const page = slide.find((c) => c[0] === 12)
+  const pp = props(page?.[4])
+  const masterId = String(pp.get(1) ?? '')
+  const layoutId = master.find((c) => c[0] === 12 && props(c[4]).get(1) === masterId && props(c[4]).get(2) === pp.get(2))?.[1]
+  // 자리(placeholder) 찾기: 페이지 · 종류(54) · 번호(55). 가운데 제목(4)은 제목(15), 부제(13)는 본문(1)으로도 찾습니다
+  const holders = master.filter((c) => c[0] === 3 && props(c[4]).has(54))
+  const findHolder = (pageId: unknown, type: number, idx: number) => {
+    const types = type === 4 ? [4, 15] : type === 13 ? [13, 1] : [type]
+    for (const t of types)
+      for (const i of [idx, 0]) {
+        const h = holders.find((c) => c[5] === pageId && props(c[4]).get(54) === t && (props(c[4]).get(55) ?? 0) === i)
+        if (h) return h
+      }
+    return undefined
+  }
+  // 자리의 기본 글자 서식: 첫 단락(0에서 시작) 서식을 글 전체에
+  const baseStyles = (id: unknown) => master.filter((c) => c[0] === 17 && c[1] === id && c[3] === 0).map((c) => c[6] as unknown[])
+
+  const out: Cmd[] = []
+  for (const c of slide) {
+    if (typeof c[5] === 'string' && c[5].endsWith(':notes')) continue
+    if (c[0] === 3) {
+      const p = props(c[4])
+      if (!p.has(54)) {
+        out.push([c[0], c[1], c[2], c[3], fix(c[4]), ...c.slice(5)])
+        continue
+      }
+      const type = Number(p.get(54))
+      const idx = Number(p.get(55) ?? 0)
+      const chain = [findHolder(masterId, type, idx), findHolder(layoutId, type, idx)].filter(Boolean) as Cmd[]
+      const merged = [...chain.flatMap((h) => (h[4] as unknown[]) ?? []), ...((c[4] as unknown[]) ?? [])]
+      out.push([c[0], c[1], c[2], c[3], fix(merged), ...c.slice(5)])
+      for (const h of chain) for (const st of baseStyles(h[1])) out.push([17, c[1], null, 0, 1e9, [], fix(st)])
+    } else if (c[0] === 17) out.push([...c.slice(0, 6), fix(c[6]), ...c.slice(7)])
+    else out.push(c)
+  }
+  return out
 }
 
 // 구글 슬라이드가 도형 정보를 일반 붙여넣기에는 싣지 않고 클립보드 안쪽('web …' 형식)에만 둔 경우, 직접 읽어 옵니다.
@@ -242,7 +299,7 @@ export async function readGoogleClipboard(): Promise<Pick<DataTransfer, 'types' 
   try {
     const items = await Promise.race([navigator.clipboard.read(), new Promise<null>((r) => setTimeout(() => r(null), 3000))])
     for (const item of items ?? []) {
-      if (!item.types.includes(`web ${GOOGLE_DRAWING_MIME}`)) continue
+      if (!item.types.includes(`web ${GOOGLE_DRAWING_MIME}`) && !item.types.includes(`web ${GOOGLE_PAGE_MIME}`)) continue
       const map = new Map<string, string>()
       for (const t of item.types) if (t.startsWith('web ')) map.set(t.slice(4), await (await item.getType(t)).text())
       return { types: [...map.keys()], getData: (t: string) => map.get(t) ?? '' }
@@ -261,8 +318,9 @@ const unwrap = (raw: string) => {
 // 구글 슬라이드에서 복사한 도형 목록 → 자유 배치 요소.
 // 자유형(직접 그린) 도형과 지원하지 않는 도형(원호·파이 등)은 건너뛰고 개수만 알려 줍니다.
 export async function objectsFromGoogle(data: Pick<DataTransfer, 'types' | 'getData'>): Promise<{ objs: FreeObj[]; skipped: number; missingImages: number }> {
-  const inner = unwrap(data.getData(GOOGLE_DRAWING_MIME))
-  const cmds: unknown[][] = inner?.resolved ?? []
+  const objectClip = data.types.includes(GOOGLE_DRAWING_MIME)
+  const inner = unwrap(data.getData(objectClip ? GOOGLE_DRAWING_MIME : GOOGLE_PAGE_MIME))
+  const cmds: unknown[][] = (objectClip ? inner?.resolved : resolvePage(inner ?? {})) ?? []
   let imageUrls: Record<string, string> = {}
   try {
     imageUrls = unwrap(data.getData(GOOGLE_IMAGE_MIME))?.image_urls ?? {}

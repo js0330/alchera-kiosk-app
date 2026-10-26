@@ -416,7 +416,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
             const img = new Image()
             img.onload = () => {
               insert([newImage(src, img.naturalWidth, img.naturalHeight)])
-              setNotice({ text: '복사한 곳에서 그림으로만 보내 와서 그림으로 붙여넣었어요. 구글 슬라이드라면 슬라이드 안에서 요소를 골라(Ctrl+A) 복사해 주세요.' })
+              setNotice({ text: '복사한 곳에서 그림으로만 보내 와서 그림으로 붙여넣었어요. PowerPoint 슬라이드는 그림으로만 복사되니, 고칠 수 있게 넣으려면 ‘불러오기’로 .pptx 파일을 올려 주세요.' })
             }
             img.src = src
           })
