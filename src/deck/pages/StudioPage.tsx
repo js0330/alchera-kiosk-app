@@ -6,6 +6,7 @@ import {
   Copy,
   Download,
   FileJson,
+  FileText,
   LayoutTemplate,
   LibraryBig,
   LoaderCircle,
@@ -34,6 +35,7 @@ import LayoutPicker, { LayoutThumb } from '../components/LayoutPicker'
 import LibraryPanel from '../components/LibraryPanel'
 import ObjectPanel from '../components/ObjectPanel'
 import PresentMode from '../components/PresentMode'
+import PrintDeck from '../components/PrintDeck'
 import PreviewDialog from '../components/PreviewDialog'
 import SlideCanvas from '../components/SlideCanvas'
 import { SLIDE_H, SLIDE_W } from '../guide'
@@ -134,7 +136,9 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   const [presenting, setPresenting] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [checkOpen, setCheckOpen] = useState<false | 'pptx' | 'google'>(false)
+  const [checkOpen, setCheckOpen] = useState<false | 'pptx' | 'google' | 'pdf'>(false)
+  // PDF 저장: 누를 때마다 인쇄 화면을 새로 그립니다 (0 = 안 함)
+  const [printing, setPrinting] = useState(0)
   const [sending, setSending] = useState(false)
   // 오른쪽 패널: 레이아웃 · 요소 라이브러리 · 서식·점검(선택한 요소·가이드 체크·노트) — 이름은 PANEL_NAMES
   const [panel, setPanel] = useState<'layouts' | 'library' | 'settings' | null>('settings')
@@ -625,6 +629,12 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     setPanel('layouts')
   }
   const downloadPptx = () => (allIssues.length ? setCheckOpen('pptx') : runExport())
+  const runPdf = () => {
+    setCheckOpen(false)
+    setNotice({ text: '인쇄 창이 열리면 대상(프린터)을 ‘PDF로 저장’으로 고르고 [저장]을 누르세요.', ms: 8000 })
+    setPrinting((n) => n + 1)
+  }
+  const downloadPdf = () => (allIssues.length ? setCheckOpen('pdf') : runPdf())
   const sendGoogle = () => {
     loadGoogle().catch(() => undefined)
     if (allIssues.length) setCheckOpen('google')
@@ -709,6 +719,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
                   close={close}
                   items={[
                     { label: 'PPTX 파일로 다운로드', icon: <Download size={14} />, onClick: downloadPptx },
+                    { label: 'PDF로 저장', icon: <FileText size={14} />, onClick: downloadPdf },
                     { label: '구글 슬라이드로 보내기', icon: <Presentation size={14} />, onClick: sendGoogle },
                     { label: '편집 파일로 저장 (.deck.json)', icon: <FileJson size={14} />, onClick: exportJson, hint: '팀원과 주고받기' },
                     null,
@@ -767,6 +778,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
                 close={close}
                 items={[
                   { label: 'PPTX 파일로 다운로드', icon: <Download size={14} />, disabled: exporting, onClick: downloadPptx },
+                  { label: 'PDF로 저장', icon: <FileText size={14} />, onClick: downloadPdf, hint: '보기·공유용' },
                   { label: '구글 슬라이드로 보내기', icon: <Presentation size={14} />, disabled: sending, onClick: sendGoogle, hint: '내 드라이브' },
                   { label: '편집 파일 (.deck.json)', icon: <FileJson size={14} />, onClick: exportJson, hint: '팀원과 주고받기' },
                 ]}
@@ -1142,11 +1154,13 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         />
       )}
 
+      {printing > 0 && <PrintDeck key={printing} deck={deck} onDone={() => setPrinting(0)} />}
+
       {checkOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000038]/40 p-6" onClick={() => setCheckOpen(false)}>
           <div className="w-full max-w-[440px] rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-[17px] font-bold text-[#000038]">{checkOpen === 'google' ? '보내기' : '다운로드'} 전에 확인해 주세요</h2>
-            <p className="mt-1 text-[13px] text-[#7A8099]">빈 칸은 PPTX에서 빠지고, 긴 글은 영역을 넘칠 수 있어요.</p>
+            <p className="mt-1 text-[13px] text-[#7A8099]">빈 칸은 {checkOpen === 'pdf' ? 'PDF' : 'PPTX'}에서 빠지고, 긴 글은 영역을 넘칠 수 있어요.</p>
             <ul className="mt-4 max-h-[280px] space-y-2 overflow-y-auto">
               {allIssues.map(({ i, issues: list }) => (
                 <li key={i}>
@@ -1172,8 +1186,8 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
               <button type="button" className="deck-btn" onClick={() => setCheckOpen(false)}>
                 돌아가서 고치기
               </button>
-              <button type="button" className="deck-btn deck-btn-primary" onClick={checkOpen === 'google' ? sendToGoogle : runExport}>
-                {checkOpen === 'google' ? '그대로 보내기' : '그대로 다운로드'}
+              <button type="button" className="deck-btn deck-btn-primary" onClick={checkOpen === 'google' ? sendToGoogle : checkOpen === 'pdf' ? runPdf : runExport}>
+                {checkOpen === 'google' ? '그대로 보내기' : checkOpen === 'pdf' ? '그대로 PDF로 저장' : '그대로 다운로드'}
               </button>
             </div>
           </div>
