@@ -19,6 +19,7 @@ export const COLOR_NAMES: Record<string, string> = {
   [C.navy]: '네이비',
   [C.blue]: '알체라 블루',
   [C.pointBlue]: '포인트 블루 (어두운 바탕용)',
+  [C.brightBlue]: '브라이트 블루',
   [C.red]: '레드 (강조)',
   [C.gray]: '그레이',
   [C.crumb]: '연한 그레이',
@@ -26,7 +27,9 @@ export const COLOR_NAMES: Record<string, string> = {
   [C.imageFill]: '이미지 배경색',
   [C.line]: '테두리 회색',
 }
-export const GUIDE_FILLS = [C.white, C.imageFill, C.line, C.navy, C.blue] as const
+export const GUIDE_FILLS = [C.white, C.imageFill, C.line, C.navy, C.blue, C.brightBlue] as const
+// 이 채움 위의 글은 흰색
+export const DARK_FILLS: readonly string[] = [C.navy, C.blue, C.brightBlue]
 export const GUIDE_LINES = [C.line, C.crumb, C.gray, C.blue, C.navy, C.white] as const
 export const GUIDE_ICON_COLORS = [C.blue, C.navy, C.gray, C.crumb, C.white] as const
 
@@ -275,8 +278,9 @@ function guideTextColor(hex: string) {
 export function snapToGuide(obj: FreeObj): FreeObj {
   if (obj.kind === 'image') return obj
   if (obj.kind === 'line') return { ...obj, line: obj.line ? nearest(obj.line, GUIDE_LINES) : obj.line, lineWidth: Math.min(obj.lineWidth ?? 0.75, 1.5) }
-  const fill = obj.fill ? guideFill(obj.fill) : undefined
-  const darkBg = fill === C.navy || fill === C.blue
+  // 이미 가이드 채움색이면 그대로, 아니면 역할이 같은 가이드 색으로
+  const fill = obj.fill ? ((GUIDE_FILLS as readonly string[]).includes(obj.fill.toUpperCase()) ? obj.fill.toUpperCase() : guideFill(obj.fill)) : undefined
+  const darkBg = !!fill && DARK_FILLS.includes(fill)
   return {
     ...obj,
     fill,

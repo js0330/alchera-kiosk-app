@@ -21,6 +21,7 @@ export const BRAND = {
     gray: '#666666', // 안내문·이미지 안내 문구
     red: '#E53935', // 강조 (경고·핵심 수치)
     pointBlue: '#7B8CFF', // 네이비·블루 바탕 위 포인트 글자
+    brightBlue: '#3D5AFE', // 채움(박스·도형 바탕) 강조
     crumb: '#9CA3AF', // 상단 목차
     pageNum: '#BFBFBF', // 페이지 번호·마무리 연락처
     line: '#E7E6E6', // 라인형 패널 테두리

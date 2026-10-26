@@ -1,7 +1,7 @@
 import { ArrowDownToLine, ArrowUpToLine, Bold, Copy, Lock, TextAlignCenter, TextAlignEnd, TextAlignStart, Trash2, WandSparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { BRAND } from '../guide'
-import { GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINE_HEIGHTS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, COLOR_NAMES, hasRadius, isGuideSize, maxRadius } from '../freeObjects'
+import { DARK_FILLS, GUIDE_FILLS, GUIDE_ICON_COLORS, GUIDE_LINE_HEIGHTS, GUIDE_LINES, GUIDE_TEXT_COLORS, GUIDE_TEXT_SIZES, COLOR_NAMES, hasRadius, isGuideSize, maxRadius } from '../freeObjects'
 import { SHAPES } from '../shapes'
 import type { FreeObj, Geom, LineDash, LineEnd } from '../types'
 
@@ -231,7 +231,7 @@ export default function ObjectPanel({ objs, onPatch, onRemove, onDuplicate, onOr
           <Row label="채우기">
             <Swatch active={!s0.fill} onClick={() => onPatch({ fill: undefined })} />
             {GUIDE_FILLS.map((c) => (
-              <Swatch key={c} color={c} active={s0.fill === c} onClick={() => onPatch({ fill: c, ...(c === BRAND.colors.navy || c === BRAND.colors.blue ? { color: BRAND.colors.white } : {}) })} />
+              <Swatch key={c} color={c} active={s0.fill === c} onClick={() => onPatch({ fill: c, ...(DARK_FILLS.includes(c) ? { color: BRAND.colors.white } : {}) })} />
             ))}
           </Row>
           <Row label="테두리 색">
