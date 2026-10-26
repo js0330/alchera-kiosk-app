@@ -10,7 +10,9 @@ import {
   LibraryBig,
   LoaderCircle,
   MousePointer2,
+  Lock,
   LockOpen,
+  SlidersHorizontal,
   Eye,
   EyeOff,
   ImagePlus,
@@ -48,6 +50,9 @@ import { downloadBlob, safeFileName, type SaveState } from '../store'
 import type { Deck, FreeObj, LayoutId, Slide } from '../types'
 
 // 도구줄 버튼 모양
+// 오른쪽 패널 이름 — 여기 한 곳만 바꾸면 도구줄 · 패널 탭 · 메뉴에 모두 반영됩니다
+const PANEL_NAMES = { layouts: '레이아웃', library: '요소 라이브러리', settings: '서식·점검' } as const
+
 const MENU_BTN = 'rounded px-2 py-0.5 text-[13px] text-[#333A4D] hover:bg-[#F2F4FB]'
 const ICON_BTN = 'deck-btn deck-btn-ghost h-8 px-2'
 const SEP = 'mx-1.5 h-5 w-px flex-shrink-0 bg-[#D9DEEA]'
@@ -131,7 +136,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
   const [exporting, setExporting] = useState(false)
   const [checkOpen, setCheckOpen] = useState<false | 'pptx' | 'google'>(false)
   const [sending, setSending] = useState(false)
-  // 오른쪽 패널: 양식(레이아웃) · 샘플(요소 라이브러리) · 설정(선택한 요소·가이드 체크·노트)
+  // 오른쪽 패널: 레이아웃 · 요소 라이브러리 · 서식·점검(선택한 요소·가이드 체크·노트) — 이름은 PANEL_NAMES
   const [panel, setPanel] = useState<'layouts' | 'library' | 'settings' | null>('settings')
   const [layoutMode, setLayoutMode] = useState<'add' | 'change'>('add')
   const [dragFrom, setDragFrom] = useState<number | null>(null)
@@ -643,8 +648,22 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
     downloadBlob(new Blob([JSON.stringify(deck, null, 2)], { type: 'application/json' }), `${safeFileName(deck.title)}.deck.json`)
   }
 
-  // 슬라이드 도구 (슬라이드 메뉴 · 도구줄 [···] 에서 같이 씁니다)
+  // 잠그기 · 잠금 풀기 (도구줄 잠금 버튼 · 서식 패널 · [···] 메뉴가 같이 씁니다)
   const lockedCount = objects.filter((o) => o.locked).length
+  const lockSelected = () => {
+    const n = selectedObjs.length
+    setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? { ...o, locked: true } : o)))
+    setSelectedObjs([])
+    setEditingObj(null)
+    setNotice({ text: `${n}개 요소를 잠갔어요. 도구줄의 [잠금 풀기]로 다시 풀 수 있어요.`, undo })
+  }
+  const unlockAll = () => {
+    const ids = objects.filter((o) => o.locked).map((o) => o.id)
+    setObjects((objs) => objs.map((o) => (o.locked ? { ...o, locked: undefined } : o)))
+    setSelectedObjs(ids)
+  }
+
+  // 슬라이드 도구 (슬라이드 메뉴 · 도구줄 [···] 에서 같이 씁니다)
   const slideTools: (MenuItem | null)[] = [
     { label: showGuides ? '편집선 숨기기' : '편집선 보기', icon: showGuides ? <EyeOff size={14} /> : <Eye size={14} />, onClick: () => setShowGuides((v) => !v) },
     {
@@ -657,14 +676,10 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
       },
     },
     {
-      label: lockedCount ? `잠금 해제 (${lockedCount})` : '잠금 해제',
+      label: lockedCount ? `잠금 풀기 (${lockedCount}개)` : '잠금 풀기 (잠긴 요소 없음)',
       icon: <LockOpen size={14} />,
       disabled: !lockedCount,
-      onClick: () => {
-        const ids = objects.filter((o) => o.locked).map((o) => o.id)
-        setObjects((objs) => objs.map((o) => (o.locked ? { ...o, locked: undefined } : o)))
-        setSelectedObjs(ids)
-      },
+      onClick: unlockAll,
     },
   ]
 
@@ -729,7 +744,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
                   items={[
                     { label: '텍스트', icon: <Type size={14} />, onClick: () => addObj(textHere()) },
                     { label: '이미지', icon: <ImagePlus size={14} />, onClick: () => pickImage('__free__') },
-                    { label: '도형 · 선 · 아이콘 · 블록', icon: <LibraryBig size={14} />, hint: '샘플', onClick: () => setPanel('library') },
+                    { label: '도형 · 선 · 아이콘 · 블록', icon: <LibraryBig size={14} />, hint: PANEL_NAMES.library, onClick: () => setPanel('library') },
                     { label: '새 슬라이드', icon: <Plus size={14} />, onClick: () => openLayouts('add') },
                   ]}
                 />
@@ -761,7 +776,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         </div>
       </header>
 
-      {/* 도구줄: 되돌리기 · 선택 · 넣기 · 글자 서식 · 양식/샘플 패널 */}
+      {/* 도구줄: 되돌리기 · 선택 · 넣기 · 글자 서식 · 잠금 · 오른쪽 패널 */}
       <div className="flex h-11 flex-shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[#E0E5F0] bg-[#F6F7FB] px-3">
         <button type="button" className={ICON_BTN} disabled={!canUndo} onClick={undo} title="되돌리기 (Ctrl+Z)" aria-label="되돌리기">
           <Undo2 size={16} />
@@ -792,17 +807,38 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
         <LineMenu compact onPick={(k) => addObj(newLine(k))} />
         <span className={SEP} />
         <TextTools objs={selected} editing={!!editingObj} onPatch={patchSelected} />
+        <span className={SEP} />
+        {/* 잠금: 고른 요소가 있으면 잠그기, 없으면 잠긴 요소 모두 풀기 — 지금 상태를 글자로 보여 줍니다 */}
+        <button
+          type="button"
+          className={`deck-btn h-8 flex-shrink-0 px-2.5 ${
+            selected.length ? 'border-transparent bg-transparent hover:bg-[#EEF1FB]' : lockedCount ? 'border-[#F5D9A8] bg-[#FFF6E8] text-[#9A5B00] hover:bg-[#FFEFD6]' : 'border-transparent bg-transparent'
+          }`}
+          disabled={!selected.length && !lockedCount}
+          onClick={selected.length ? lockSelected : unlockAll}
+          title={
+            selected.length
+              ? '고른 요소를 잠가요. 잠긴 요소는 클릭·끌기·선택이 되지 않아요 (가이드 박스 고정용)'
+              : lockedCount
+                ? `이 슬라이드의 잠긴 요소 ${lockedCount}개를 모두 풀어요`
+                : '요소를 고르면 잠글 수 있어요'
+          }
+        >
+          {selected.length || !lockedCount ? <Lock size={15} /> : <LockOpen size={15} />}
+          {selected.length ? '잠그기' : lockedCount ? `잠금 풀기 ${lockedCount}` : '잠그기'}
+        </button>
         <div className="ml-auto flex items-center gap-1 pl-2">
           {(
             [
-              ['layouts', '양식', <LayoutTemplate key="l" size={15} />],
-              ['library', '샘플', <LibraryBig key="s" size={15} />],
+              ['layouts', PANEL_NAMES.layouts, <LayoutTemplate key="l" size={15} />],
+              ['library', PANEL_NAMES.library, <LibraryBig key="s" size={15} />],
+              ['settings', PANEL_NAMES.settings, <SlidersHorizontal key="t" size={15} />],
             ] as const
           ).map(([id, label, icon]) => (
             <button
               key={id}
               type="button"
-              className={`deck-btn h-8 px-2.5 ${panel === id ? 'border-[#C9D1F5] bg-[#E6EAFB] text-[#0000A5]' : 'border-transparent bg-transparent hover:bg-[#EEF1FB]'}`}
+              className={`deck-btn h-8 flex-shrink-0 whitespace-nowrap px-2.5 ${panel === id ? 'border-[#C9D1F5] bg-[#E6EAFB] text-[#0000A5]' : 'border-transparent bg-transparent hover:bg-[#EEF1FB]'}`}
               onClick={() => setPanel(panel === id ? null : id)}
             >
               {icon} {label}
@@ -898,22 +934,22 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
           </div>
         </main>
 
-        {/* 오른쪽 패널: 양식 · 샘플 · 설정 */}
+        {/* 오른쪽 패널: 레이아웃 · 요소 라이브러리 · 서식·점검 */}
         {panel && (
           <aside className="flex w-[300px] flex-shrink-0 flex-col border-l border-[#E0E5F0] bg-white">
             <div className="flex items-center gap-1 border-b border-[#EEF1F7] px-3 py-2">
               {(
                 [
-                  ['layouts', '양식'],
-                  ['library', '샘플'],
-                  ['settings', '설정'],
+                  ['layouts', PANEL_NAMES.layouts],
+                  ['library', PANEL_NAMES.library],
+                  ['settings', PANEL_NAMES.settings],
                 ] as const
               ).map(([id, label]) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setPanel(id)}
-                  className={`rounded-md px-2.5 py-1 text-[13px] font-semibold ${panel === id ? 'bg-[#E6EAFB] text-[#0000A5]' : 'text-[#7A8099] hover:text-[#000038]'}`}
+                  className={`whitespace-nowrap rounded-md px-2 py-1 text-[13px] font-semibold ${panel === id ? 'bg-[#E6EAFB] text-[#0000A5]' : 'text-[#7A8099] hover:text-[#000038]'}`}
                 >
                   {label}
                 </button>
@@ -943,7 +979,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
                   ))}
                 </div>
                 <p className="mb-2 mt-3 text-[11px] text-[#7A8099]">
-                  {layoutMode === 'add' ? '회사 양식으로 지금 장 다음에 새 슬라이드를 추가해요.' : `지금 장(${index + 1})의 양식을 바꿔요. 쓴 글은 그대로 남아요.`}
+                  {layoutMode === 'add' ? '고른 레이아웃으로 지금 장 다음에 새 슬라이드를 추가해요.' : `지금 장(${index + 1})의 레이아웃을 바꿔요. 쓴 글은 그대로 남아요.`}
                 </p>
                 <div className="grid grid-cols-2 gap-x-2.5 gap-y-3">
                   {VISIBLE_LAYOUTS.map((l) => (
@@ -1001,13 +1037,7 @@ export default function StudioPage({ deck, saveState, onChange: saveDeck, initia
                     onDuplicate={duplicateSelected}
                     onOrder={orderSelected}
                     onSnap={() => setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? snapToGuide(o) : o)))}
-                    onLock={() => {
-                      const n = selectedObjs.length
-                      setObjects((objs) => objs.map((o) => (selectedObjs.includes(o.id) ? { ...o, locked: true } : o)))
-                      setSelectedObjs([])
-                      setEditingObj(null)
-                      setNotice({ text: `${n}개 요소를 잠갔어요. 도구줄 오른쪽 [···]의 잠금 해제로 다시 풀 수 있어요.`, undo })
-                    }}
+                    onLock={lockSelected}
                   />
                 )}
                 <section className="border-b border-[#E0E5F0] p-4">
