@@ -76,7 +76,7 @@ interface LibraryPanelProps {
   // 지금 슬라이드가 '본문 · 자유 배치'인지, 아니면 바꾸기
   layoutIsFree: boolean
   onUseFree: () => void
-  // 오른쪽 패널 '샘플' 탭 안에 넣을 때: 머리줄·테두리 없이
+  // 오른쪽 패널 '요소 라이브러리' 탭 안에 넣을 때: 머리줄·테두리 없이
   embedded?: boolean
 }
 
@@ -130,7 +130,7 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onNumbe
   const [lockBoxes, setLockBoxes] = useState(false)
   const tabs: [Tab, string][] = [
     ['boxes', '가이드 박스'],
-    ['blocks', '블록'],
+    ['blocks', '구성 블록'],
     ['icons', '아이콘'],
     ['shapes', '도형·선'],
   ]
@@ -172,8 +172,9 @@ export default function LibraryPanel({ onClose, onShape, onLine, onIcon, onNumbe
               )}
               <label className="mt-2 flex cursor-pointer items-center gap-2 border-t border-[#E6EAF3] pt-2 text-[12px] text-[#333A4D]">
                 <input type="checkbox" checked={lockBoxes} onChange={(e) => setLockBoxes(e.target.checked)} className="accent-[#0000A5]" />
-                넣으면서 바로 잠그기
+                넣으면서 바로 잠그기 (움직이지 않게)
               </label>
+              <p className="mt-1 pl-5 text-[11px] text-[#7A8099]">나중에 잠그려면 박스를 고르고 도구줄의 [잠그기]를 누르세요.</p>
             </div>
             <ul className="space-y-3">
               {GUIDE_BOXES.map((b) => (
