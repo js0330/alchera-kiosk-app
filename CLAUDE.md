@@ -26,6 +26,9 @@
 
 ## 3. Deck Studio(`/deck`) 개발 규칙
 
+> **Deck Studio 는 새 저장소 `js0330/alchera-deck-studio` (https://alchera-deck-studio.vercel.app) 로 옮겼습니다.**
+> 앞으로 Deck Studio 작업은 그 저장소에서 합니다. 이 저장소의 `/deck` 은 문서를 옮길 수 있게 남겨 두고 새 주소 안내(`src/DeckMovedNotice.tsx`)만 띄웁니다.
+
 - 회사 PPT 가이드(ALCHERA_PPT_Template_ver.260507)가 기준입니다. 가이드와 다르게 만들지 않습니다.
   - 색·글꼴·로고·표지 배경: `src/deck/guide.ts` 한 곳에서만 정합니다.
   - 레이아웃 위치·크기: `src/deck/layouts.ts` (좌표는 가이드 원본에서 잰 값, 1280×720 = 10×5.625in).

@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react'
 import App from './App.tsx'
+import DeckMovedNotice from './DeckMovedNotice.tsx'
 
 // /deck 은 사내 프레젠테이션 스튜디오. 키오스크 번들과 분리해서 필요할 때만 불러옵니다.
 const DeckApp = lazy(() => import('./deck/DeckApp.tsx'))
@@ -11,6 +12,8 @@ export default function Root() {
   return (
     <Suspense fallback={null}>
       <DeckApp />
+      {/* 예전 주소: 새 주소(alchera-deck-studio) 안내 */}
+      {!deckOnly && <DeckMovedNotice />}
     </Suspense>
   )
 }
